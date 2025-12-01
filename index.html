@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Coletor de Beneficiados — Godoy Solutions</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Tesseract.js (OCR no navegador) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Coletor de Beneficiados</h1>
+      <p class="subtitle">Tire foto do documento → reconhecimento automático → envia para a planilha</p>
+    </header>
+
+    <section class="card">
+      <label class="file-label">
+        <input id="inputPhoto" type="file" accept="image/*" capture="environment">
+        <span class="file-btn">📷 Tirar Foto / Selecionar</span>
+      </label>
+
+      <div id="previewWrap" class="preview-wrap hidden">
+        <img id="preview" alt="Preview da foto">
+        <div class="controls">
+          <button id="btnRetake" class="btn ghost">Refazer</button>
+          <button id="btnProcess" class="btn primary">🔍 Processar & Enviar</button>
+        </div>
+      </div>
+
+      <div id="progress" class="progress hidden">
+        <div id="progressText">Iniciando...</div>
+        <progress id="progressBar" value="0" max="100"></progress>
+      </div>
+
+      <div id="results" class="results hidden">
+        <h3>Dados extraídos</h3>
+        <pre id="jsonOutput"></pre>
+
+        <div class="actions">
+          <button id="btnSendAgain" class="btn">Enviar novamente</button>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <small>Godoy Solutions in TECH — Promoção Social • App web</small>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
