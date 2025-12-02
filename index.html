@@ -1,81 +1,72 @@
-
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Social Coletor — Coletor de Dados via Imagem</title>
-
-  <!-- CSS atualizado -->
-  <link rel="stylesheet" href="style.css">
-
-  <!-- Tesseract.js (OCR no navegador) -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Coletor</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="container">
-    <header class="header">
-      <h1>📄 Social Coletor</h1>
-      <p class="subtitle">Coletor de dados via imagem — rápido, simples e automático</p>
-    </header>
 
-    <section class="card glass">
-      <!-- Botão de foto -->
-      <label class="file-label">
-        <input id="inputPhoto" type="file" accept="image/*">
-        <span class="file-btn">📷 Tirar Foto / Selecionar</span>
-      </label>
+<header class="topo">
+    <img src="logo.png" class="logo" alt="Logo SC">
+    <div>
+        <h2>📄 Social Coletor</h2>
+        <p>Coleta de dados via imagem — rápido, simples e automático</p>
+    </div>
+</header>
 
-      <!-- Preview da foto -->
-      <div id="previewWrap" class="preview-wrap hidden">
-        <img id="preview" alt="Preview da foto">
-        <div class="controls">
-          <button id="btnRetake" class="btn ghost">↺ Refazer</button>
-          <button id="btnProcess" class="btn primary">🔍 Processar</button>
-        </div>
-      </div>
+<main>
 
-      <!-- Formulário de edição dos dados extraídos -->
-      <div id="editForm" class="edit-form hidden">
+    <div class="card">
+        <button class="btn" id="btnUpload">📸 Tirar Foto / Selecionar</button>
+        <input type="file" id="inputFile" accept="image/*" capture="environment" hidden>
+
+        <img id="preview" class="preview" style="display:none;">
+
+        <progress id="progressBar" value="0" max="100"></progress>
+        <p id="progressText"></p>
+
         <h3>Revise os Dados</h3>
-        <label>Nome</label>
-        <input type="text" id="nome" placeholder="Nome do beneficiário">
 
-        <label>Benefício</label>
-        <input type="text" id="beneficio" placeholder="Benefício recebido">
+        <label>Nome do Beneficiário</label>
+        <input id="campo_nome">
+
+        <label>CPF</label>
+        <input id="campo_cpf">
+
+        <label>Produto</label>
+        <input id="campo_produto">
+
+        <label>Quantidade</label>
+        <input id="campo_qtd">
+
+        <label>Endereço</label>
+        <input id="campo_endereco">
 
         <label>Data</label>
-        <input type="text" id="data" placeholder="Data do documento">
+        <input id="campo_data">
+
+        <label>Nome do Atendente</label>
+        <input id="campo_atendente">
+
+        <label>Nº do Documento</label>
+        <input id="campo_numdoc">
 
         <label>Assinatura</label>
-        <input type="text" id="assinatura" placeholder="Assinatura">
+        <input id="campo_assinatura" placeholder="ok / não identificado">
 
-        <button id="btnEnviar" class="btn primary">Enviar para Planilha</button>
-      </div>
+        <button class="btn" id="btnEnviar">Enviar para Planilha</button>
+    </div>
 
-      <!-- Barra de progresso -->
-      <div id="progress" class="progress hidden glass">
-        <div id="progressText">Iniciando...</div>
-        <progress id="progressBar" value="0" max="100"></progress>
-      </div>
+</main>
 
-      <!-- Resultados -->
-      <div id="results" class="results hidden">
-        <h3>Dados extraídos</h3>
-        <pre id="jsonOutput"></pre>
+<footer>
+    © Social Coletor — Godoy Solutions in TECH
+</footer>
 
-        <div class="actions">
-          <button id="btnSendAgain" class="btn">📨 Enviar novamente</button>
-        </div>
-      </div>
-    </section>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="script.js"></script>
 
-    <footer>
-      <small>© Social Coletor — Godoy Solutions in TECH</small>
-    </footer>
-  </main>
-
-  <!-- App JavaScript -->
-  <script src="app.js"></script>
 </body>
 </html>
