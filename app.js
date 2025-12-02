@@ -1,12 +1,24 @@
 
-// app.js - Coletor de Beneficiados
-// ------------------------------------------------------------------
-// Lembrete: já coloquei a sua URL do Apps Script aqui (webhook)
-// Troque se quiser por outra.
-// ------------------------------------------------------------------
+/* app.js - Social Coletor
+   Comentários em português como se você mesmo tivesse escrito.
+   Funções:
+   - capturar imagem do input
+   - exibir preview
+   - executar OCR (tesseract.js)
+   - extrair campos com heurísticas
+   - permitir editar/confirmar
+   - enviar para o webhook (Apps Script)
+*/
 
+/* ==========================
+   CONFIGURAÇÃO
+   ========================== */
+/* URL do Apps Script (webhook) - mantenha a sua ou altere aqui */
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbx7kh79jJJut8eXLcwb7aOvYgfK0tTzilEbw58_43IEWGPYaPShU_A1hPUCFBXRQs36yg/exec";
 
+/* ==========================
+   ELEMENTOS DA PÁGINA
+   ========================== */
 const inputPhoto = document.getElementById("inputPhoto");
 const previewWrap = document.getElementById("previewWrap");
 const previewImg = document.getElementById("preview");
@@ -15,71 +27,88 @@ const btnProcess = document.getElementById("btnProcess");
 const progressEl = document.getElementById("progress");
 const progressText = document.getElementById("progressText");
 const progressBar = document.getElementById("progressBar");
+const editForm = document.getElementById("editForm");
 const results = document.getElementById("results");
 const jsonOutput = document.getElementById("jsonOutput");
+const btnEnviar = document.getElementById("btnEnviar");
 const btnSendAgain = document.getElementById("btnSendAgain");
+const btnCancelarEdicao = document.getElementById("btnCancelarEdicao");
 
-let currentBase64 = null;
-let lastPayload = null;
+let currentBase64 = null;   // guarda imagem atual em dataURL
+let lastPayload = null;     // guarda último payload pronto (para reenviar)
 
-// When user selects or takes a photo
+/* ==========================
+   EVENTOS: seleção da foto
+   ========================== */
 inputPhoto.addEventListener("change", async (ev) => {
+  // Pega o arquivo selecionado
   const file = ev.target.files && ev.target.files[0];
   if (!file) return;
-  // Show preview
+  // Mostra preview rápido (objeto URL)
   previewImg.src = URL.createObjectURL(file);
   previewWrap.classList.remove("hidden");
+  // Esconde formulário de edição e resultados anteriores
+  editForm.classList.add("hidden");
   results.classList.add("hidden");
+  // Converte arquivo para base64 (com pequena compressão)
   currentBase64 = await fileToBase64(file);
 });
 
-// Retake
+/* ==========================
+   EVENTO: refazer foto (cancelar)
+   ========================== */
 btnRetake.addEventListener("click", () => {
   inputPhoto.value = "";
   previewImg.src = "";
   previewWrap.classList.add("hidden");
-  currentBase64 = null;
+  editForm.classList.add("hidden");
   results.classList.add("hidden");
+  currentBase64 = null;
 });
 
-// Process and send
+/* ==========================
+   EVENTO: processar OCR
+   ========================== */
 btnProcess.addEventListener("click", async () => {
   if (!currentBase64) return alert("Selecione ou tire uma foto primeiro.");
 
-  // Show progress UI
+  // Mostrar barra de progresso
   progressEl.classList.remove("hidden");
   progressText.textContent = "Inicializando OCR (Tesseract)...";
   progressBar.value = 5;
 
   try {
-    // Run OCR with Tesseract
+    // Cria worker do Tesseract (padrão). Logger atualiza a barra.
     const worker = Tesseract.createWorker({
       logger: m => {
-        // map progress to progress bar
+        // Atualiza barra de progresso conforme status do Tesseract
         if (m.status && m.progress !== undefined) {
           const perc = Math.round(m.progress * 90) + 5;
           progressBar.value = perc;
-          progressText.textContent = `${capitalize(m.status)} — ${Math.round(m.progress * 100)}%`;
+          progressText.textContent = `${capitalize(m.status)} — ${Math.round(m.progress*100)}%`;
         }
       }
     });
 
+    // Carrega o worker e idioma português
     await worker.load();
     await worker.loadLanguage('por');
     await worker.initialize('por');
 
-    // Recognize
+    // Executa reconhecimento (recebe texto bruto)
     const { data: { text } } = await worker.recognize(currentBase64);
+
+    // Finaliza worker para liberar memória
     await worker.terminate();
 
     progressBar.value = 95;
     progressText.textContent = "Extraindo campos...";
 
-    // Extract fields with heuristics
+    // Heurísticas para extrair campos do texto OCR
     const extracted = extractFields(text);
 
-    // Prepare payload (include base64 image)
-    const payload = {
+    // Prepara payload inicial (usado pra reenviar se necessário)
+    lastPayload = {
       nome: extracted.nome || "",
       beneficio: extracted.beneficio || "",
       data: extracted.data || "",
@@ -88,80 +117,135 @@ btnProcess.addEventListener("click", async () => {
       telefone: extracted.telefone || "",
       cpf: extracted.cpf || "",
       textoCompleto: text,
-      foto: currentBase64 // Apps Script espera base64 data URL
+      foto: currentBase64
     };
 
-    lastPayload = payload;
+    // Mostrar formulário para revisão pelo usuário antes do envio
+    document.getElementById("nome").value = lastPayload.nome;
+    document.getElementById("beneficio").value = lastPayload.beneficio;
+    document.getElementById("data").value = lastPayload.data;
+    document.getElementById("assinatura").value = lastPayload.assinatura;
 
-    progressBar.value = 98;
+    // Exibir formulário de edição e esconder preview/progresso
+    editForm.classList.remove("hidden");
+    previewWrap.classList.add("hidden");
+    progressEl.classList.add("hidden");
+
+  } catch (err) {
+    progressEl.classList.add("hidden");
+    console.error("Erro no OCR:", err);
+    alert("Ocorreu um erro no OCR: " + (err.message || err));
+  }
+});
+
+/* ==========================
+   EVENTO: Cancelar edição
+   ========================== */
+btnCancelarEdicao.addEventListener("click", () => {
+  // volta para preview (permite refazer)
+  editForm.classList.add("hidden");
+  previewWrap.classList.remove("hidden");
+});
+
+/* ==========================
+   EVENTO: Enviar (após revisão)
+   ========================== */
+btnEnviar.addEventListener("click", async () => {
+  // Monta payload final com os campos revisados pelo usuário
+  const payload = {
+    nome: document.getElementById("nome").value.trim(),
+    beneficio: document.getElementById("beneficio").value.trim(),
+    data: document.getElementById("data").value.trim(),
+    assinatura: document.getElementById("assinatura").value.trim(),
+    textoCompleto: lastPayload ? lastPayload.textoCompleto : "",
+    foto: lastPayload ? lastPayload.foto : currentBase64
+  };
+
+  try {
+    progressEl.classList.remove("hidden");
     progressText.textContent = "Enviando para a planilha...";
+    progressBar.value = 75;
 
-    // Post to webhook (Apps Script)
+    // POST para o Apps Script (webhook)
     const res = await fetch(WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
 
+    // Atualiza UI
     progressBar.value = 100;
     progressText.textContent = "Concluído";
-
-    // Show results to user
-    jsonOutput.textContent = JSON.stringify(payload, null, 2);
+    editForm.classList.add("hidden");
     results.classList.remove("hidden");
-    progressEl.classList.add("hidden");
-    alert("Enviado com sucesso para a planilha!");
+    jsonOutput.textContent = JSON.stringify(payload, null, 2);
 
-  } catch (err) {
+    // Atualiza lastPayload para possível reenvio
+    lastPayload = payload;
+    alert("Dados enviados com sucesso!");
+
+  } catch (e) {
     progressEl.classList.add("hidden");
-    console.error(err);
-    alert("Ocorreu um erro: " + (err.message || err));
+    console.error("Erro no envio:", e);
+    alert("Erro ao enviar: " + (e.message || e));
   }
 });
 
-// allow re-send same payload quickly
+/* ==========================
+   EVENTO: Reenviar último payload
+   ========================== */
 btnSendAgain.addEventListener("click", async () => {
   if (!lastPayload) return alert("Nenhum envio anterior encontrado.");
   try {
+    progressEl.classList.remove("hidden");
+    progressText.textContent = "Reenviando dados...";
+    progressBar.value = 70;
+
     await fetch(WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(lastPayload)
     });
+
+    progressBar.value = 100;
+    progressText.textContent = "Reenviado com sucesso!";
     alert("Reenviado com sucesso!");
   } catch (e) {
-    alert("Erro ao reenviar: " + e.message);
+    progressEl.classList.add("hidden");
+    console.error("Erro reenviando:", e);
+    alert("Erro ao reenviar: " + (e.message || e));
   }
 });
 
-/* -------------------------
-   Helpers
-   ------------------------- */
+/* ==========================
+   FUNÇÕES AUXILIARES
+   ========================== */
 
+/**
+ * fileToBase64(file)
+ * - Converte File para dataURL (base64)
+ * - Redimensiona se imagem for muito grande (para reduzir upload)
+ * - Retorna dataURL (JPEG 0.8)
+ */
 function fileToBase64(file) {
-  // Small compression step: convert to canvas and export JPEG with quality 0.8
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = reject;
     reader.onload = () => {
       const img = new Image();
       img.onload = () => {
-        // draw on canvas, resize if very large
+        // redimensionamento máximo (manter performance)
         const maxDim = 1600;
         let w = img.width, h = img.height;
         if (w > maxDim || h > maxDim) {
           const ratio = w / h;
-          if (w > h) {
-            w = maxDim; h = Math.round(maxDim / ratio);
-          } else {
-            h = maxDim; w = Math.round(maxDim * ratio);
-          }
+          if (w > h) { w = maxDim; h = Math.round(maxDim / ratio); }
+          else { h = maxDim; w = Math.round(maxDim * ratio); }
         }
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
-        // export as JPEG data URL (80% quality)
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
         resolve(dataUrl);
       };
@@ -172,14 +256,18 @@ function fileToBase64(file) {
   });
 }
 
+/**
+ * extractFields(text)
+ * - Recebe texto bruto do OCR e tenta extrair:
+ *   nome, beneficio, data, assinatura, telefone, cpf
+ * - Usa regex e heurísticas simples
+ */
 function extractFields(text) {
-  // normalize
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   const joined = lines.join("\n");
 
-  // simple regex patterns
   const patterns = {
-    nome: /\bNome[:\-\s]*([A-ZÀ-Ÿ][A-Za-zÀ-ÿ'`.\s-]{1,80})/i,
+    nome: /\bNome[:\-\s]*([A-ZÀ-Ÿ][A-Za-zÀ-ÿ'`.\s-]{1,120})/i,
     beneficio: /\b(Benef[ií]cio|Beneficio)[:\-\s]*([^\n]+)/i,
     data: /\b(Data|Dt\.?)[:\-\s]*([0-3]?\d[\/\.\-][01]?\d[\/\.\-]\d{2,4})/i,
     assinatura: /\b(Assinatura|Ass\.?)[:\-\s]*([^\n]+)/i,
@@ -188,8 +276,6 @@ function extractFields(text) {
   };
 
   const result = {};
-
-  // Try patterns
   try {
     const mNome = joined.match(patterns.nome) || lines.find(l => l.match(/^[A-ZÀ-Ÿ][a-zà-ÿ]+(\s[A-ZÀ-Ÿ][a-zà-ÿ]+)+$/));
     if (mNome) result.nome = (mNome[1] || mNome).trim();
@@ -209,12 +295,11 @@ function extractFields(text) {
     const mCpf = joined.match(patterns.cpf);
     if (mCpf) result.cpf = mCpf[1].trim();
 
-    // fallback: try to guess name from first lines (common)
+    // fallback: tenta adivinhar nome nas primeiras linhas
     if (!result.nome) {
-      for (let i=0;i<Math.min(lines.length,6);i++){
+      for (let i = 0; i < Math.min(lines.length, 6); i++) {
         const l = lines[i];
-        if (l.split(' ').length >=2 && /[A-ZÀ-Ÿ]/.test(l[0])) {
-          // ignore lines that contain words "Benefício" etc.
+        if (l.split(' ').length >= 2 && /[A-ZÀ-Ÿ]/.test(l[0])) {
           if (!/benefic|data|assinatura|endereço|telefone|cpf|rg/i.test(l)) {
             result.nome = l;
             break;
@@ -222,17 +307,16 @@ function extractFields(text) {
         }
       }
     }
-
   } catch (e) {
     console.warn("Erro na extração heurística:", e);
   }
 
-  // attach raw text & lines
   result._lines = lines;
   return result;
 }
 
-function capitalize(s){
-  if(!s) return "";
+/* Capitaliza a primeira letra de uma string (helper) */
+function capitalize(s) {
+  if (!s) return "";
   return s[0].toUpperCase() + s.slice(1);
 }
