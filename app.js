@@ -77,32 +77,32 @@ btnProcess.addEventListener("click", async () => {
   progressText.textContent = "Inicializando OCR (Tesseract)...";
   progressBar.value = 5;
 
-  try {
-    // Cria worker do Tesseract (padrão). Logger atualiza a barra.
-    const worker = Tesseract.createWorker({
-      logger: m => {
-        // Atualiza barra de progresso conforme status do Tesseract
-        if (m.status && m.progress !== undefined) {
-          const perc = Math.round(m.progress * 90) + 5;
-          progressBar.value = perc;
-          progressText.textContent = `${capitalize(m.status)} — ${Math.round(m.progress*100)}%`;
+try {
+    // Barra de progresso começa
+    progressBar.value = 5;
+    progressText.textContent = "Iniciando OCR...";
+
+    // Executa OCR diretamente (v5 não usa worker)
+    const { data: { text } } = await Tesseract.recognize(
+        currentBase64,
+        'por',
+        {
+            logger: m => {
+                if (m.status === 'recognizing text' && m.progress !== undefined) {
+                    const perc = Math.round(m.progress * 90) + 5;
+                    progressBar.value = perc;
+                    progressText.textContent = `Reconhecendo — ${Math.round(m.progress * 100)}%`;
+                }
+            }
         }
-      }
-    });
+    );
 
-    // Carrega o worker e idioma português
-    await worker.load();
-    await worker.loadLanguage('por');
-    await worker.initialize('por');
+    // Atualiza UI ao terminar
+    progressBar.value = 100;
+    progressText.textContent = "OCR concluído!";
 
-    // Executa reconhecimento (recebe texto bruto)
-    const { data: { text } } = await worker.recognize(currentBase64);
 
-    // Finaliza worker para liberar memória
-    await worker.terminate();
 
-    progressBar.value = 95;
-    progressText.textContent = "Extraindo campos...";
 
     // Heurísticas para extrair campos do texto OCR
     const extracted = extractFields(text);
