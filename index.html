@@ -3,70 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Social Coletor</title>
+    <title>Social Coletor - Coletor de Dados via Imagem</title>
+    
+    <!-- Meta tags PWA -->
+    <meta name="theme-color" content="#1a237e">
+    <meta name="description" content="Aplicativo para coleta de dados via OCR de documentos sociais">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Ícones -->
+    <link rel="icon" href="logo.png" type="image/png">
+    <link rel="apple-touch-icon" href="logo.png">
+    
+    <!-- CSS -->
     <link rel="stylesheet" href="style.css">
+    
+    <!-- Tesseract.js -->
+    <script src="https://unpkg.com/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
 </head>
 <body>
+    <div class="container">
+        <!-- Cabeçalho com Logo -->
+        <header class="header">
+            <div class="logo-container">
+                <img src="logo.png" alt="Social Coletor Logo" class="logo">
+                <h1>Social Coletor</h1>
+                <p class="subtitle">Coletor de dados via imagem</p>
+            </div>
+        </header>
 
-<header class="topo">
-    <img src="logo.png" class="logo" alt="Logo SC">
-    <div>
-        <h2>📄 Social Coletor</h2>
-        <p>Coleta de dados via imagem — rápido, simples e automático</p>
+        <!-- Card Principal -->
+        <main class="main-card">
+            <!-- Seção de Captura de Imagem -->
+            <section class="capture-section">
+                <h2>📷 Capturar Documento</h2>
+                <p class="section-description">
+                    Tire uma foto ou selecione uma imagem da galeria. O sistema extrairá automaticamente os dados usando OCR.
+                </p>
+                
+                <div class="image-controls">
+                    <button id="captureBtn" class="btn btn-primary">
+                        📸 Tirar Foto
+                    </button>
+                    <button id="uploadBtn" class="btn btn-secondary">
+                        📁 Escolher da Galeria
+                    </button>
+                    <input type="file" id="fileInput" accept="image/*" capture="environment" hidden>
+                </div>
+
+                <!-- Preview da Imagem -->
+                <div class="image-preview-container">
+                    <div class="image-placeholder" id="imagePlaceholder">
+                        <span>📄 Preview da imagem aparecerá aqui</span>
+                    </div>
+                    <canvas id="imageCanvas" class="image-canvas" hidden></canvas>
+                    <img id="imagePreview" class="image-preview" alt="Preview da imagem capturada" hidden>
+                </div>
+
+                <!-- Barra de Progresso OCR -->
+                <div class="progress-container" id="progressContainer" hidden>
+                    <div class="progress-label" id="progressLabel">Processando OCR: 0%</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Seção do Formulário -->
+            <section class="form-section">
+                <h2>📋 Dados Extraídos</h2>
+                <p class="section-description">
+                    Confira e edite os dados extraídos automaticamente do documento.
+                </p>
+
+                <form id="dataForm" class="data-form">
+                    <div class="form-grid">
+                        <!-- Linha 1 -->
+                        <div class="form-group">
+                            <label for="beneficiario">Nome do Beneficiário *</label>
+                            <input type="text" id="beneficiario" name="beneficiario" required 
+                                   placeholder="Nome completo do beneficiário">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cpf">CPF *</label>
+                            <input type="text" id="cpf" name="cpf" required 
+                                   placeholder="000.000.000-00" maxlength="14">
+                        </div>
+
+                        <!-- Linha 2 -->
+                        <div class="form-group">
+                            <label for="atendente">Nome do Atendente *</label>
+                            <input type="text" id="atendente" name="atendente" required 
+                                   placeholder="Nome do atendente">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="produto">Produto *</label>
+                            <input type="text" id="produto" name="produto" required 
+                                   placeholder="Produto fornecido">
+                        </div>
+
+                        <!-- Linha 3 -->
+                        <div class="form-group">
+                            <label for="quantidade">Quantidade *</label>
+                            <input type="number" id="quantidade" name="quantidade" required 
+                                   placeholder="Quantidade" step="0.01" min="0">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="data">Data *</label>
+                            <input type="date" id="data" name="data" required>
+                        </div>
+
+                        <!-- Linha 4 - Endereço (largura completa) -->
+                        <div class="form-group full-width">
+                            <label for="endereco">Endereço *</label>
+                            <textarea id="endereco" name="endereco" required 
+                                      placeholder="Endereço completo" rows="3"></textarea>
+                        </div>
+
+                        <!-- Linha 5 -->
+                        <div class="form-group">
+                            <label for="assinatura">Assinatura</label>
+                            <input type="text" id="assinatura" name="assinatura" 
+                                   placeholder="OK (preenchido automaticamente)">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="numeroDocumento">Número do Documento *</label>
+                            <input type="text" id="numeroDocumento" name="numeroDocumento" required 
+                                   placeholder="000000/0000">
+                        </div>
+                    </div>
+
+                    <!-- Botões de Ação -->
+                    <div class="form-actions">
+                        <button type="button" id="clearBtn" class="btn btn-outline">
+                            🗑️ Limpar Tudo
+                        </button>
+                        <button type="submit" id="submitBtn" class="btn btn-success" disabled>
+                            📤 Enviar para Planilha
+                        </button>
+                    </div>
+                </form>
+            </section>
+        </main>
+
+        <!-- Rodapé -->
+        <footer class="footer">
+            <p>Social Coletor v1.0 • PWA • OCR com Tesseract.js • Google Sheets Integration</p>
+            <p class="hint">📱 Instale este aplicativo para uso offline!</p>
+        </footer>
     </div>
-</header>
 
-<main>
-
-    <div class="card">
-        <button class="btn" id="btnUpload">📸 Tirar Foto / Selecionar</button>
-        <input type="file" id="inputFile" accept="image/*" capture="environment" hidden>
-
-        <img id="preview" class="preview" style="display:none;">
-
-        <progress id="progressBar" value="0" max="100"></progress>
-        <p id="progressText"></p>
-
-        <h3>Revise os Dados</h3>
-
-        <label>Nome do Beneficiário</label>
-        <input id="campo_nome">
-
-        <label>CPF</label>
-        <input id="campo_cpf">
-
-        <label>Produto</label>
-        <input id="campo_produto">
-
-        <label>Quantidade</label>
-        <input id="campo_qtd">
-
-        <label>Endereço</label>
-        <input id="campo_endereco">
-
-        <label>Data</label>
-        <input id="campo_data">
-
-        <label>Nome do Atendente</label>
-        <input id="campo_atendente">
-
-        <label>Nº do Documento</label>
-        <input id="campo_numdoc">
-
-        <label>Assinatura</label>
-        <input id="campo_assinatura" placeholder="ok / não identificado">
-
-        <button class="btn" id="btnEnviar">Enviar para Planilha</button>
+    <!-- Modal de Status -->
+    <div id="statusModal" class="modal" hidden>
+        <div class="modal-content">
+            <h3 id="modalTitle">Processando...</h3>
+            <p id="modalMessage">Por favor, aguarde.</p>
+            <div class="modal-spinner" id="modalSpinner"></div>
+            <button id="modalCloseBtn" class="btn btn-primary" hidden>OK</button>
+        </div>
     </div>
 
-</main>
-
-<footer>
-    © Social Coletor — Godoy Solutions in TECH
-</footer>
-
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="script.js"></script>
-
+    <!-- Scripts -->
+    <script src="script.js"></script>
+    <script src="send.js"></script>
+    
+    <!-- Registro do Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('Service Worker registrado com sucesso:', registration);
+                    })
+                    .catch(error => {
+                        console.log('Falha ao registrar Service Worker:', error);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
