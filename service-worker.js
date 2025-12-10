@@ -1,4 +1,4 @@
-const CACHE_NAME = 'social-coletor-v2.0';
+const CACHE_NAME = 'social-coletor-v1.1';
 
 const CACHE_ASSETS = [
   '/',
@@ -10,7 +10,7 @@ const CACHE_ASSETS = [
 ];
 
 const IGNORE_LIST = [
-  "logo.png",
+ 
   "favicon",
   "fonts.googleapis.com",
   "fonts.gstatic.com",
