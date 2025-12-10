@@ -7,41 +7,10 @@
 // VARIÁVEIS GLOBAIS
 // ============================================
 
-// Elementos DOM
-document.addEventListener("DOMContentLoaded", initializeApp);
-const elements = {
-    captureBtn: document.getElementById('captureBtn'),
-    uploadBtn: document.getElementById('uploadBtn'),
-    fileInput: document.getElementById('fileInput'),
-    imagePlaceholder: document.getElementById('imagePlaceholder'),
-    imagePreview: document.getElementById('imagePreview'),
-    progressContainer: document.getElementById('progressContainer'),
-    progressLabel: document.getElementById('progressLabel'),
-    progressFill: document.getElementById('progressFill'),
-    dataForm: document.getElementById('dataForm'),
-    clearBtn: document.getElementById('clearBtn'),
-    submitBtn: document.getElementById('submitBtn'),
-    modal: document.getElementById('statusModal'),
-    modalTitle: document.getElementById('modalTitle'),
-    modalMessage: document.getElementById('modalMessage'),
-    modalSpinner: document.getElementById('modalSpinner'),
-    modalCloseBtn: document.getElementById('modalCloseBtn')
-};
+// DOM só pode ser acessado APÓS carregar completamente
+let elements = {};
+let formFields = {};
 
-// Campos do formulário
-const formFields = {
-    beneficiario: document.getElementById('beneficiario'),
-    cpf: document.getElementById('cpf'),
-    atendente: document.getElementById('atendente'),
-    produto: document.getElementById('produto'),
-    quantidade: document.getElementById('quantidade'),
-    endereco: document.getElementById('endereco'),
-    data: document.getElementById('data'),
-    assinatura: document.getElementById('assinatura'),
-    numeroDocumento: document.getElementById('numeroDocumento')
-};
-
-// Estado
 let currentImageData = null;
 let tesseractWorker = null;
 let isProcessing = false;
@@ -51,19 +20,10 @@ let isProcessing = false;
 // ============================================
 
 const regexPatterns = {
-    // CPF: 000.000.000-00 ou 00000000000
     cpf: /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b|\b\d{11}\b/,
-    
-    // Número do documento: 000000/0000
     numeroDocumento: /\b\d{6,7}\/\d{4}\b/,
-    
-    // Data: dd/mm/aaaa ou dd-mm-aaaa
     data: /\b(0[1-9]|[12][0-9]|3[01])[\/\-](0[1-9]|1[0-2])[\/\-]\d{4}\b/,
-    
-    // Quantidade: números decimais ou inteiros
     quantidade: /\b\d+(?:[.,]\d+)?\b/,
-    
-    // Assinatura: detecta traços ou riscos
     assinatura: /([-_~]{3,}|[xX]{3,}|assinado|assinatura)/i
 };
 
@@ -71,194 +31,184 @@ const regexPatterns = {
 // INICIALIZAÇÃO
 // ============================================
 
-/**
- * Inicializa o aplicativo
- */
+document.addEventListener("DOMContentLoaded", () => {
+    console.log('🚀 DOM carregado, inicializando app...');
+
+    // Garantir que Tesseract carregou
+    if (typeof Tesseract === 'undefined') {
+        console.error('❌ Tesseract não carregado!');
+        showModal('Erro', 'Biblioteca OCR não carregada. Recarregue a página.', false);
+        return;
+    }
+
+    setupElements();
+    initializeApp();
+});
+
+function setupElements() {
+    elements = {
+        captureBtn: document.getElementById('captureBtn'),
+        uploadBtn: document.getElementById('uploadBtn'),
+        fileInput: document.getElementById('fileInput'),
+        imagePlaceholder: document.getElementById('imagePlaceholder'),
+        imagePreview: document.getElementById('imagePreview'),
+        progressContainer: document.getElementById('progressContainer'),
+        progressLabel: document.getElementById('progressLabel'),
+        progressFill: document.getElementById('progressFill'),
+        dataForm: document.getElementById('dataForm'),
+        clearBtn: document.getElementById('clearBtn'),
+        submitBtn: document.getElementById('submitBtn'),
+        modal: document.getElementById('statusModal'),
+        modalTitle: document.getElementById('modalTitle'),
+        modalMessage: document.getElementById('modalMessage'),
+        modalSpinner: document.getElementById('modalSpinner'),
+        modalCloseBtn: document.getElementById('modalCloseBtn')
+    };
+
+    formFields = {
+        beneficiario: document.getElementById('beneficiario'),
+        cpf: document.getElementById('cpf'),
+        atendente: document.getElementById('atendente'),
+        produto: document.getElementById('produto'),
+        quantidade: document.getElementById('quantidade'),
+        endereco: document.getElementById('endereco'),
+        data: document.getElementById('data'),
+        assinatura: document.getElementById('assinatura'),
+        numeroDocumento: document.getElementById('numeroDocumento')
+    };
+}
+
 function initializeApp() {
-    console.log('🚀 Inicializando Social Coletor...');
-    
-    // Verificar elementos críticos
-    if (!elements.captureBtn || !elements.uploadBtn || !elements.fileInput) {
-        console.error('❌ Elementos críticos não encontrados!');
-        return;
-    }
-    
-    // Configurar data atual
-    if (formFields.data) {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        formFields.data.value = `${year}-${month}-${day}`;
-    }
-    
-    // Configurar event listeners
+    console.log('🛠 Inicializando Social Coletor...');
+
     setupEventListeners();
-    
-    console.log('✅ Aplicativo inicializado!');
+    setupDefaultDate();
+    validateForm();
+
+    console.log('✅ Aplicativo pronto!');
 }
 
-/**
- * Configura todos os event listeners
- */
+// ============================================
+// EVENTOS
+// ============================================
+
 function setupEventListeners() {
-    // Captura de imagem
-    elements.captureBtn.addEventListener('click', function() {
-        elements.fileInput.setAttribute('capture', 'environment');
-        elements.fileInput.click();
-    });
-    
-    elements.uploadBtn.addEventListener('click', function() {
-        elements.fileInput.removeAttribute('capture');
-        elements.fileInput.click();
-    });
-    
-    elements.fileInput.addEventListener('change', handleImageSelection);
-    
-    // Formulário
-    if (elements.clearBtn) {
+    if (elements.captureBtn)
+        elements.captureBtn.addEventListener('click', () => {
+            elements.fileInput.setAttribute('capture', 'environment');
+            elements.fileInput.click();
+        });
+
+    if (elements.uploadBtn)
+        elements.uploadBtn.addEventListener('click', () => {
+            elements.fileInput.removeAttribute('capture');
+            elements.fileInput.click();
+        });
+
+    if (elements.fileInput)
+        elements.fileInput.addEventListener('change', handleImageSelection);
+
+    if (elements.clearBtn)
         elements.clearBtn.addEventListener('click', clearForm);
-    }
-    
-    if (elements.dataForm) {
+
+    if (elements.dataForm)
         elements.dataForm.addEventListener('submit', handleFormSubmit);
-    }
-    
-    if (elements.modalCloseBtn) {
+
+    if (elements.modalCloseBtn)
         elements.modalCloseBtn.addEventListener('click', hideModal);
-    }
-    
-    // Validação do formulário
-    Object.values(formFields).forEach(field => {
-        if (field && field !== formFields.assinatura) {
-            field.addEventListener('input', validateForm);
-        }
+
+    // Validação em tempo real
+    Object.values(formFields).forEach(f => {
+        if (f && f !== formFields.assinatura)
+            f.addEventListener('input', validateForm);
     });
 }
 
+function setupDefaultDate() {
+    if (!formFields.data) return;
+
+    const today = new Date();
+    formFields.data.value = today.toISOString().slice(0, 10);
+}
+
 // ============================================
-// MANIPULAÇÃO DE IMAGENS
+// IMAGEM
 // ============================================
 
-/**
- * Processa a imagem selecionada
- */
 function handleImageSelection(event) {
-    const file = event.target.files[0];
+    const file = event.target.files?.[0];
     if (!file) return;
-    
-    // Verificar se é imagem
-    if (!file.type.match('image.*')) {
-        showModal('Erro', 'Por favor, selecione um arquivo de imagem (JPEG ou PNG).');
+
+    if (!file.type.includes('image')) {
+        showModal('Erro', 'Selecione apenas imagens JPG ou PNG.');
         return;
     }
-    
+
     showModal('Processando', 'Carregando imagem...');
-    
+
     const reader = new FileReader();
-    
-    reader.onload = function(e) {
+    reader.onload = e => {
+        showImagePreview(e.target.result);
+
         const img = new Image();
-        
-        img.onload = function() {
-            // Mostrar preview
-            showImagePreview(e.target.result);
-            
-            // Processar OCR
-            processImageWithOCR(this);
-        };
-        
-        img.onerror = function() {
-            showModal('Erro', 'Erro ao carregar a imagem.');
-        };
-        
+        img.onload = () => processImageWithOCR(img);
         img.src = e.target.result;
     };
-    
-    reader.onerror = function() {
-        showModal('Erro', 'Falha ao ler o arquivo.');
-    };
-    
+
     reader.readAsDataURL(file);
+
     elements.fileInput.value = '';
 }
 
-/**
- * Exibe preview da imagem
- */
 function showImagePreview(dataURL) {
-    if (elements.imagePlaceholder) {
-        elements.imagePlaceholder.style.display = 'none';
-    }
-    
+    if (elements.imagePlaceholder) elements.imagePlaceholder.style.display = 'none';
     if (elements.imagePreview) {
         elements.imagePreview.src = dataURL;
         elements.imagePreview.style.display = 'block';
     }
-    
+
     currentImageData = dataURL;
 }
 
 // ============================================
-// PROCESSAMENTO OCR
+// OCR
 // ============================================
 
-/**
- * Processa imagem com OCR
- */
 async function processImageWithOCR(imageElement) {
-    if (isProcessing) {
-        console.log('⚠️ Já processando...');
-        return;
-    }
-    
+    if (isProcessing) return;
+
     isProcessing = true;
     showProgressBar();
-    
+
     try {
-        console.log('🔍 Iniciando OCR...');
-        
-        // Criar worker do Tesseract
         tesseractWorker = await Tesseract.createWorker({
             logger: updateProgress
         });
-        
-        // Carregar idioma português
+
         await tesseractWorker.loadLanguage('por');
         await tesseractWorker.initialize('por');
-        
-        // Configurar para documentos
+
         await tesseractWorker.setParameters({
             tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-/() ,:;',
             preserve_interword_spaces: '1',
             tessedit_pageseg_mode: '6'
         });
-        
-        // Processar OCR
+
         const { data: { text } } = await tesseractWorker.recognize(imageElement);
-        
-        console.log('📝 Texto extraído:', text);
-        
-        // Extrair dados
+
         extractAndFillData(text);
-        
+
         hideModal();
-        showModal('✅ Sucesso!', 'Dados extraídos automaticamente! Revise os campos.', false);
-        
-    } catch (error) {
-        console.error('❌ Erro no OCR:', error);
-        showModal('⚠️ Atenção', 
-            'OCR encontrou dificuldades. Verifique:<br>' +
-            '• Iluminação da imagem<br>' +
-            '• Qualidade do texto<br>' +
-            '• Ou preencha manualmente', 
-            false
-        );
+        showModal('Sucesso', 'Dados extraídos automaticamente!', false);
+
+    } catch (err) {
+        console.error('Erro OCR:', err);
+        showModal('Erro', 'Falha no OCR. Verifique a imagem.', false);
+
     } finally {
         isProcessing = false;
         hideProgressBar();
-        
-        // Limpar worker
+
         if (tesseractWorker) {
             await tesseractWorker.terminate();
             tesseractWorker = null;
@@ -266,16 +216,11 @@ async function processImageWithOCR(imageElement) {
     }
 }
 
-/**
- * Atualiza barra de progresso
- */
-function updateProgress(message) {
-    if (!elements.progressLabel || !elements.progressFill) return;
-    
-    if (message.status === 'recognizing text') {
-        const progress = Math.round(message.progress * 100);
-        elements.progressLabel.textContent = `Processando OCR: ${progress}%`;
-        elements.progressFill.style.width = `${progress}%`;
+function updateProgress(msg) {
+    if (msg.status === 'recognizing text') {
+        const pct = Math.round(msg.progress * 100);
+        elements.progressLabel.textContent = `OCR: ${pct}%`;
+        elements.progressFill.style.width = `${pct}%`;
     }
 }
 
@@ -283,13 +228,8 @@ function updateProgress(message) {
 // EXTRAÇÃO DE DADOS
 // ============================================
 
-/**
- * Extrai dados do texto OCR
- */
 function extractAndFillData(text) {
-    console.log('🔍 Extraindo dados...');
-    
-    const extractedData = {
+    const data = {
         beneficiario: '',
         cpf: '',
         atendente: '',
@@ -300,258 +240,138 @@ function extractAndFillData(text) {
         assinatura: '',
         numeroDocumento: ''
     };
-    
-    // Buscar CPF
+
     const cpfMatch = text.match(regexPatterns.cpf);
-    if (cpfMatch) {
-        extractedData.cpf = formatCPF(cpfMatch[0]);
-        console.log('✅ CPF:', extractedData.cpf);
-    }
-    
-    // Buscar número do documento
+    if (cpfMatch) data.cpf = formatCPF(cpfMatch[0]);
+
     const docMatch = text.match(regexPatterns.numeroDocumento);
-    if (docMatch) {
-        extractedData.numeroDocumento = docMatch[0];
-        console.log('✅ Nº Documento:', extractedData.numeroDocumento);
-    }
-    
-    // Buscar data
+    if (docMatch) data.numeroDocumento = docMatch[0];
+
     const dateMatch = text.match(regexPatterns.data);
-    if (dateMatch) {
-        extractedData.data = formatDate(dateMatch[0]);
-        console.log('✅ Data:', extractedData.data);
-    }
-    
-    // Buscar quantidade
-    const qtdMatch = text.match(/\d+(?:[.,]\d+)?(?=\s*(?:un|kg|g|ml|l|m|cm|mm))/i);
-    if (qtdMatch) {
-        extractedData.quantidade = qtdMatch[0].replace(',', '.');
-        console.log('✅ Quantidade:', extractedData.quantidade);
-    }
-    
-    // Buscar assinatura
-    if (regexPatterns.assinatura.test(text)) {
-        extractedData.assinatura = 'OK';
-        console.log('✅ Assinatura detectada');
-    }
-    
-    // Buscar outros campos por análise de texto
-    const lines = text.split('\n');
-    
+    if (dateMatch) data.data = formatDate(dateMatch[0]);
+
+    const qtdMatch = text.match(/\d+(?:[.,]\d+)?(?=\s*(?:un|kg|g|ml|l))/i);
+    if (qtdMatch) data.quantidade = qtdMatch[0].replace(',', '.');
+
+    if (regexPatterns.assinatura.test(text))
+        data.assinatura = 'OK';
+
+    // DETECÇÃO DE CAMPOS TEXTUAIS
+    const lines = text.split('\n').map(l => l.trim());
+
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i].toLowerCase();
-        const nextLine = lines[i + 1] || '';
-        
-        // Beneficiário
-        if (line.includes('beneficiário') || line.includes('beneficiario') || line.includes('nome:')) {
-            if (line.includes(':')) {
-                extractedData.beneficiario = line.split(':')[1].trim();
-            } else if (nextLine.trim()) {
-                extractedData.beneficiario = nextLine.trim();
-            }
-        }
-        
-        // Atendente
-        if (line.includes('atendente') || line.includes('responsável') || line.includes('funcionário')) {
-            if (line.includes(':')) {
-                extractedData.atendente = line.split(':')[1].trim();
-            } else if (nextLine.trim()) {
-                extractedData.atendente = nextLine.trim();
-            }
-        }
-        
-        // Produto
-        if (line.includes('produto') || line.includes('item') || line.includes('descrição')) {
-            if (line.includes(':')) {
-                extractedData.produto = line.split(':')[1].trim();
-            } else if (nextLine.trim()) {
-                extractedData.produto = nextLine.trim();
-            }
-        }
-        
-        // Endereço
+
+        if (line.includes('benef')) data.beneficiario = lines[i + 1] || '';
+        if (line.includes('atend')) data.atendente = lines[i + 1] || '';
+        if (line.includes('prod')) data.produto = lines[i + 1] || '';
+
         if (isAddressLine(line)) {
-            let address = line.trim();
-            for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
-                if (lines[j].trim() && !lines[j].toLowerCase().includes('data')) {
-                    address += ', ' + lines[j].trim();
-                }
-            }
-            extractedData.endereco = address;
+            data.endereco = lines.slice(i, i + 3).join(', ');
         }
     }
-    
-    // Preencher formulário
-    fillFormWithData(extractedData);
+
+    fillFormWithData(data);
 }
 
-/**
- * Verifica se linha é endereço
- */
 function isAddressLine(line) {
-    const indicators = ['rua', 'av.', 'avenida', 'travessa', 'alameda', 'número', 'nº', 'bairro', 'cep', 'endereço'];
-    const lowerLine = line.toLowerCase();
-    return indicators.some(indicator => lowerLine.includes(indicator));
+    return ['rua', 'avenida', 'av.', 'travessa', 'bairro', 'cep', 'endereço']
+        .some(k => line.includes(k));
 }
 
-/**
- * Preenche formulário com dados
- */
 function fillFormWithData(data) {
-    Object.keys(data).forEach(key => {
-        if (data[key] && formFields[key]) {
-            formFields[key].value = data[key];
-            
-            // Destacar campo preenchido
-            setTimeout(() => {
-                formFields[key].style.borderColor = '#4caf50';
-                formFields[key].style.boxShadow = '0 0 0 2px rgba(76, 175, 80, 0.2)';
-            }, 100);
+    Object.entries(data).forEach(([k, v]) => {
+        if (v && formFields[k]) {
+            formFields[k].value = v;
+            formFields[k].style.borderColor = '#4caf50';
         }
     });
-    
+
     validateForm();
 }
 
-/**
- * Formata CPF
- */
+// ============================================
+// UTILITÁRIOS
+// ============================================
+
 function formatCPF(cpf) {
-    const numbers = cpf.replace(/\D/g, '');
-    if (numbers.length !== 11) return cpf;
-    return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    const n = cpf.replace(/\D/g, '');
+    if (n.length !== 11) return cpf;
+    return n.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
 }
 
-/**
- * Formata data
- */
-function formatDate(dateString) {
-    const separator = dateString.includes('/') ? '/' : '-';
-    const parts = dateString.split(separator);
-    if (parts.length !== 3) return '';
-    
-    const day = parts[0].padStart(2, '0');
-    const month = parts[1].padStart(2, '0');
-    const year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
-    
-    return `${year}-${month}-${day}`;
+function formatDate(str) {
+    const parts = str.replace(/-/g, '/').split('/');
+    const [d, m, y] = parts;
+    return `${y}-${m}-${d}`;
 }
 
 // ============================================
-// VALIDAÇÃO
+// FORMULÁRIO
 // ============================================
 
-/**
- * Valida formulário
- */
 function validateForm() {
-    if (!elements.submitBtn) return false;
-    
-    let isValid = true;
-    
-    Object.entries(formFields).forEach(([key, field]) => {
-        if (!field) return;
-        
-        if (key === 'assinatura') return;
-        
-        if (!field.value.trim()) {
-            isValid = false;
-            field.style.borderColor = '#f44336';
-            return;
+    let valid = true;
+
+    Object.entries(formFields).forEach(([k, field]) => {
+        if (!field || k === 'assinatura') return;
+
+        const val = field.value.trim();
+
+        if (!val) valid = false;
+
+        if (k === 'cpf') {
+            const ok = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(val);
+            if (!ok) valid = false;
         }
-        
-        // Validações específicas
-        if (key === 'cpf') {
-            const cpfValid = validateCPF(field.value);
-            field.style.borderColor = cpfValid ? '#4caf50' : '#f44336';
-            if (!cpfValid) isValid = false;
-        }
-        
-        if (key === 'quantidade') {
-            const qtd = parseFloat(field.value.replace(',', '.'));
-            const qtdValid = !isNaN(qtd) && qtd > 0;
-            field.style.borderColor = qtdValid ? '#4caf50' : '#f44336';
-            if (!qtdValid) isValid = false;
-        }
-        
-        if (key === 'data') {
-            const dateValid = field.value.length === 10;
-            field.style.borderColor = dateValid ? '#4caf50' : '#f44336';
-            if (!dateValid) isValid = false;
+
+        if (k === 'quantidade') {
+            const n = Number(val.replace(',', '.'));
+            if (!n || n <= 0) valid = false;
         }
     });
-    
-    elements.submitBtn.disabled = !isValid;
-    return isValid;
+
+    if (elements.submitBtn)
+        elements.submitBtn.disabled = !valid;
+
+    return valid;
 }
 
-/**
- * Valida CPF
- */
-function validateCPF(cpf) {
-    const numbers = cpf.replace(/\D/g, '');
-    if (numbers.length !== 11) return false;
-    if (/^(\d)\1+$/.test(numbers)) return false;
-    
-    // Para testes, aceita qualquer CPF com 11 dígitos
-    return numbers.length === 11;
-}
-
-/**
- * Limpa formulário
- */
 function clearForm() {
     if (!confirm('Limpar todos os campos?')) return;
-    
-    Object.values(formFields).forEach(field => {
-        if (field) {
-            field.value = '';
-            field.style.borderColor = '';
-            field.style.boxShadow = '';
+
+    Object.values(formFields).forEach(f => {
+        if (f) {
+            f.value = '';
+            f.style.borderColor = '';
         }
     });
-    
-    // Resetar data
-    if (formFields.data) {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        formFields.data.value = `${year}-${month}-${day}`;
-    }
-    
-    // Resetar imagem
-    if (elements.imagePlaceholder) {
-        elements.imagePlaceholder.style.display = 'flex';
-    }
-    
+
+    setupDefaultDate();
+
     if (elements.imagePreview) {
         elements.imagePreview.style.display = 'none';
         elements.imagePreview.src = '';
     }
-    
+
+    if (elements.imagePlaceholder)
+        elements.imagePlaceholder.style.display = 'flex';
+
     currentImageData = null;
-    
-    if (elements.submitBtn) {
-        elements.submitBtn.disabled = true;
-    }
+    validateForm();
 }
 
-/**
- * Manipula envio do formulário
- */
-async function handleFormSubmit(event) {
-    event.preventDefault();
-    
+async function handleFormSubmit(e) {
+    e.preventDefault();
+
     if (!validateForm()) {
-        showModal('Erro', 'Preencha todos os campos corretamente.', false);
+        showModal('Erro', 'Preencha tudo corretamente.', false);
         return;
     }
-    
-    showModal('Enviando...', 'Preparando dados para envio...');
-    
-    // Coletar dados
-    const formData = {
+
+    showModal('Enviando...', 'Aguardando...', true);
+
+    const payload = {
         beneficiario: formFields.beneficiario.value.trim(),
         cpf: formFields.cpf.value.trim(),
         atendente: formFields.atendente.value.trim(),
@@ -564,95 +384,52 @@ async function handleFormSubmit(event) {
         imagemBase64: currentImageData || '',
         timestamp: new Date().toISOString()
     };
-    
-    console.log('📤 Dados preparados:', formData);
-    
-    // Simular envio (substituir por Apps Script depois)
+
+    console.log('📤 Dados preparados:', payload);
+
     setTimeout(() => {
-        showModal('✅ Pronto!', 
-            'Dados processados com sucesso!<br><br>' +
-            '<strong>Para envio real:</strong><br>' +
-            '1. Configure Google Apps Script<br>' +
-            '2. Atualize a URL em send.js', 
-            false
-        );
-    }, 2000);
+        showModal('Pronto!', 'Dados enviados (simulação). Configure Apps Script depois.', false);
+    }, 1500);
 }
 
 // ============================================
-// UI HELPERS
+// UI
 // ============================================
 
-/**
- * Mostra barra de progresso
- */
 function showProgressBar() {
-    if (elements.progressContainer) {
+    if (elements.progressContainer)
         elements.progressContainer.hidden = false;
-    }
 }
 
-/**
- * Esconde barra de progresso
- */
 function hideProgressBar() {
-    if (elements.progressContainer) {
+    if (elements.progressContainer)
         elements.progressContainer.hidden = true;
-    }
 }
 
-/**
- * Mostra modal
- */
-function showModal(title, message, showSpinner = true) {
-    if (elements.modalTitle) elements.modalTitle.textContent = title;
-    if (elements.modalMessage) elements.modalMessage.innerHTML = message;
-    if (elements.modalSpinner) elements.modalSpinner.style.display = showSpinner ? 'block' : 'none';
-    if (elements.modalCloseBtn) elements.modalCloseBtn.style.display = showSpinner ? 'none' : 'block';
-    if (elements.modal) elements.modal.style.display = 'flex';
+function showModal(title, message, spinner = true) {
+    elements.modalTitle.textContent = title;
+    elements.modalMessage.innerHTML = message;
+
+    elements.modalSpinner.style.display = spinner ? 'block' : 'none';
+    elements.modalCloseBtn.style.display = spinner ? 'none' : 'block';
+
+    elements.modal.style.display = 'flex';
 }
 
-/**
- * Esconde modal
- */
 function hideModal() {
-    if (elements.modal) {
-        elements.modal.style.display = 'none';
-    }
+    elements.modal.style.display = 'none';
 }
 
-// ============================================
-// INICIALIZAÇÃO
-// ============================================
-
-// Inicializar quando DOM carregar
-document.addEventListener('DOMContentLoaded', function() {
-    // Aguardar Tesseract carregar
-    if (typeof Tesseract === 'undefined') {
-        console.error('❌ Tesseract não carregado!');
-        showModal('Erro', 'Biblioteca OCR não carregada. Recarregue a página.', false);
-        return;
-    }
-    
-    console.log('🌐 Tesseract.js carregado!');
-    initializeApp();
+window.addEventListener('beforeunload', async () => {
+    if (tesseractWorker) await tesseractWorker.terminate();
 });
 
-// Limpar recursos
-window.addEventListener('beforeunload', async function() {
-    if (tesseractWorker) {
-        await tesseractWorker.terminate();
-    }
-});
+// Export para debug
+window.SocialColetor = {
+    extractAndFillData,
+    processImageWithOCR,
+    validateForm,
+    clearForm
+};
 
-// Exportar para debug
-if (typeof window !== 'undefined') {
-    window.SocialColetor = {
-        extractAndFillData,
-        processImageWithOCR,
-        validateForm,
-        clearForm
-    };
-}
-
-console.log('📦 Script Social Coletor carregado!');
+console.log('📦 Script Social Coletor carregado e corrigido!');
