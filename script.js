@@ -1,9 +1,10 @@
 /**
- * SOCIAL COLETOR - SCRIPT PRINCIPAL (versão final corrigida)
- * Responsável pela captura de imagem, OCR e preenchimento do formulário
+ * SOCIAL COLETOR - SCRIPT PRINCIPAL (versão final corrigida + melhoria de imagem)
+ * Responsável pela captura de imagem, OCR, preenchimento do formulário e melhoria de imagem (Office-Lens like)
  *
  * Observações:
- * - Preview via <img id="imagePreview"> (conforme indicado)
+ * - Preview via <img id="imagePreview">
+ * - Botão para melhorar foto deve ter id="btnMelhorarFoto"
  * - Mantive envio simulado; configuração do Apps Script fica para depois
  * - Arquivo defensivo: checagens antes de acessar elementos
  */
@@ -68,7 +69,9 @@ function setupElements() {
     modalTitle: document.getElementById('modalTitle'),
     modalMessage: document.getElementById('modalMessage'),
     modalSpinner: document.getElementById('modalSpinner'),
-    modalCloseBtn: document.getElementById('modalCloseBtn')
+    modalCloseBtn: document.getElementById('modalCloseBtn'),
+    // novo botão de melhoria - se existir no HTML (id esperado: btnMelhorarFoto)
+    enhanceBtn: document.getElementById('btnMelhorarFoto')
   };
 
   formFields = {
@@ -134,6 +137,11 @@ function setupEventListeners() {
 
   if (elements.modalCloseBtn) {
     elements.modalCloseBtn.addEventListener('click', hideModal);
+  }
+
+  // handler do botão de melhoria (se presente)
+  if (elements.enhanceBtn) {
+    elements.enhanceBtn.addEventListener('click', handleEnhanceClick);
   }
 
   // validação em tempo real
@@ -470,6 +478,186 @@ function formatDate(str) {
 }
 
 // ================================
+// MELHORIA DE IMAGEM (Office-Lens like) - NOVO
+// ================================
+
+/**
+ * Recebe um dataURL (string) e retorna um novo dataURL melhorado.
+ * Usa canvas no browser, filtros e um passo simples de nitidez.
+ * Não depende de bibliotecas externas.
+ *
+ * @param {string} dataURL
+ * @returns {Promise<string>} dataURL melhorado (base64)
+ */
+function melhorarImagemDataURL(dataURL) {
+  return new Promise((resolve, reject) => {
+    if (!dataURL || typeof dataURL !== 'string') return reject('No dataURL');
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // manter proporção
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+
+        // etapa 1: aplicar filtros de brilho/contraste/saturação rápido
+        ctx.filter = 'brightness(1.15) contrast(1.25) saturate(1.05)';
+        ctx.drawImage(img, 0, 0);
+
+        // etapa 2: pegar imagem em grayscale e aplicar threshold suave para texto
+        let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        let data = imageData.data;
+
+        // converter para grayscale com leve equalização local (heurística)
+        for (let i = 0; i < data.length; i += 4) {
+          // luminance perceptual
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          let lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          // ajustar contraste local simples
+          lum = ((lum - 128) * 1.05) + 128;
+          data[i] = data[i + 1] = data[i + 2] = lum;
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+
+        // etapa 3: unsharp-like (nitidez): desenhar uma cópia levemente desfocada e misturar para realçar bordas
+        try {
+          // criar cópia, aplicar blur via canvas filter se suportado
+          const tmpCanvas = document.createElement('canvas');
+          tmpCanvas.width = canvas.width;
+          tmpCanvas.height = canvas.height;
+          const tctx = tmpCanvas.getContext('2d');
+
+          tctx.filter = 'blur(1px)';
+          tctx.drawImage(canvas, 0, 0);
+
+          // mistura: source-over com globalAlpha para efeito de nitidez
+          ctx.globalCompositeOperation = 'overlay';
+          ctx.globalAlpha = 0.35;
+          ctx.drawImage(tmpCanvas, 0, 0);
+          ctx.globalAlpha = 1;
+          ctx.globalCompositeOperation = 'source-over';
+        } catch (e) {
+          // se não suportar filtros no contexto, ignore
+        }
+
+        // etapa 4: opcional - ajustar níveis (simples) para aumentar contraste fim
+        try {
+          let finalData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const fd = finalData.data;
+          for (let i = 0; i < fd.length; i += 4) {
+            // stretch contrast
+            fd[i] = Math.min(255, Math.max(0, (fd[i] - 20) * 1.12 + 10));
+            fd[i+1] = Math.min(255, Math.max(0, (fd[i+1] - 20) * 1.12 + 10));
+            fd[i+2] = Math.min(255, Math.max(0, (fd[i+2] - 20) * 1.12 + 10));
+          }
+          ctx.putImageData(finalData, 0, 0);
+        } catch (e) { /* ignore if fails */ }
+
+        // exportar
+        const enhancedDataURL = canvas.toDataURL('image/jpeg', 0.92);
+        resolve(enhancedDataURL);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    img.onerror = (e) => reject(e);
+    img.src = dataURL;
+  });
+}
+
+/**
+ * Handler do clique no botão "Melhorar Foto".
+ * - pega currentImageData (ou src do preview)
+ * - processa com melhorarImagemDataURL()
+ * - atualiza preview / currentImageData
+ * - dispara OCR na imagem melhorada
+ */
+async function handleEnhanceClick(ev) {
+  try {
+    if (!elements) return;
+    // obter dataURL a processar: preferir currentImageData, fallback para src do preview, ou arquivos do input
+    let sourceDataURL = null;
+
+    if (currentImageData) sourceDataURL = currentImageData;
+    else if (elements.imagePreview && elements.imagePreview.src) sourceDataURL = elements.imagePreview.src;
+
+    // fallback: se input file tem arquivo, ler como dataURL
+    if (!sourceDataURL && elements.fileInput && elements.fileInput.files && elements.fileInput.files[0]) {
+      sourceDataURL = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = e => res(e.target.result);
+        r.onerror = err => rej(err);
+        r.readAsDataURL(elements.fileInput.files[0]);
+      });
+    }
+
+    if (!sourceDataURL) {
+      alert('Nenhuma imagem disponível. Primeiro selecione ou tire uma foto.');
+      return;
+    }
+
+    showModal('Melhorando imagem', 'Aguarde enquanto a imagem é tratada...', true);
+
+    const improved = await melhorarImagemDataURL(sourceDataURL);
+
+    // atualizar preview e currentImageData
+    showImagePreview(improved); // já setará currentImageData
+    // substituir input file (opcional) - cria File do dataURL para permitir reuso
+    try {
+      if (elements.fileInput) {
+        // converter dataURL para blob
+        const blob = dataURLtoBlob(improved);
+        const f = new File([blob], 'melhorada.jpg', { type: blob.type });
+        const dt = new DataTransfer();
+        dt.items.add(f);
+        elements.fileInput.files = dt.files;
+      }
+    } catch (e) {
+      // não crítico
+      console.warn('Não foi possível substituir fileInput:', e);
+    }
+
+    // pequena espera para o preview renderizar
+    setTimeout(() => {
+      // criar Image e rodar OCR com a imagem melhorada
+      const img = new Image();
+      img.onload = () => {
+        // dispara OCR na imagem melhorada
+        processImageWithOCR(img);
+      };
+      img.onerror = (err) => {
+        console.warn('Erro ao carregar imagem melhorada:', err);
+        hideModal();
+        showModal('Erro', 'Não foi possível executar OCR na imagem melhorada.', false);
+      };
+      img.src = improved;
+    }, 200);
+
+  } catch (err) {
+    console.error('Erro na melhoria da imagem:', err);
+    hideModal();
+    showModal('Erro', 'Falha ao melhorar a imagem.', false);
+  }
+}
+
+// helper para converter dataURL -> Blob
+function dataURLtoBlob(dataurl) {
+  const arr = dataurl.split(',');
+  const mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while(n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], { type: mime });
+}
+
+// ================================
 // FORMULÁRIO / VALIDAÇÃO
 // ================================
 function validateForm() {
@@ -604,5 +792,4 @@ window.SocialColetor = {
   clearForm
 };
 
-console.log('📦 Script Social Coletor carregado (versão de OCR e preview corrigida).');
-
+console.log('📦 Script Social Coletor carregado (versão de OCR, preview corrigido e melhoria integrada).');
