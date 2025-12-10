@@ -72,7 +72,7 @@ body {
 
 /* Ajuste da logo sem recortar e sem círculo */
 .logo img {
-    width: 180px;     /* tamanho padrão */
+    width: 100px;     /* tamanho padrão */
     max-width: 60vw;  /* responsivo */
     height: auto;     /* mantém proporção */
     display: block;
