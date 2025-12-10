@@ -56,11 +56,12 @@ body {
 }
 
 /* Cabeçalho com Logo */
-.header {
+/*.header {
     text-align: center;
     margin-bottom: 40px;
     animation: fadeIn 0.8s ease-out;
 }
+*/
 
 .logo-container {
     display: flex;
@@ -593,24 +594,4 @@ input:valid, textarea:valid {
 
 input:invalid, textarea:invalid {
     border-color: #f44336 !important;
-}
-{
-  "name": "Social Coletor",
-  "short_name": "Coletor",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
-  "icons": [
-    {
-      "src": "logo.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "logo.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
 }
