@@ -1,28 +1,30 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Social Coletor - Coletor de Dados via Imagem</title>
-    
+
     <!-- Meta tags PWA -->
     <meta name="theme-color" content="#1a237e">
     <meta name="description" content="Aplicativo para coleta de dados via OCR de documentos sociais">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
+
     <!-- Manifest -->
     <link rel="manifest" href="manifest.json">
-    
-    <!-- Ícones (logo base64 para evitar erro 404) -->
+
+    <!-- Ícone (inline para evitar 404) -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">
-    
+
     <!-- CSS -->
     <link rel="stylesheet" href="style.css">
-    
-    <!-- Tesseract.js -->
+
+    <!-- Tesseract.js (mantive no head) -->
     <script src="https://unpkg.com/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
+
+    <!-- Script principal (DEFER garante execução após DOM estar pronto) -->
+    <script src="script.js" defer></script>
 </head>
 <body>
     <div class="container">
@@ -169,15 +171,12 @@
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="script.js"></script>
-    
     <!-- Registro do Service Worker -->
     <script>
-        // Verificar se Tesseract está carregado
+        // Verificar se Tesseract está carregado e registrar SW após load
         window.addEventListener('load', function() {
             console.log('🌐 Tesseract carregado:', typeof Tesseract !== 'undefined');
-            
+
             // Registrar Service Worker
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('service-worker.js')
@@ -192,3 +191,4 @@
     </script>
 </body>
 </html>
+
