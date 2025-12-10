@@ -8,6 +8,7 @@
 // ============================================
 
 // Elementos DOM
+document.addEventListener("DOMContentLoaded", initializeApp);
 const elements = {
     captureBtn: document.getElementById('captureBtn'),
     uploadBtn: document.getElementById('uploadBtn'),
