@@ -1,12 +1,7 @@
 /**
- * SOCIAL COLETOR - SCRIPT PRINCIPAL (versão final corrigida + melhoria de imagem)
- * Responsável pela captura de imagem, OCR, preenchimento do formulário e melhoria de imagem (Office-Lens like)
- *
- * Observações:
- * - Preview via <img id="imagePreview">
- * - Botão para melhorar foto deve ter id="btnMelhorarFoto"
- * - Mantive envio simulado; configuração do Apps Script fica para depois
- * - Arquivo defensivo: checagens antes de acessar elementos
+ * SOCIAL COLETOR - SCRIPT PRINCIPAL (com melhoria automática + UX de progresso)
+ * Mantive toda a lógica original e adicionei melhoria automática da foto ao fazer upload,
+ * atualização do preview e execução automática do OCR na imagem melhorada.
  */
 
 // ================================
@@ -70,7 +65,7 @@ function setupElements() {
     modalMessage: document.getElementById('modalMessage'),
     modalSpinner: document.getElementById('modalSpinner'),
     modalCloseBtn: document.getElementById('modalCloseBtn'),
-    // novo botão de melhoria - se existir no HTML (id esperado: btnMelhorarFoto)
+    // se ainda existir no HTML, mas NÃO vamos ligar o clique automático
     enhanceBtn: document.getElementById('btnMelhorarFoto')
   };
 
@@ -104,7 +99,6 @@ function setupEventListeners() {
   if (elements.captureBtn) {
     elements.captureBtn.addEventListener('click', () => {
       if (!elements.fileInput) return;
-      // pedir câmera traseira em dispositivos móveis (se suportado)
       try {
         elements.fileInput.setAttribute('capture', 'environment');
       } catch (e) { /* ignore */ }
@@ -123,7 +117,6 @@ function setupEventListeners() {
   }
 
   if (elements.fileInput) {
-    // garantir que seja change e que exista
     elements.fileInput.addEventListener('change', handleImageSelection);
   }
 
@@ -139,10 +132,9 @@ function setupEventListeners() {
     elements.modalCloseBtn.addEventListener('click', hideModal);
   }
 
-  // handler do botão de melhoria (se presente)
-  if (elements.enhanceBtn) {
-    elements.enhanceBtn.addEventListener('click', handleEnhanceClick);
-  }
+  // NOTA: não adicionamos listener ao botão de "melhorar foto" — a melhoria será automática.
+  // (Se quiser reativar botão, basta descomentar a linha abaixo)
+  // if (elements.enhanceBtn) elements.enhanceBtn.addEventListener('click', handleEnhanceClick);
 
   // validação em tempo real
   Object.values(formFields).forEach(f => {
@@ -168,45 +160,44 @@ function handleImageSelection(event) {
   const file = event?.target?.files?.[0];
   if (!file) return;
 
-  // aceitar apenas imagens
   if (!file.type || !file.type.startsWith('image')) {
     showModal('Erro', 'Selecione apenas imagens (JPG/PNG).', false);
     return;
   }
 
-  showModal('Processando', 'Carregando imagem...');
+  // show initial modal & progress
+  showModal('Processando', 'Carregando imagem...', true);
+  showProgressBar();
+  setProgress(5, 'Carregando imagem...');
 
   const reader = new FileReader();
-  reader.onload = (e) => {
-    const dataURL = e.target.result;
-    showImagePreview(dataURL);
+  reader.onload = async (e) => {
+    try {
+      const dataURL = e.target.result;
+      // mostrar preview rapidamente (imagem original)
+      showImagePreview(dataURL);
 
-    // criar Image e processar quando estiver carregada
-    const img = new Image();
-    img.onload = () => {
-      // small timeout para garantir render do preview antes do OCR pesado
-      setTimeout(() => processImageWithOCR(img), 150);
-    };
-    img.onerror = (err) => {
-      console.warn('Erro ao carregar imagem interna:', err);
-      showModal('Erro', 'Não foi possível processar a imagem.', false);
-    };
-    img.src = dataURL;
+      // automatic enhancement + OCR pipeline
+      await autoEnhanceAndOCR(dataURL);
+    } catch (err) {
+      console.error('Erro no pipeline de imagem:', err);
+      hideProgressBar();
+      showModal('Erro', 'Falha ao processar a imagem.', false);
+    }
   };
   reader.onerror = (err) => {
     console.error('FileReader error:', err);
+    hideProgressBar();
     showModal('Erro', 'Falha ao ler o arquivo.', false);
   };
 
   reader.readAsDataURL(file);
-  // limpar input para poder reusar o mesmo arquivo se necessário
   if (elements.fileInput) elements.fileInput.value = '';
 }
 
 function showImagePreview(dataURL) {
   if (!elements) return;
 
-  // esconder placeholder e mostrar preview (img)
   if (elements.imagePlaceholder) {
     try { elements.imagePlaceholder.style.display = 'none'; } catch (e) {}
   }
@@ -221,25 +212,117 @@ function showImagePreview(dataURL) {
 }
 
 // ================================
+// PIPELINE: melhoria automática + OCR
+// ================================
+async function autoEnhanceAndOCR(dataURL) {
+  try {
+    // 1) Mostrar "Melhorando a foto..."
+    setProgress(8, 'Melhorando a foto...');
+    // animar progress até 60% enquanto ocorre a melhoria (visual)
+    const animPromise = animateProgress(60, 600);
+
+    // 2) executar melhoria (pode ser relativamente rápida)
+    const improved = await melhorarImagemDataURL(dataURL);
+
+    // aguardar animação curta para UX
+    await animPromise;
+
+    // 3) atualizar preview com imagem melhorada
+    showImagePreview(improved);
+
+    // opcional: atualizar fileInput com versão melhorada para reuso
+    try {
+      if (elements.fileInput) {
+        const blob = dataURLtoBlob(improved);
+        const f = new File([blob], 'melhorada.jpg', { type: blob.type });
+        const dt = new DataTransfer();
+        dt.items.add(f);
+        elements.fileInput.files = dt.files;
+      }
+    } catch (e) {
+      console.warn('Não foi possível atualizar fileInput com imagem melhorada:', e);
+    }
+
+    // 4) preparar para OCR: mostrar 90..100% e então iniciar OCR
+    setProgress(90, 'Finalizando melhoria...');
+    await animateProgress(100, 200);
+    // pequena pausa para UX
+    await new Promise(r => setTimeout(r, 150));
+
+    // 5) iniciar OCR na imagem melhorada
+    const img = new Image();
+    img.onload = () => {
+      // processImageWithOCR agora mostra "Lendo dados..."
+      processImageWithOCR(img);
+    };
+    img.onerror = (err) => {
+      console.warn('Erro ao carregar imagem melhorada para OCR:', err);
+      hideProgressBar();
+      showModal('Erro', 'Não foi possível executar OCR na imagem melhorada.', false);
+    };
+    img.src = improved;
+
+  } catch (err) {
+    console.error('Erro durante autoEnhanceAndOCR:', err);
+    hideProgressBar();
+    showModal('Erro', 'Falha ao melhorar a imagem automaticamente.', false);
+  }
+}
+
+// animação simples de progresso visual (retorna Promise resolvida ao final)
+function animateProgress(targetPct = 100, duration = 500) {
+  return new Promise(resolve => {
+    if (!elements || !elements.progressFill) return resolve();
+
+    const el = elements.progressFill;
+    const start = parseInt(el.style.width || '0', 10);
+    const end = Math.min(100, Math.max(0, targetPct));
+    const diff = end - start;
+    if (diff === 0) return resolve();
+
+    const startTime = performance.now();
+    function step(now) {
+      const t = Math.min(1, (now - startTime) / duration);
+      const cur = Math.round(start + diff * t);
+      el.style.width = `${cur}%`;
+      if (t < 1) requestAnimationFrame(step);
+      else resolve();
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+// util: set progress and label
+function setProgress(pct, label) {
+  if (!elements) return;
+  if (elements.progressFill) elements.progressFill.style.width = `${pct}%`;
+  if (elements.progressLabel) elements.progressLabel.textContent = label ? `${label}` : `Progresso: ${pct}%`;
+}
+
+// ================================
 // OCR (Tesseract.js)
 // ================================
 async function processImageWithOCR(imageElement) {
   if (isProcessing) return;
   isProcessing = true;
   showProgressBar();
-  showModal('Processando OCR', 'Iniciando reconhecimento de texto...');
+  // indicar leitura
+  showModal('Lendo dados...', 'Iniciando reconhecimento de texto...', true);
+  setProgress(2, 'Lendo dados...');
 
   try {
     // Criar worker com logger para progresso
     tesseractWorker = await Tesseract.createWorker({
-      logger: (m) => updateProgress(m)
+      logger: (m) => {
+        // m: { status, progress }
+        updateProgress(m);
+      }
     });
 
-    await tesseractWorker.load();
+    // Nota: não usamos worker.load() porque nas versões recentes o worker já vem pré-carregado
     await tesseractWorker.loadLanguage('por');
     await tesseractWorker.initialize('por');
 
-    // parâmetros defensivos, pageseg_mode como número
     await tesseractWorker.setParameters({
       tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÇÈÉÊËÍÓÔÕÖÚÛÜ.,-/:;() ',
       preserve_interword_spaces: '1',
@@ -272,15 +355,28 @@ async function processImageWithOCR(imageElement) {
   }
 }
 
-// Atualiza barra de progresso
+// Atualiza barra de progresso (usado pelo logger do tesseract)
 function updateProgress(msg) {
   if (!elements || !elements.progressLabel || !elements.progressFill) return;
-  if (msg && (msg.status || msg.progress !== undefined)) {
-    // status pode ser 'recognizing text', progress é 0..1
-    const pct = Math.round((msg.progress || 0) * 100);
-    elements.progressLabel.textContent = `OCR: ${pct}%`;
-    elements.progressFill.style.width = `${pct}%`;
+  const pct = Math.round((msg.progress || 0) * 100);
+  const status = (msg.status || '').toLowerCase();
+
+  // mapear para rótulo amigável
+  if (status.includes('recognizing') || status.includes('recognising')) {
+    elements.progressLabel.textContent = `Lendo dados... ${pct}%`;
+  } else if (status) {
+    elements.progressLabel.textContent = `${capitalize(status)} ${pct}%`;
+  } else {
+    elements.progressLabel.textContent = `Lendo dados... ${pct}%`;
   }
+
+  elements.progressFill.style.width = `${pct}%`;
+}
+
+// capitalize helper
+function capitalize(s) {
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 // ================================
@@ -305,7 +401,6 @@ function normalizeOCRText(raw) {
   s = s.replace(/[\u2018\u2019\u201c\u201d]/g, "'");
 
   // 5) corrigir casos comuns de OCR para números e letras (heurísticas simples)
-  // Ex.: "0" trocado por "O" e vice-versa — tenta contexto de CPF (pouco intrusivo)
   s = s.replace(/O(?=\d{2,})/g, '0'); // O antes de números -> 0
   s = s.replace(/(?<=\d)l(?=\d)/g, '1'); // l entre números -> 1
 
@@ -322,7 +417,6 @@ function normalizeOCRText(raw) {
 // EXTRAÇÃO DE DADOS
 // ================================
 function extractAndFillData(text) {
-  // objeto inicial
   const data = {
     beneficiario: '',
     cpf: '',
@@ -340,35 +434,26 @@ function extractAndFillData(text) {
     return;
   }
 
-  // Encontrar CPF (prioridade)
   const cpfMatches = text.match(regexPatterns.cpf) || [];
   if (cpfMatches.length) {
-    // pegar o primeiro com 11 dígitos formatado
     const rawCpf = cpfMatches[0];
     data.cpf = formatCPF(rawCpf);
   }
 
-  // Número do documento (ex: 333532/2925)
   const docMatches = text.match(regexPatterns.numeroDocumento) || [];
   if (docMatches.length) data.numeroDocumento = docMatches[0];
 
-  // Datas (DD/MM/YYYY)
   const dateMatches = text.match(regexPatterns.data) || [];
   if (dateMatches.length) {
-    // pegar a data mais comum (primeira)
     data.data = formatDate(dateMatches[0]);
   }
 
-  // Quantidade com unidade (ex: "1,00 un")
   const qtdUnitMatches = text.match(regexPatterns.quantidadeWithUnit) || [];
   if (qtdUnitMatches.length) {
-    // extrair o número da string
     data.quantidade = qtdUnitMatches[0].match(/[\d.,]+/)[0].replace(',', '.');
   } else {
-    // fallback: pegar primeiro número que faça sentido
     const allNums = text.match(regexPatterns.quantidadeOnly) || [];
     for (let n of allNums) {
-      // ignorar números que fazem parte de CPF/Doc identificados
       if (n.length >= 1 && !/\d{6,}/.test(n)) {
         data.quantidade = n.replace(',', '.');
         break;
@@ -376,18 +461,14 @@ function extractAndFillData(text) {
     }
   }
 
-  // Assinatura (presença de padrões)
   if (regexPatterns.assinatura.test(text)) data.assinatura = 'OK';
 
-  // Agora heurísticas por linhas para nome, atendente, produto, endereço
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
-  // Heurística 1: procurar linhas com palavras-chave
   for (let i = 0; i < lines.length; i++) {
     const low = lines[i].toLowerCase();
 
     if (!data.beneficiario && /benef|benefici/i.test(low)) {
-      // tentar próxima linha
       data.beneficiario = (lines[i + 1] && lines[i + 1].length > 2) ? lines[i + 1] : data.beneficiario;
     }
 
@@ -396,23 +477,18 @@ function extractAndFillData(text) {
     }
 
     if (!data.produto && /produto|cesta|item|items|descricao|conteudo/i.test(low)) {
-      // pegar a mesma linha ou a próxima como descrição
       data.produto = data.produto || lines[i + 1] || lines[i];
     }
 
-    // endereço heurístico (procura por 'rua' 'avenida' 'bairro' 'cep' 'jardim' etc)
     if (!data.endereco && isAddressLine(low)) {
-      // juntar 1-3 linhas a partir daqui
       data.endereco = lines.slice(i, i + 3).join(', ');
     }
 
-    // Caso o doc tenha "ENTREGUE EM ..." tente extrair o endereço depois desta frase
     if (!data.endereco && low.includes('entregue') && low.includes('em')) {
       data.endereco = lines[i + 1] || '';
     }
   }
 
-  // Heurística 2: se beneficiário ainda vazio, tentar achar a maior linha com muitas letras (possível nome)
   if (!data.beneficiario) {
     let candidate = '';
     for (let ln of lines) {
@@ -424,23 +500,19 @@ function extractAndFillData(text) {
     if (candidate) data.beneficiario = candidate;
   }
 
-  // Heurística 3: produto - procurar por linhas com 'CESTA' ou 'PRODUTO'
   if (!data.produto) {
     const found = lines.find(l => /cesta|produto|conteudo|kit/i.test(l));
     if (found) data.produto = found;
   }
 
-  // Pequenas normalizações finais
   data.beneficiario = (data.beneficiario || '').trim();
   data.endereco = (data.endereco || '').trim();
   data.produto = (data.produto || '').trim();
   data.quantidade = (data.quantidade || '').toString();
 
-  // Preencher formulário
   fillFormWithData(data);
 }
 
-// helpers
 function isAddressLine(line) {
   return ['rua', 'avenida', 'av.', 'travessa', 'bairro', 'cep', 'endereço', 'jardim', 'resid', 'rodovia', 'rua.'].some(k => line.includes(k));
 }
@@ -470,7 +542,6 @@ function formatCPF(cpf) {
 }
 
 function formatDate(str) {
-  // aceita DD/MM/YYYY ou DD-MM-YYYY
   if (!str) return '';
   const m = str.match(/(0[1-9]|[12][0-9]|3[01])[\/\-](0[1-9]|1[0-2])[\/\-](\d{4})/);
   if (!m) return str;
@@ -478,17 +549,8 @@ function formatDate(str) {
 }
 
 // ================================
-// MELHORIA DE IMAGEM (Office-Lens like) - NOVO
+// MELHORIA DE IMAGEM (Office-Lens like)
 // ================================
-
-/**
- * Recebe um dataURL (string) e retorna um novo dataURL melhorado.
- * Usa canvas no browser, filtros e um passo simples de nitidez.
- * Não depende de bibliotecas externas.
- *
- * @param {string} dataURL
- * @returns {Promise<string>} dataURL melhorado (base64)
- */
 function melhorarImagemDataURL(dataURL) {
   return new Promise((resolve, reject) => {
     if (!dataURL || typeof dataURL !== 'string') return reject('No dataURL');
@@ -499,33 +561,25 @@ function melhorarImagemDataURL(dataURL) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
-        // manter proporção
         canvas.width = img.naturalWidth || img.width;
         canvas.height = img.naturalHeight || img.height;
 
-        // etapa 1: aplicar filtros de brilho/contraste/saturação rápido
         ctx.filter = 'brightness(1.15) contrast(1.25) saturate(1.05)';
         ctx.drawImage(img, 0, 0);
 
-        // etapa 2: pegar imagem em grayscale e aplicar threshold suave para texto
         let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         let data = imageData.data;
 
-        // converter para grayscale com leve equalização local (heurística)
         for (let i = 0; i < data.length; i += 4) {
-          // luminance perceptual
           const r = data[i], g = data[i + 1], b = data[i + 2];
           let lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-          // ajustar contraste local simples
           lum = ((lum - 128) * 1.05) + 128;
           data[i] = data[i + 1] = data[i + 2] = lum;
         }
 
         ctx.putImageData(imageData, 0, 0);
 
-        // etapa 3: unsharp-like (nitidez): desenhar uma cópia levemente desfocada e misturar para realçar bordas
         try {
-          // criar cópia, aplicar blur via canvas filter se suportado
           const tmpCanvas = document.createElement('canvas');
           tmpCanvas.width = canvas.width;
           tmpCanvas.height = canvas.height;
@@ -534,30 +588,24 @@ function melhorarImagemDataURL(dataURL) {
           tctx.filter = 'blur(1px)';
           tctx.drawImage(canvas, 0, 0);
 
-          // mistura: source-over com globalAlpha para efeito de nitidez
           ctx.globalCompositeOperation = 'overlay';
           ctx.globalAlpha = 0.35;
           ctx.drawImage(tmpCanvas, 0, 0);
           ctx.globalAlpha = 1;
           ctx.globalCompositeOperation = 'source-over';
-        } catch (e) {
-          // se não suportar filtros no contexto, ignore
-        }
+        } catch (e) { /* ignore */ }
 
-        // etapa 4: opcional - ajustar níveis (simples) para aumentar contraste fim
         try {
           let finalData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const fd = finalData.data;
           for (let i = 0; i < fd.length; i += 4) {
-            // stretch contrast
             fd[i] = Math.min(255, Math.max(0, (fd[i] - 20) * 1.12 + 10));
             fd[i+1] = Math.min(255, Math.max(0, (fd[i+1] - 20) * 1.12 + 10));
             fd[i+2] = Math.min(255, Math.max(0, (fd[i+2] - 20) * 1.12 + 10));
           }
           ctx.putImageData(finalData, 0, 0);
-        } catch (e) { /* ignore if fails */ }
+        } catch (e) { /* ignore */ }
 
-        // exportar
         const enhancedDataURL = canvas.toDataURL('image/jpeg', 0.92);
         resolve(enhancedDataURL);
       } catch (err) {
@@ -569,23 +617,10 @@ function melhorarImagemDataURL(dataURL) {
   });
 }
 
-/**
- * Handler do clique no botão "Melhorar Foto".
- * - pega currentImageData (ou src do preview)
- * - processa com melhorarImagemDataURL()
- * - atualiza preview / currentImageData
- * - dispara OCR na imagem melhorada
- */
+// handler (mantida como utilidade por compatibilidade, não ligada automaticamente)
 async function handleEnhanceClick(ev) {
   try {
-    if (!elements) return;
-    // obter dataURL a processar: preferir currentImageData, fallback para src do preview, ou arquivos do input
-    let sourceDataURL = null;
-
-    if (currentImageData) sourceDataURL = currentImageData;
-    else if (elements.imagePreview && elements.imagePreview.src) sourceDataURL = elements.imagePreview.src;
-
-    // fallback: se input file tem arquivo, ler como dataURL
+    let sourceDataURL = currentImageData || (elements.imagePreview && elements.imagePreview.src);
     if (!sourceDataURL && elements.fileInput && elements.fileInput.files && elements.fileInput.files[0]) {
       sourceDataURL = await new Promise((res, rej) => {
         const r = new FileReader();
@@ -594,52 +629,22 @@ async function handleEnhanceClick(ev) {
         r.readAsDataURL(elements.fileInput.files[0]);
       });
     }
-
     if (!sourceDataURL) {
       alert('Nenhuma imagem disponível. Primeiro selecione ou tire uma foto.');
       return;
     }
-
     showModal('Melhorando imagem', 'Aguarde enquanto a imagem é tratada...', true);
-
+    setProgress(5, 'Melhorando a foto...');
     const improved = await melhorarImagemDataURL(sourceDataURL);
-
-    // atualizar preview e currentImageData
-    showImagePreview(improved); // já setará currentImageData
-    // substituir input file (opcional) - cria File do dataURL para permitir reuso
-    try {
-      if (elements.fileInput) {
-        // converter dataURL para blob
-        const blob = dataURLtoBlob(improved);
-        const f = new File([blob], 'melhorada.jpg', { type: blob.type });
-        const dt = new DataTransfer();
-        dt.items.add(f);
-        elements.fileInput.files = dt.files;
-      }
-    } catch (e) {
-      // não crítico
-      console.warn('Não foi possível substituir fileInput:', e);
-    }
-
-    // pequena espera para o preview renderizar
+    showImagePreview(improved);
     setTimeout(() => {
-      // criar Image e rodar OCR com a imagem melhorada
       const img = new Image();
-      img.onload = () => {
-        // dispara OCR na imagem melhorada
-        processImageWithOCR(img);
-      };
-      img.onerror = (err) => {
-        console.warn('Erro ao carregar imagem melhorada:', err);
-        hideModal();
-        showModal('Erro', 'Não foi possível executar OCR na imagem melhorada.', false);
-      };
+      img.onload = () => processImageWithOCR(img);
       img.src = improved;
     }, 200);
-
   } catch (err) {
     console.error('Erro na melhoria da imagem:', err);
-    hideModal();
+    hideProgressBar();
     showModal('Erro', 'Falha ao melhorar a imagem.', false);
   }
 }
@@ -710,7 +715,7 @@ function clearForm() {
 }
 
 // ================================
-// SUBMIT (simulado, envio Apps Script depois)
+// SUBMIT (simulado)
 // ================================
 async function handleFormSubmit(e) {
   e.preventDefault();
@@ -738,7 +743,6 @@ async function handleFormSubmit(e) {
 
   console.log('📤 Dados preparados (simulação):', payload);
 
-  // Simulação local (substituir por sendToGoogleSheets quando pronto)
   setTimeout(() => {
     showModal('Pronto!', 'Dados processados localmente (simulação). Configure envio para planilha depois.', false);
   }, 1200);
@@ -755,7 +759,6 @@ function hideProgressBar() {
 }
 
 function showModal(title, message, spinner = true) {
-  // fallback simples caso elementos não existentes
   if (!elements || !elements.modal || !elements.modalTitle || !elements.modalMessage) {
     try { alert(title + '\n\n' + message); } catch (e) {}
     return;
@@ -789,7 +792,10 @@ window.SocialColetor = {
   extractAndFillData,
   processImageWithOCR,
   validateForm,
-  clearForm
+  clearForm,
+  // handleEnhanceClick mantido caso queira ativar botão futuramente
+  handleEnhanceClick
 };
 
-console.log('📦 Script Social Coletor carregado (versão de OCR, preview corrigido e melhoria integrada).');
+console.log('📦 Script Social Coletor carregado (versão com melhoria automática).');
+
