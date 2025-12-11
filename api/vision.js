@@ -67,6 +67,7 @@ app.post("/api/vision", async (req, res) => {
   } catch (err) {
     console.error("Erro Vision API:", err);
     return res.status(500).json({ error: "Erro na IA", details: err.message });
+    
   }
 });
 
