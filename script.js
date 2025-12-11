@@ -4,14 +4,14 @@
  *
  * Observações:
  * - Não há chave da OpenAI no frontend.
- * - Endpoint: https://coletor-de-dados.onrender.com/vision
+ * - Endpoint: https://coletor-de-dados.onrender.com/api/ocr
  * - O script cria o campo "obs" automaticamente se não existir no HTML.
  */
 
 // ================================
-// CONFIGURAÇÃO ENDPOINT (RENDER)
+// CONFIGURAÇÃO ENDPOINT (RENDER) - CORRIGIDO
 // ================================
-const OCR_API_URL = "https://coletor-de-dados.onrender.com/api/ocr";
+const OCR_ENDPOINT = "https://coletor-de-dados.onrender.com/api/ocr";
 
 
 // ================================
@@ -583,7 +583,7 @@ function formatDate(str) {
 }
 
 // ================================
-// MELHORIA DE IMAGEM (Office-Lens like)
+// MELHORIA DE IMAGEM (Office-Lens like) - CORRIGIDO
 // ================================
 function melhorarImagemDataURL(dataURL) {
   return new Promise((resolve, reject) => {
@@ -593,7 +593,8 @@ function melhorarImagemDataURL(dataURL) {
     img.onload = () => {
       try {
         const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+        // CORREÇÃO: Adicionar willReadFrequently para evitar warning
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
         canvas.width = img.naturalWidth || img.width;
         canvas.height = img.naturalHeight || img.height;
@@ -617,7 +618,7 @@ function melhorarImagemDataURL(dataURL) {
           const tmpCanvas = document.createElement('canvas');
           tmpCanvas.width = canvas.width;
           tmpCanvas.height = canvas.height;
-          const tctx = tmpCanvas.getContext('2d');
+          const tctx = tmpCanvas.getContext('2d', { willReadFrequently: true });
 
           tctx.filter = 'blur(1px)';
           tctx.drawImage(canvas, 0, 0);
