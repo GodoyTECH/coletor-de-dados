@@ -890,3 +890,86 @@ input:invalid, textarea:invalid {
     margin-top: 5px;
     text-align: center;
 }
+
+/* ===== PWA INSTALL ===== */
+.install-container {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    z-index: 9999;
+    animation: slideUp 0.3s ease-out;
+}
+
+.install-card {
+    background: linear-gradient(135deg, #0a0e29 0%, #1a237e 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.install-icon {
+    font-size: 40px;
+    flex-shrink: 0;
+}
+
+.install-content {
+    flex: 1;
+}
+
+.install-content h3 {
+    margin: 0 0 5px 0;
+    color: #ffd166;
+}
+
+.install-content p {
+    margin: 0 0 15px 0;
+    opacity: 0.9;
+    font-size: 14px;
+}
+
+.btn-install {
+    background: linear-gradient(135deg, #06d6a0 0%, #2d6a4f 100%);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 50px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-right: 10px;
+    transition: transform 0.3s;
+}
+
+.btn-install:hover {
+    transform: translateY(-2px);
+}
+
+.btn-install-secondary {
+    background: transparent;
+    color: #ccc;
+    border: 1px solid #ccc;
+    padding: 10px 20px;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-install-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
