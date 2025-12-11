@@ -9,7 +9,7 @@
 // ============================================
 
 // ATENÇÃO: substitua pela URL do seu Web App após publicá-lo
-let APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzJbyvcjd4VUmCdyzf3o-xcMK9kqJDRGPAQsp4EcKZxKnaQ_Ecn6h4BbPfKC2elMIer3w/exec';
+let APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwXmz9h5L6Ki5VWm3lC-HWJ_pNHpZMfSOjVcsvObF6yMVjmGAev48VwOC4pe71vmdyh3w/exec';
 
 // ============================================
 // CONSTANTES E CONFIGURAÇÕES
