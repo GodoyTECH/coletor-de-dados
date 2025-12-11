@@ -6,7 +6,7 @@
     <title>Social Coletor - Coletor de Dados via Imagem</title>
 
     <!-- Meta tags PWA -->
-    <meta name="theme-color" content="#1a237e">
+    <meta name="theme-color" content="#0a0e29">
     <meta name="description" content="Aplicativo para coleta de dados via OCR de documentos sociais">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,32 +14,33 @@
     <!-- Manifest -->
     <link rel="manifest" href="manifest.json">
 
-    <!-- Ícone (inline para evitar 404) -->
+    <!-- Ícone -->
     <link rel="icon" href="logo.png" type="image/png">
-<link rel="apple-touch-icon" href="logo.png">
-
+    <link rel="apple-touch-icon" href="logo.png">
 
     <!-- CSS -->
     <link rel="stylesheet" href="style.css">
 
-    <!-- Tesseract.js (mantive no head) -->
+    <!-- Tesseract.js -->
     <script src="https://unpkg.com/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
 
-    <!-- Script principal (DEFER garante execução após DOM estar pronto) -->
+    <!-- Script principal -->
     <script src="script.js" defer></script>
 </head>
 <body>
-   <header class="header">
-    <div class="logo-container">
-        <img src="sua-logo.png" class="logo" alt="Logo">
-    </div>
+    <!-- Emojis flutuantes -->
+    <div class="emoji-background" id="emojiContainer"></div>
 
-    <h1>Social Coletor</h1>
-    <p class="subtitle">Coletor de dados via imagem</p>
-</header>
+    <div class="container">
+        <!-- Cabeçalho -->
+        <header class="header">
+            <div class="logo-container">
+                <img src="logo.png" class="logo" alt="Logo Social Coletor">
+            </div>
 
-
-
+            <h1>Social Coletor</h1>
+            <p class="subtitle">Coletor de dados via imagem</p>
+        </header>
 
         <!-- Card Principal -->
         <main class="main-card">
@@ -75,6 +76,13 @@
                         <div class="progress-fill" id="progressFill" style="width: 0%"></div>
                     </div>
                 </div>
+                
+                <!-- Botão Melhorar Foto -->
+                <button id="btnMelhorarFoto" class="btn" style="display: none;">
+                    ✨ Melhorar Qualidade da Imagem
+                </button>
+                
+                <canvas id="enhanced-preview" style="display:none;"></canvas>
             </section>
 
             <!-- Seção do Formulário -->
@@ -124,7 +132,7 @@
                             <input type="date" id="data" name="data" required>
                         </div>
 
-                        <!-- Linha 4 - Endereço (largura completa) -->
+                        <!-- Linha 4 - Endereço -->
                         <div class="form-group full-width">
                             <label for="endereco">Endereço *</label>
                             <textarea id="endereco" name="endereco" required 
@@ -153,11 +161,6 @@
                         <button type="submit" id="submitBtn" class="btn btn-success" disabled>
                             📤 Enviar para Planilha
                         </button>
-                        
-                        <button id="btnMelhorarFoto"> 👉 Melhorar Foto</button>
-
-<canvas id="enhanced-preview" style="display:none;"></canvas>
-
                     </div>
                 </form>
             </section>
@@ -180,11 +183,47 @@
         </div>
     </div>
 
-    <!-- Registro do Service Worker -->
+    <!-- Script para emojis flutuantes -->
     <script>
-        // Verificar se Tesseract está carregado e registrar SW após load
+        // Cria emojis flutuantes
+        function criarEmojisFlutuantes() {
+            const container = document.getElementById('emojiContainer');
+            const emojis = [
+                '🍎', '🥫', '📦', '🧺', '🛒', '🎁', '🎮', '🧸', '🏀', '⚽',
+                '📚', '✏️', '🎨', '👕', '👖', '🧥', '🥾', '🛏️', '🧼', '🪣',
+                '💊', '🩹', '🥛', '🍞', '🥦', '🍗', '🥚', '🍚', '🫙', '🧴'
+            ];
+            
+            // Cria 25 emojis flutuantes
+            for (let i = 0; i < 25; i++) {
+                const emoji = document.createElement('div');
+                emoji.className = 'floating-emoji';
+                emoji.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                
+                // Posição aleatória
+                emoji.style.left = Math.random() * 100 + 'vw';
+                emoji.style.top = Math.random() * 100 + 'vh';
+                
+                // Duração e atraso aleatórios
+                const duration = 15 + Math.random() * 20;
+                const delay = Math.random() * 5;
+                emoji.style.animationDuration = duration + 's';
+                emoji.style.animationDelay = delay + 's';
+                
+                // Tamanho aleatório
+                const size = 20 + Math.random() * 30;
+                emoji.style.fontSize = size + 'px';
+                
+                container.appendChild(emoji);
+            }
+        }
+
+        // Registrar Service Worker
         window.addEventListener('load', function() {
             console.log('🌐 Tesseract carregado:', typeof Tesseract !== 'undefined');
+            
+            // Criar emojis flutuantes
+            criarEmojisFlutuantes();
 
             // Registrar Service Worker
             if ('serviceWorker' in navigator) {
@@ -200,4 +239,3 @@
     </script>
 </body>
 </html>
-
