@@ -1,8 +1,17 @@
 /**
  * SOCIAL COLETOR - SCRIPT PRINCIPAL (com melhoria automática + UX de progresso)
- * Mantive toda a lógica original e adicionei melhoria automática da foto ao fazer upload,
- * atualização do preview e execução automática do OCR na imagem melhorada.
+ * Integrado com OpenAI Vision via endpoint seguro (Render).
+ *
+ * Observações:
+ * - Não há chave da OpenAI no frontend.
+ * - Endpoint: https://coletor-de-dados.onrender.com/vision
+ * - O script cria o campo "obs" automaticamente se não existir no HTML.
  */
+
+// ================================
+// CONFIGURAÇÃO ENDPOINT (RENDER)
+// ================================
+const VISION_ENDPOINT = "https://coletor-de-dados.onrender.com/vision";
 
 // ================================
 // VARIÁVEIS GLOBAIS
@@ -11,7 +20,6 @@ let elements = {};
 let formFields = {};
 
 let currentImageData = null;
-let tesseractWorker = null;
 let isProcessing = false;
 
 // Regex base usados nas extrações
@@ -29,23 +37,14 @@ const regexPatterns = {
 // ================================
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🚀 DOM carregado, inicializando app...');
-
-  // checar Tesseract
-  if (typeof Tesseract === 'undefined') {
-    console.error('❌ Tesseract não carregado!');
-    alert('Biblioteca OCR não carregada. Recarregue a página e verifique a internet.');
-    return;
-  }
-
   setupElements();
   console.table(Object.keys(elements));
   console.table(Object.keys(formFields));
-
   initializeApp();
 });
 
 // ================================
-// BUSCA ELEMENTOS DO DOM
+// BUSCA ELEMENTOS DO DOM (e cria obs se necessário)
 // ================================
 function setupElements() {
   elements = {
@@ -65,9 +64,34 @@ function setupElements() {
     modalMessage: document.getElementById('modalMessage'),
     modalSpinner: document.getElementById('modalSpinner'),
     modalCloseBtn: document.getElementById('modalCloseBtn'),
-    // se ainda existir no HTML, mas NÃO vamos ligar o clique automático
-    enhanceBtn: document.getElementById('btnMelhorarFoto')
+    enhanceBtn: document.getElementById('btnMelhorarFoto'),
+    // optional canvas preview
+    enhancedPreviewCanvas: document.getElementById('enhanced-preview')
   };
+
+  // Ensure OBS textarea exists; if not, create and append to the form
+  let obsEl = document.getElementById('obs');
+  if (!obsEl) {
+    try {
+      const obsGroup = document.createElement('div');
+      obsGroup.className = 'form-group full-width';
+      obsGroup.style.marginTop = '12px';
+      obsGroup.innerHTML = `
+        <label for="obs">Observações (anotações manuais)</label>
+        <textarea id="obs" name="obs" placeholder="Observações detectadas (manuscritos, post-its, anotações)" rows="3"></textarea>
+      `;
+      // Append before form actions if possible
+      const form = document.getElementById('dataForm');
+      if (form) {
+        const actions = form.querySelector('.form-actions');
+        if (actions) form.insertBefore(obsGroup, actions);
+        else form.appendChild(obsGroup);
+      }
+      obsEl = document.getElementById('obs');
+    } catch (e) {
+      console.warn('Não foi possível criar campo OBS automaticamente:', e);
+    }
+  }
 
   formFields = {
     beneficiario: document.getElementById('beneficiario'),
@@ -78,7 +102,8 @@ function setupElements() {
     endereco: document.getElementById('endereco'),
     data: document.getElementById('data'),
     assinatura: document.getElementById('assinatura'),
-    numeroDocumento: document.getElementById('numeroDocumento')
+    numeroDocumento: document.getElementById('numeroDocumento'),
+    obs: obsEl || null
   };
 }
 
@@ -99,9 +124,7 @@ function setupEventListeners() {
   if (elements.captureBtn) {
     elements.captureBtn.addEventListener('click', () => {
       if (!elements.fileInput) return;
-      try {
-        elements.fileInput.setAttribute('capture', 'environment');
-      } catch (e) { /* ignore */ }
+      try { elements.fileInput.setAttribute('capture', 'environment'); } catch (e) {}
       elements.fileInput.click();
     });
   }
@@ -109,9 +132,7 @@ function setupEventListeners() {
   if (elements.uploadBtn) {
     elements.uploadBtn.addEventListener('click', () => {
       if (!elements.fileInput) return;
-      try {
-        elements.fileInput.removeAttribute('capture');
-      } catch (e) { /* ignore */ }
+      try { elements.fileInput.removeAttribute('capture'); } catch (e) {}
       elements.fileInput.click();
     });
   }
@@ -131,10 +152,6 @@ function setupEventListeners() {
   if (elements.modalCloseBtn) {
     elements.modalCloseBtn.addEventListener('click', hideModal);
   }
-
-  // NOTA: não adicionamos listener ao botão de "melhorar foto" — a melhoria será automática.
-  // (Se quiser reativar botão, basta descomentar a linha abaixo)
-  // if (elements.enhanceBtn) elements.enhanceBtn.addEventListener('click', handleEnhanceClick);
 
   // validação em tempo real
   Object.values(formFields).forEach(f => {
@@ -165,7 +182,6 @@ function handleImageSelection(event) {
     return;
   }
 
-  // show initial modal & progress
   showModal('Processando', 'Carregando imagem...', true);
   showProgressBar();
   setProgress(5, 'Carregando imagem...');
@@ -197,17 +213,14 @@ function handleImageSelection(event) {
 
 function showImagePreview(dataURL) {
   if (!elements) return;
-
   if (elements.imagePlaceholder) {
     try { elements.imagePlaceholder.style.display = 'none'; } catch (e) {}
   }
-
   if (elements.imagePreview) {
     elements.imagePreview.src = dataURL;
     elements.imagePreview.removeAttribute('hidden');
     try { elements.imagePreview.style.display = 'block'; } catch (e) {}
   }
-
   currentImageData = dataURL;
 }
 
@@ -216,21 +229,14 @@ function showImagePreview(dataURL) {
 // ================================
 async function autoEnhanceAndOCR(dataURL) {
   try {
-    // 1) Mostrar "Melhorando a foto..."
     setProgress(8, 'Melhorando a foto...');
-    // animar progress até 60% enquanto ocorre a melhoria (visual)
     const animPromise = animateProgress(60, 600);
 
-    // 2) executar melhoria (pode ser relativamente rápida)
     const improved = await melhorarImagemDataURL(dataURL);
-
-    // aguardar animação curta para UX
     await animPromise;
 
-    // 3) atualizar preview com imagem melhorada
     showImagePreview(improved);
 
-    // opcional: atualizar fileInput com versão melhorada para reuso
     try {
       if (elements.fileInput) {
         const blob = dataURLtoBlob(improved);
@@ -243,16 +249,12 @@ async function autoEnhanceAndOCR(dataURL) {
       console.warn('Não foi possível atualizar fileInput com imagem melhorada:', e);
     }
 
-    // 4) preparar para OCR: mostrar 90..100% e então iniciar OCR
     setProgress(90, 'Finalizando melhoria...');
     await animateProgress(100, 200);
-    // pequena pausa para UX
     await new Promise(r => setTimeout(r, 150));
 
-    // 5) iniciar OCR na imagem melhorada
     const img = new Image();
     img.onload = () => {
-      // processImageWithOCR agora mostra "Lendo dados..."
       processImageWithOCR(img);
     };
     img.onerror = (err) => {
@@ -273,13 +275,11 @@ async function autoEnhanceAndOCR(dataURL) {
 function animateProgress(targetPct = 100, duration = 500) {
   return new Promise(resolve => {
     if (!elements || !elements.progressFill) return resolve();
-
     const el = elements.progressFill;
     const start = parseInt(el.style.width || '0', 10);
     const end = Math.min(100, Math.max(0, targetPct));
     const diff = end - start;
     if (diff === 0) return resolve();
-
     const startTime = performance.now();
     function step(now) {
       const t = Math.min(1, (now - startTime) / duration);
@@ -300,121 +300,154 @@ function setProgress(pct, label) {
 }
 
 // ================================
-// OCR (Tesseract.js)
+// OCR (OpenAI Vision via backend)
 // ================================
 async function processImageWithOCR(imageElement) {
   if (isProcessing) return;
   isProcessing = true;
   showProgressBar();
-  // indicar leitura
-  showModal('Lendo dados...', 'Iniciando reconhecimento de texto...', true);
-  setProgress(2, 'Lendo dados...');
+  showModal('Lendo dados...', 'Enviando imagem para análise...', true);
+  setProgress(10, 'Enviando imagem...');
 
   try {
-    // Criar worker com logger para progresso
-    tesseractWorker = await Tesseract.createWorker({
-      logger: (m) => {
-        // m: { status, progress }
-        updateProgress(m);
+    // use currentImageData (dataURL) if available
+    const base64 = currentImageData || imageElement.src;
+    if (!base64) throw new Error('Imagem não disponível para envio.');
+
+    const result = await sendToVision(base64);
+
+    // result is expected to be an object with fields; fallback to raw text
+    console.log('🔁 Resultado Vision:', result);
+
+    // If API returns { raw: "..." }, try to normalize and extract via existing logic
+    if (result && typeof result === 'object') {
+      // Prefer explicit fields; if not available, try to use result.raw
+      const mapped = {
+        beneficiario: result.beneficiario || result.nome || '',
+        cpf: result.cpf || result.CPF || '',
+        atendente: result.atendente || '',
+        produto: result.produto || '',
+        quantidade: result.quantidade || '',
+        endereco: result.endereco || '',
+        data: result.data || '',
+        assinatura: result.assinatura || '',
+        numeroDocumento: result.numeroDocumento || result.numero || '',
+        obs: result.obs || result.observacoes || result.notes || ''
+      };
+
+      // If the response contains a raw text: run the text-based extractor as fallback
+      if (!mapped.beneficiario && result.raw) {
+        const cleaned = normalizeOCRText(result.raw);
+        extractAndFillData(cleaned);
+        if (formFields.obs && !formFields.obs.value) formFields.obs.value = (result.raw || '').slice(0, 1000);
+      } else {
+        // set fields directly
+        fillFormWithData(mapped);
+        // set obs separately
+        if (formFields.obs) {
+          formFields.obs.value = mapped.obs || (result.raw ? result.raw : '');
+          try { formFields.obs.style.borderColor = '#4caf50'; } catch (e) {}
+        }
       }
-    });
+    } else if (typeof result === 'string') {
+      // If server returned a text string
+      const cleaned = normalizeOCRText(result);
+      extractAndFillData(cleaned);
+    } else {
+      showModal('Aviso', 'Resposta da API inesperada. Verifique logs.', false);
+    }
 
-    // Nota: não usamos worker.load() porque nas versões recentes o worker já vem pré-carregado
-    await tesseractWorker.loadLanguage('por');
-    await tesseractWorker.initialize('por');
-
-    await tesseractWorker.setParameters({
-      tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÇÈÉÊËÍÓÔÕÖÚÛÜ.,-/:;() ',
-      preserve_interword_spaces: '1',
-      tessedit_pageseg_mode: 6
-    });
-
-    const { data: { text } } = await tesseractWorker.recognize(imageElement);
-
-    // normalizar texto cru
-    const cleaned = normalizeOCRText(text);
-    console.log('🔎 Texto OCR (limpo):', cleaned);
-
-    // preencher campos extraídos
-    extractAndFillData(cleaned);
-
+    setProgress(100, 'Concluído');
     hideProgressBar();
     hideModal();
-    showModal('Sucesso', 'Dados extraídos automaticamente!', false);
+    showModal('Sucesso', 'Dados extraídos com sucesso!', false);
 
   } catch (err) {
-    console.error('Erro OCR:', err);
+    console.error('Erro no processo OCR via Vision:', err);
     hideProgressBar();
-    showModal('Erro', 'Falha no OCR. Verifique a imagem e tente novamente.', false);
+    showModal('Erro', 'Falha ao analisar imagem. Tente novamente.', false);
   } finally {
     isProcessing = false;
-    if (tesseractWorker) {
-      try { await tesseractWorker.terminate(); } catch (e) { console.warn(e); }
-      tesseractWorker = null;
+  }
+}
+
+// Envia imagem (dataURL) ao endpoint do backend (Render) e recebe JSON
+async function sendToVision(dataURL) {
+  // ensure it's a data URL (if image element src is a blob url, convert)
+  let payload = dataURL;
+  // if it's a blob URL (startsWith blob:), convert to dataURL
+  if (payload && payload.startsWith('blob:')) {
+    payload = await blobUrlToDataURL(payload);
+  }
+
+  // If it is already a data URL, keep; if it's a remote URL, fetch and toDataURL
+  if (payload && !payload.startsWith('data:')) {
+    // attempt to fetch and convert
+    try {
+      const r = await fetch(payload);
+      const b = await r.blob();
+      payload = await blobToDataURL(b);
+    } catch (e) {
+      console.warn('Não foi possível converter URL para dataURL:', e);
     }
   }
-}
 
-// Atualiza barra de progresso (usado pelo logger do tesseract)
-function updateProgress(msg) {
-  if (!elements || !elements.progressLabel || !elements.progressFill) return;
-  const pct = Math.round((msg.progress || 0) * 100);
-  const status = (msg.status || '').toLowerCase();
+  try {
+    const resp = await fetch(VISION_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: payload })
+    });
 
-  // mapear para rótulo amigável
-  if (status.includes('recognizing') || status.includes('recognising')) {
-    elements.progressLabel.textContent = `Lendo dados... ${pct}%`;
-  } else if (status) {
-    elements.progressLabel.textContent = `${capitalize(status)} ${pct}%`;
-  } else {
-    elements.progressLabel.textContent = `Lendo dados... ${pct}%`;
+    if (!resp.ok) {
+      const txt = await resp.text();
+      throw new Error(`Erro do servidor: ${resp.status} - ${txt}`);
+    }
+
+    const json = await resp.json();
+    return json;
+  } catch (err) {
+    console.error('Erro sendToVision:', err);
+    throw err;
   }
-
-  elements.progressFill.style.width = `${pct}%`;
 }
 
-// capitalize helper
-function capitalize(s) {
-  if (!s) return s;
-  return s.charAt(0).toUpperCase() + s.slice(1);
+// helper: blob URL -> dataURL
+function blobUrlToDataURL(blobUrl) {
+  return new Promise((resolve, reject) => {
+    fetch(blobUrl).then(r => r.blob()).then(blobToDataURL).then(resolve).catch(reject);
+  });
+}
+function blobToDataURL(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
 }
 
 // ================================
 // NORMALIZAÇÃO / LIMPEZA DO TEXTO OCR
+// (reaproveitado do seu código original)
 // ================================
 function normalizeOCRText(raw) {
   if (!raw || typeof raw !== 'string') return '';
-
   let s = raw;
-
-  // 1) substituir quebras indevidas por newline uniforme
   s = s.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-
-  // 2) remover caracteres estranhos comumente gerados
   s = s.replace(/[••†‡••◊▮◼○■◦]/g, ' ');
   s = s.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ');
-
-  // 3) normalizar espaçamento (múltiplos espaços -> único)
   s = s.replace(/ {2,}/g, ' ');
-
-  // 4) limpar repetições de pontuação estranha
   s = s.replace(/[\u2018\u2019\u201c\u201d]/g, "'");
-
-  // 5) corrigir casos comuns de OCR para números e letras (heurísticas simples)
-  s = s.replace(/O(?=\d{2,})/g, '0'); // O antes de números -> 0
-  s = s.replace(/(?<=\d)l(?=\d)/g, '1'); // l entre números -> 1
-
-  // 6) remover espaços ao redor de sinais importantes
+  s = s.replace(/O(?=\d{2,})/g, '0');
+  s = s.replace(/(?<=\d)l(?=\d)/g, '1');
   s = s.replace(/\s*([:;,\-\/()])\s*/g, '$1');
-
-  // 7) normalizar múltiplas quebras em um bloco - manter estrutura por linhas
   s = s.split('\n').map(line => line.trim()).filter(Boolean).join('\n');
-
   return s;
 }
 
 // ================================
-// EXTRAÇÃO DE DADOS
+// EXTRAÇÃO DE DADOS (sua lógica original - usada como fallback)
 // ================================
 function extractAndFillData(text) {
   const data = {
@@ -737,6 +770,7 @@ async function handleFormSubmit(e) {
     data: formFields.data?.value || '',
     assinatura: (formFields.assinatura?.value || '').trim() || 'N/A',
     numeroDocumento: (formFields.numeroDocumento?.value || '').trim(),
+    observacoes: formFields.obs?.value || '',
     imagemBase64: currentImageData || '',
     timestamp: new Date().toISOString()
   };
@@ -782,9 +816,7 @@ function hideModal() {
 // FINALIZAÇÃO / limpeza
 // ================================
 window.addEventListener('beforeunload', async () => {
-  if (tesseractWorker) {
-    try { await tesseractWorker.terminate(); } catch (e) {}
-  }
+  // nothing to terminate (we removed tesseract worker use)
 });
 
 // Export para debug no console
@@ -793,9 +825,7 @@ window.SocialColetor = {
   processImageWithOCR,
   validateForm,
   clearForm,
-  // handleEnhanceClick mantido caso queira ativar botão futuramente
   handleEnhanceClick
 };
 
-console.log('📦 Script Social Coletor carregado (versão com melhoria automática).');
-
+console.log('📦 Script Social Coletor carregado (versão integrada com OpenAI Vision).');
