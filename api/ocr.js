@@ -1,5 +1,5 @@
 // ==================================================
-//  API OCR — OCR.Space (Plano Grátis) para Render
+//  API OCR — OCR.Space (Plano Grátis)
 // ==================================================
 
 const express = require("express");
@@ -15,7 +15,7 @@ app.use(bodyParser.json({ limit: "50mb" }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // ==================================================
-//  OCR API — Envia imagem para OCR.Space (gratuito)
+//  OCR API — Envia imagem para OCR.Space (Free)
 // ==================================================
 
 app.post("/api/ocr", async (req, res) => {
@@ -29,11 +29,8 @@ app.post("/api/ocr", async (req, res) => {
     // REMOVE prefixo "data:image/jpeg;base64,"
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
 
-    // ================================================
-    // 🔥 COLOQUE A SUA API KEY AQUI
-    // ================================================
-    const apiKey = "K81426298188957";
-    // ================================================
+    // COLOQUE SUA KEY AQUI
+    const apiKey = "SUA_API_KEY_AQUI";
 
     const formData = new URLSearchParams();
     formData.append("apikey", apiKey);
@@ -42,16 +39,13 @@ app.post("/api/ocr", async (req, res) => {
     formData.append("isTable", "true");
     formData.append("scale", "true");
     formData.append("detectOrientation", "true");
-    formData.append("OCREngine", "2"); // motor mais preciso
+    formData.append("OCREngine", "2");
 
-    // Envia para OCR.Space
     const response = await axios.post(
       "https://api.ocr.space/parse/image",
       formData,
       {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded"
-        }
+        headers: { "Content-Type": "application/x-www-form-urlencoded" }
       }
     );
 
@@ -63,10 +57,7 @@ app.post("/api/ocr", async (req, res) => {
 
     const parsedText = data.ParsedResults[0].ParsedText || "";
 
-    // Retorna para o frontend
-    return res.json({
-      text: parsedText
-    });
+    return res.json({ text: parsedText });
 
   } catch (err) {
     console.error("Erro OCR API:", err);
@@ -78,18 +69,10 @@ app.post("/api/ocr", async (req, res) => {
 });
 
 // ==================================================
-// Porta Render
+// Porta Render — APENAS UM BLOCO!
 // ==================================================
-
 const PORT = process.env.PORT || 3001;
 
-app.listen(PORT, () =>
-  console.log(`🔥 API OCR rodando na porta ${PORT}`)
-);
-
-
-// Porta Render
-const PORT = process.env.PORT || 3001;
 app.listen(PORT, () =>
   console.log(`🔥 API OCR rodando na porta ${PORT}`)
 );
