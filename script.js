@@ -11,7 +11,8 @@
 // ================================
 // CONFIGURAÇÃO ENDPOINT (RENDER)
 // ================================
-const VISION_ENDPOINT = "https://coletor-de-dados.onrender.com/api/vision";
+const OCR_API_URL = "https://coletor-de-dados.onrender.com/api/ocr";
+
 
 // ================================
 // VARIÁVEIS GLOBAIS
