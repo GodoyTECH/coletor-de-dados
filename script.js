@@ -315,7 +315,7 @@ async function processImageWithOCR(imageElement) {
     const base64 = currentImageData || imageElement.src;
     if (!base64) throw new Error('Imagem não disponível para envio.');
 
-    const result = await sendToVision(base64);
+    const result = await sendToOCR(base64);
 
     // result is expected to be an object with fields; fallback to raw text
     console.log('🔁 Resultado Vision:', result);
@@ -373,7 +373,7 @@ async function processImageWithOCR(imageElement) {
 }
 
 // Envia imagem (dataURL) ao endpoint do backend (Render) e recebe JSON
-async function sendToVision(dataURL) {
+async function sendToOCR(dataURL) {
   // ensure it's a data URL (if image element src is a blob url, convert)
   let payload = dataURL;
   // if it's a blob URL (startsWith blob:), convert to dataURL
@@ -408,7 +408,7 @@ async function sendToVision(dataURL) {
     const json = await resp.json();
     return json;
   } catch (err) {
-    console.error('Erro sendToVision:', err);
+    console.error('Erro sendToOCR:', err);
     throw err;
   }
 }
