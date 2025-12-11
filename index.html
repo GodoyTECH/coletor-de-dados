@@ -61,13 +61,41 @@
                     <input type="file" id="fileInput" accept="image/*" hidden>
                 </div>
 
-                <!-- Preview da Imagem -->
-                <div class="image-preview-container">
-                    <div class="image-placeholder" id="imagePlaceholder">
-                        <span>📄 Preview da imagem aparecerá aqui</span>
-                    </div>
-                    <img id="imagePreview" class="image-preview" alt="Preview da imagem capturada" hidden>
-                </div>
+               <!-- Preview da Imagem com Controles de Zoom -->
+<div class="image-preview-container">
+    <div class="image-controls-panel">
+        <!-- Controles de Zoom -->
+        <div class="zoom-controls">
+            <button class="zoom-btn" id="zoomOut" title="Reduzir zoom">−</button>
+            <span class="zoom-level" id="zoomLevel">100%</span>
+            <button class="zoom-btn" id="zoomIn" title="Aumentar zoom">+</button>
+        </div>
+        
+        <!-- Controles de Movimento -->
+        <div class="move-controls">
+            <div class="move-row">
+                <button class="move-btn" id="moveUp" title="Mover para cima">↑</button>
+            </div>
+            <div class="move-row">
+                <button class="move-btn" id="moveLeft" title="Mover para esquerda">←</button>
+                <button class="move-btn" id="moveCenter" title="Centralizar imagem">◎</button>
+                <button class="move-btn" id="moveRight" title="Mover para direita">→</button>
+            </div>
+            <div class="move-row">
+                <button class="move-btn" id="moveDown" title="Mover para baixo">↓</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Container da Imagem com Zoom -->
+    <div class="image-zoom-container" id="imageZoomContainer">
+        <div class="image-placeholder" id="imagePlaceholder">
+            <span>📄 Preview da imagem aparecerá aqui</span>
+            <p class="placeholder-hint">Use os controles para ajustar zoom e posição</p>
+        </div>
+        <img id="imagePreview" class="image-preview" alt="Preview da imagem capturada" hidden>
+    </div>
+</div>
 
                 <!-- Barra de Progresso OCR -->
                 <div class="progress-container" id="progressContainer" hidden>
