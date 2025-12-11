@@ -204,10 +204,22 @@
         <!-- Rodapé -->
         <footer class="footer">
             <p>Social Coletor v1.0 • PWA • OCR  • Google Sheets Integration</p>
-            <p class="hint">📱 Instale este aplicativo para uso offline!</p>
              <p>Desenvolvido por • Godoy Solutions In TECH</p>
         </footer>
     </div>
+
+    <!-- Botão de Instalação PWA -->
+<div id="installContainer" class="install-container" style="display: none;">
+    <div class="install-card">
+        <div class="install-icon">📱</div>
+        <div class="install-content">
+            <h3>Instalar Social Coletor</h3>
+            <p>Para melhor experiência, instale o app em seu dispositivo!</p>
+            <button id="installBtn" class="btn-install">📥 Instalar Agora</button>
+            <button onclick="hideInstallPrompt()" class="btn-install-secondary">Agora não</button>
+        </div>
+    </div>
+</div>
 
     <!-- Script para funções de envio melhoradas -->
     <script src="send.js"></script>
