@@ -1,7 +1,7 @@
 {
   "name": "coletor-backend",
   "version": "1.0.0",
-  "main": "vision.js",
+  "main": "ocr.js",
   "type": "commonjs",
   "dependencies": {
     "express": "^4.18.2",
