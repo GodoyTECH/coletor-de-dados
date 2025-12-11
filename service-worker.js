@@ -1,4 +1,4 @@
-const CACHE_NAME = 'social-coletor-v1.1';
+const CACHE_NAME = 'social-coletor-v1.3';
 
 const CACHE_ASSETS = [
   '/',
