@@ -26,7 +26,7 @@ app.post("/api/ocr", async (req, res) => {
     const base64Clean = imageBase64.replace(/^data:image\/\w+;base64,/, "");
 
     const formData = new URLSearchParams();
-    formData.append("apikey", "helloworld"); // FREE KEY
+    formData.append("apikey", "K81426298188957"); // FREE KEY
     formData.append("base64Image", "data:image/jpeg;base64," + base64Clean);
     formData.append("language", "por");
     formData.append("isTable", "true");
