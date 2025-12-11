@@ -1,24 +1,3 @@
-// =========================
-//  API VISION (Render)
-// =========================
-
-const express = require("express");
-const cors = require("cors");
-const bodyParser = require("body-parser");
-const OpenAI = require("openai");
-
-const app = express();
-app.use(cors());
-app.use(bodyParser.json({ limit: "20mb" }));
-
-// Carrega API Key do Render
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
-
-// ---------------------------
-//  OCR + EXTRAÇÃO COMPLETA
-// ---------------------------
 app.post("/api/vision", async (req, res) => {
   try {
     const { imageBase64 } = req.body;
@@ -27,25 +6,23 @@ app.post("/api/vision", async (req, res) => {
       return res.status(400).json({ error: "Nenhuma imagem recebida." });
     }
 
-    // Chamada ao modelo Vision
-    const response = await client.responses.create({
+    const response = await client.chat.completions.create({
       model: "gpt-4.1",
-      input: [
+      messages: [
         {
           role: "system",
-          content:
-            "Você é um extrator de dados extremamente preciso. Extraia SOMENTE os campos que existirem na imagem."
+          content: "Você é um extrator de dados extremamente preciso. Extraia SOMENTE os campos que existirem."
         },
         {
           role: "user",
           content: [
             {
-              type: "input_text",
+              type: "text",
               text:
                 "Extraia exatamente estes campos: beneficiario, cpf, atendente, produto, quantidade, endereco, data, assinatura, numeroDocumento, obs. OBS = anotações feitas à mão na imagem."
             },
             {
-              type: "input_image",
+              type: "image_url",
               image_url: imageBase64
             }
           ]
@@ -53,9 +30,8 @@ app.post("/api/vision", async (req, res) => {
       ]
     });
 
-    let text = response.output[0].content[0].text;
+    const text = response.choices[0].message.content;
 
-    // Tentamos converter para JSON automaticamente
     let json;
     try {
       json = JSON.parse(text);
@@ -66,10 +42,13 @@ app.post("/api/vision", async (req, res) => {
     return res.json(json);
   } catch (err) {
     console.error("Erro Vision API:", err);
-    return res.status(500).json({ error: "Erro na IA", details: err.message });
-    
+    return res.status(500).json({
+      error: "Erro na IA",
+      details: err.message
+    });
   }
 });
+
 
 // Porta Render
 const PORT = process.env.PORT || 3001;
