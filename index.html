@@ -168,13 +168,14 @@
 
         <!-- Rodapé -->
         <footer class="footer">
-            <p>Social Coletor v1.0 • PWA • OCR com Tesseract.js • Google Sheets Integration</p>
+            <p>Social Coletor v1.0 • PWA • OCR  • Google Sheets Integration</p>
             <p class="hint">📱 Instale este aplicativo para uso offline!</p>
+             <p>Desenvolvido por • Godoy Solutions In TECH</p>
         </footer>
     </div>
 
-    
-    </div>
+    <!-- Script para funções de envio melhoradas -->
+    <script src="send.js"></script>
 
     <!-- Script para emojis flutuantes -->
     <script>
@@ -223,6 +224,25 @@
                 navigator.serviceWorker.register('service-worker.js')
                     .then(function(registration) {
                         console.log('✅ Service Worker registrado:', registration.scope);
+                        
+                        // Verificar envios pendentes após registro do service worker
+                        if (typeof getSubmissionStatus === 'function') {
+                            const status = getSubmissionStatus();
+                            if (status.pendingCount > 0) {
+                                console.log(`📋 ${status.pendingCount} envio(s) pendente(s) encontrado(s)`);
+                                
+                                // Opcional: mostrar notificação suave sobre pendentes
+                                if (typeof showModal === 'function' && status.pendingCount > 0) {
+                                    setTimeout(() => {
+                                        showModal(
+                                            '📤 Envios Pendentes', 
+                                            `Existem ${status.pendingCount} envio(s) pendentes. O sistema tentará enviar automaticamente.`,
+                                            false
+                                        );
+                                    }, 2000);
+                                }
+                            }
+                        }
                     })
                     .catch(function(error) {
                         console.log('⚠️ Service Worker não registrado:', error);
