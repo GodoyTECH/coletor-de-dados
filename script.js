@@ -394,7 +394,7 @@ async function sendToOCR(dataURL) {
   }
 
   try {
-    const resp = await fetch(VISION_ENDPOINT, {
+    const resp = await fetch(OCR_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ imageBase64: payload })
