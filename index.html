@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-   
+    <!-- ADICIONE ESTAS 3 LINHAS PARA RESOLVER CACHE -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -23,14 +26,9 @@
     <!-- CSS -->
     <link rel="stylesheet" href="style.css">
 
-    <!-- Tesseract.js -->
-    <script src="https://unpkg.com/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
-
     <!-- Script principal -->
-   
-  
-    <script src="script.js" defer></script>
-   <script src="send.js" defer></script>
+    <script src="app.js" defer></script>
+    <script src="send.js" defer></script>
 </head>
 <body>
     <!-- Emojis flutuantes -->
@@ -39,28 +37,19 @@
     <div class="logo-container">
         <img src="logo.png" class="logo" alt="Logo Social Coletor">
     </div>
-       <!-- Cabeçalho -->
-<header class="header">
-
-
     
-    <p class="subtitle">Coletor de dados via imagem</p>
-</header>
+    <header class="header">
+        <p class="subtitle">Coletor de dados via imagem</p>
+    </header>
 
-<!-- CONTAINER principal (todo o conteúdo do site fica aqui) -->
-<div class="container">
+    <div class="container">
+        <main class="main-card">
+            <section class="capture-section">
+                <h2>📷 Capturar Documento</h2>
+                <p class="section-description">
+                    Tire uma foto ou selecione uma imagem da galeria. O sistema extrairá automaticamente os dados usando IA.
+                </p>
 
-    <!-- Card Principal -->
-    <main class="main-card">
-
-        <!-- Seção de Captura de Imagem -->
-        <section class="capture-section">
-            <h2>📷 Capturar Documento</h2>
-            <p class="section-description">
-                Tire uma foto ou selecione uma imagem da galeria. O sistema extrairá automaticamente os dados usando IA.
-            </p>
-
-                
                 <div class="image-controls">
                     <button id="captureBtn" class="btn btn-primary">
                         📸 Tirar Foto
@@ -71,19 +60,53 @@
                     <input type="file" id="fileInput" accept="image/*" hidden>
                 </div>
 
-                <!-- Preview da Imagem com Controles de Zoom -->
+                <!-- Preview da Imagem com Controles -->
                 <div class="image-preview-container">
-                    <div class="image-controls-panel">
-                        <!-- Controles de Zoom -->
-                        <div class="zoom-controls">
-                            <button class="zoom-btn" id="zoomOut" title="Reduzir zoom">−</button>
-                            <span class="zoom-level" id="zoomLevel">100%</span>
-                            <button class="zoom-btn" id="zoomIn" title="Aumentar zoom">+</button>
-                            <button class="zoom-btn" id="resetZoom" title="Resetar zoom e posição">◎</button>
+                    <!-- PAINEL DE CONTROLES (APENAS ADICIONE ESTE BLOCO) -->
+                    <div class="image-controls-panel" id="imageControlPanel">
+                        <!-- Zoom Controls -->
+                        <div class="control-group">
+                            <button class="control-btn" id="zoomOut" title="Reduzir zoom">
+                                <span class="icon">−</span>
+                            </button>
+                            <span class="zoom-display" id="zoomLevel">100%</span>
+                            <button class="control-btn" id="zoomIn" title="Aumentar zoom">
+                                <span class="icon">+</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Move Controls -->
+                        <div class="control-group">
+                            <button class="control-btn" id="moveLeft" title="Mover esquerda">
+                                <span class="icon">←</span>
+                            </button>
+                            <button class="control-btn" id="moveUp" title="Mover cima">
+                                <span class="icon">↑</span>
+                            </button>
+                            <button class="control-btn" id="moveCenter" title="Centralizar">
+                                <span class="icon">⏺</span>
+                            </button>
+                            <button class="control-btn" id="moveDown" title="Mover baixo">
+                                <span class="icon">↓</span>
+                            </button>
+                            <button class="control-btn" id="moveRight" title="Mover direita">
+                                <span class="icon">→</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Rotation Controls -->
+                        <div class="control-group">
+                            <button class="control-btn" id="rotateLeft" title="Rotacionar esquerda">
+                                <span class="icon">↶</span>
+                            </button>
+                            <button class="control-btn" id="rotateRight" title="Rotacionar direita">
+                                <span class="icon">↷</span>
+                            </button>
                         </div>
                     </div>
+                    <!-- FIM DO PAINEL DE CONTROLES -->
                     
-                    <!-- Container da Imagem com Zoom (IMPORTANTE: container fixo) -->
+                    <!-- Container da Imagem (MANTENHA EXATAMENTE COMO ESTÁ) -->
                     <div class="image-zoom-wrapper" id="imageZoomWrapper">
                         <div class="image-zoom-container" id="imageZoomContainer">
                             <div class="image-placeholder" id="imagePlaceholder">
@@ -105,11 +128,10 @@
                     </div>
                 </div>
                 
-                <!-- Botão Melhorar Foto REMOVIDO (agora automático) -->
                 <canvas id="enhanced-preview" style="display:none;"></canvas>
             </section>
 
-            <!-- Seção do Formulário -->
+            <!-- Seção do Formulário (MANTENHA EXATAMENTE COMO ESTÁ) -->
             <section class="form-section">
                 <h2>📋 Dados Extraídos</h2>
                 <p class="section-description">
@@ -117,88 +139,21 @@
                 </p>
 
                 <form id="dataForm" class="data-form">
-                    <div class="form-grid">
-                        <!-- Linha 1 -->
-                        <div class="form-group">
-                            <label for="beneficiario">Nome do Beneficiário *</label>
-                            <input type="text" id="beneficiario" name="beneficiario" required 
-                                   placeholder="Nome completo do beneficiário">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="cpf">CPF *</label>
-                            <input type="text" id="cpf" name="cpf" required 
-                                   placeholder="000.000.000-00" maxlength="14">
-                        </div>
-
-                        <!-- Linha 2 -->
-                        <div class="form-group">
-                            <label for="atendente">Nome do Atendente *</label>
-                            <input type="text" id="atendente" name="atendente" required 
-                                   placeholder="Nome do atendente">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="produto">Produto *</label>
-                            <input type="text" id="produto" name="produto" required 
-                                   placeholder="Produto fornecido">
-                        </div>
-
-                        <!-- Linha 3 -->
-                        <div class="form-group">
-                            <label for="quantidade">Quantidade *</label>
-                            <input type="number" id="quantidade" name="quantidade" required 
-                                   placeholder="Quantidade" step="0.01" min="0">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="data">Data *</label>
-                            <input type="date" id="data" name="data" required>
-                        </div>
-
-                        <!-- Linha 4 - Endereço -->
-                        <div class="form-group full-width">
-                            <label for="endereco">Endereço *</label>
-                            <textarea id="endereco" name="endereco" required 
-                                      placeholder="Endereço completo" rows="2"></textarea>
-                        </div>
-
-                        <!-- Linha 5 -->
-                        <div class="form-group">
-                            <label for="assinatura">Assinatura</label>
-                            <input type="text" id="assinatura" name="assinatura" 
-                                   placeholder="OK (preenchido automaticamente)">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="numeroDocumento">Número do Documento *</label>
-                            <input type="text" id="numeroDocumento" name="numeroDocumento" required 
-                                   placeholder="000000/0000">
-                        </div>
-
-                        <!-- Linha 6 - Observações -->
-                        <div class="form-group full-width">
-                            <label for="observacoes">Observações</label>
-                            <textarea id="observacoes" name="observacoes" 
-                                      placeholder="Observações adicionais sobre o registro..." 
-                                      rows="2"></textarea>
-                            <small class="form-hint">Opcional: adicione informações relevantes</small>
-                        </div>
-                    </div>
-
-                    <!-- Botões de Ação -->
-                    <div class="form-actions">
-                        <button type="button" id="clearBtn" class="btn btn-outline">
-                            🗑️ Limpar Tudo
-                        </button>
-                        <button type="submit" id="submitBtn" class="btn btn-success" disabled>
-                            📤 Enviar para Planilha
-                        </button>
-                    </div>
+                    <!-- TODO O SEU FORMULÁRIO AQUI (NÃO MUDE NADA) -->
                 </form>
+
+                <!-- Botões de Ação -->
+                <div class="form-actions">
+                    <button type="button" id="clearBtn" class="btn btn-outline">
+                        🗑️ Limpar Tudo
+                    </button>
+                    <button type="submit" id="submitBtn" class="btn btn-success" disabled>
+                        📤 Enviar para Planilha
+                    </button>
+                </div>
             </section>
 
-            <!-- Botão de Instalação PWA (ANTES DO FOOTER) -->
+            <!-- Botão de Instalação PWA -->
             <div id="installContainer" class="install-container" style="display: none;">
                 <div class="install-card">
                     <div class="install-icon">📱</div>
@@ -216,12 +171,10 @@
 
         <!-- Rodapé -->
         <footer class="footer">
-            <p>Social Coletor v1.0 • PWA • OCR • Google Sheets Integration</p>
+            <p>Social Coletor v2.0 • PWA • OCR • Google Sheets Integration</p>
             <p>Desenvolvido por • Godoy Solutions In TECH</p>
         </footer>
     </div>
-
-   
 
     <!-- Script para emojis flutuantes e inicialização -->
     <script>
@@ -260,30 +213,50 @@
 
         // Inicialização
         window.addEventListener('load', function() {
-            console.log('🌐 Tesseract carregado:', typeof Tesseract !== 'undefined');
+            console.log('🌐 Social Coletor iniciando...');
             
             // Criar emojis flutuantes
             criarEmojisFlutuantes();
 
-            // Registrar Service Worker
+            // Registrar Service Worker COM VERSÃO DINÂMICA
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/service-worker.js?v=3')
-
+                // Usar timestamp para evitar cache
+                const timestamp = new Date().getTime();
+                navigator.serviceWorker.register(`/service-worker.js?t=${timestamp}`)
                     .then(function(registration) {
                         console.log('✅ Service Worker registrado:', registration.scope);
+                        
+                        // Forçar atualização imediata
+                        registration.update();
+                        
+                        // Configurar auto-update
+                        setInterval(() => {
+                            registration.update();
+                            console.log('🔄 Verificando atualizações...');
+                        }, 30 * 60 * 1000); // A cada 30 minutos
                     })
                     .catch(function(error) {
                         console.log('⚠️ Service Worker não registrado:', error);
                     });
             }
 
-            // Forçar update do Service Worker
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistration()
-                    .then(registration => {
-                        if (registration) registration.update();
-                    });
-            }
+            // Comando para forçar atualização (Ctrl+Shift+R)
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+                    console.log('🔄 Forçando atualização...');
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.getRegistration()
+                            .then(reg => {
+                                if (reg) {
+                                    reg.unregister().then(() => {
+                                        console.log('🗑️ Service Worker removido');
+                                        setTimeout(() => window.location.reload(true), 500);
+                                    });
+                                }
+                            });
+                    }
+                }
+            });
         });
     </script>
     
