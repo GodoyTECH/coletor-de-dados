@@ -366,9 +366,36 @@
       <button class="enter" onclick="enterNow()">Entrar Agora</button>
     </div>
   </div>
+</div><div class="video-container">
+    <video id="video" playsinline>
+        <source src="videob.mp4" type="video/mp4">
+        Seu navegador não suporta o vídeo.
+    </video>
+    <!-- Botão discreto para iniciar áudio -->
+    <button id="audio-btn" title="Ativar som" style="
+        position:absolute;
+        top:10px;
+        right:10px;
+        background:rgba(0,0,0,0.4);
+        color:#06d6a0;
+        border:none;
+        padding:8px 12px;
+        border-radius:8px;
+        cursor:pointer;
+        font-size:0.9rem;
+        transition:0.3s;
+    ">🔊</button>
 </div>
 
+
 <script>
+   const audioBtn = document.getElementById('audio-btn');
+
+audioBtn.addEventListener('click', () => {
+    if(video.paused) video.play().catch(e => console.log(e));
+    video.muted = false; // desativa mute
+    audioBtn.style.display = 'none'; // esconde o botão após clicar
+});
 const overlay = document.getElementById('inauguration-overlay');
 const video = document.getElementById('video');
 const countdownEl = document.getElementById('countdown');
