@@ -132,13 +132,13 @@ body {
     margin-top: -5px;
     font-size: 1.2rem;
 
-
+}
 /* ============================================
    CONTAINER – agora empurrado mais para baixo
    ============================================ */
 .container {
     top: 50px; 
-    max-width:800px;
+    max-width:1000px;
     margin: 230px auto 40px auto; /* ANTES ERA 180px - agora tem espaço real */
     padding: 20px;
     position: relative;
