@@ -1,286 +1,135 @@
-/*
- * send.js - Social Coletor (Versão Profissional)
- * ==============================================
+/**
+ * send.js - Social Coletor (Versão Corrigida e Simplificada)
+ * ===========================================================
  * 
- * FUNCIONALIDADES:
- * 1. Envio para Google Sheets com Apps Script
- * 2. Gerenciamento offline robusto com IndexedDB
- * 3. Sync automático quando online
- * 4. Retry automático com backoff exponencial
- * 5. Feedback visual completo
- * 6. Logs detalhados para debugging
- * 
- * COMPATÍVEL COM APPS SCRIPT CRIADO ANTERIORMENTE
+ * Versão que:
+ * 1. NÃO tem modal/notificação própria (usa as do JS principal)
+ * 2. NÃO tem Service Worker (o JS principal já tem)
+ * 3. É 100% compatível com Apps Script
+ * 4. Focado apenas no envio e gerenciamento offline
  */
 
 /* ================================
-   CONFIGURAÇÕES GLOBAIS
+   CONFIGURAÇÕES
    ================================ */
 
 const CONFIG = {
-  // URL do seu Apps Script (altere esta linha com sua URL)
+  // URL do seu Apps Script (ALTERE AQUI!)
   APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxDVVzZheEEEfwzjJGaBfZjUxoZzXrstoFOHu6wi8qt697bbElCdzUQrvVNTJVAd99D3Q/exec",
   
-  // Nome do banco de dados IndexedDB
-  DB_NAME: "SocialColetorDB_v2",
-  
-  // Versão do banco de dados
-  DB_VERSION: 2,
+  // Nome do banco de dados IndexedDB (DIFERENTE do JS principal)
+  DB_NAME: "SocialColetor_SendDB",
   
   // Nome da object store
-  STORE_NAME: "registros_pendentes",
+  STORE_NAME: "envios_pendentes",
   
   // Configurações de retry
   MAX_RETRIES: 3,
-  RETRY_DELAY: 5000, // 5 segundos
-  BACKOFF_MULTIPLIER: 2,
+  RETRY_DELAY: 5000,
   
-  // Timeout da requisição (milissegundos)
-  REQUEST_TIMEOUT: 30000,
-  
-  // Tamanho máximo da imagem a ser enviada (bytes)
-  MAX_IMAGE_SIZE: 500000, // 500KB
+  // Timeout da requisição
+  REQUEST_TIMEOUT: 25000,
 };
 
 /* ================================
-   GERENCIAMENTO DE ESTADO
+   ÍNDICES PARA O BANCO DE DADOS
    ================================ */
 
-let isProcessing = false;
-let currentDb = null;
-
-/* ================================
-   SISTEMA DE NOTIFICAÇÕES
-   ================================ */
-
-class NotificationSystem {
-  static show(message, type = 'info', duration = 5000) {
-    // Remove notificações existentes
-    this.hideAll();
-    
-    const notification = document.createElement('div');
-    notification.className = `sc-notification sc-notification-${type}`;
-    notification.innerHTML = `
-      <div class="sc-notification-content">
-        <span class="sc-notification-icon">${this.getIcon(type)}</span>
-        <span class="sc-notification-text">${message}</span>
-        <button class="sc-notification-close" onclick="this.parentNode.parentNode.remove()">×</button>
-      </div>
-    `;
-    
-    // Estilos inline para garantir funcionamento
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 16px 20px;
-      border-radius: 10px;
-      background: ${this.getBackgroundColor(type)};
-      color: white;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-      z-index: 10000;
-      max-width: 400px;
-      animation: scNotificationSlideIn 0.3s ease;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-    `;
-    
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes scNotificationSlideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-      }
-      @keyframes scNotificationSlideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
-      }
-      .sc-notification-close {
-        background: none;
-        border: none;
-        color: white;
-        font-size: 20px;
-        cursor: pointer;
-        margin-left: 15px;
-        padding: 0;
-        line-height: 1;
-        opacity: 0.8;
-      }
-      .sc-notification-close:hover {
-        opacity: 1;
-      }
-      .sc-notification-content {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-      .sc-notification-icon {
-        margin-right: 12px;
-        font-size: 18px;
-      }
-      .sc-notification-text {
-        flex: 1;
-        font-size: 14px;
-        line-height: 1.4;
-      }
-    `;
-    
-    document.head.appendChild(style);
-    document.body.appendChild(notification);
-    
-    // Auto-remover após duração
-    setTimeout(() => {
-      if (notification.parentNode) {
-        notification.style.animation = 'scNotificationSlideOut 0.3s ease';
-        setTimeout(() => {
-          if (notification.parentNode) {
-            notification.parentNode.removeChild(notification);
-          }
-        }, 300);
-      }
-    }, duration);
-    
-    return notification;
-  }
-  
-  static hideAll() {
-    const notifications = document.querySelectorAll('.sc-notification');
-    notifications.forEach(notification => {
-      notification.style.animation = 'scNotificationSlideOut 0.3s ease';
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.parentNode.removeChild(notification);
-        }
-      }, 300);
-    });
-  }
-  
-  static getIcon(type) {
-    switch(type) {
-      case 'success': return '✅';
-      case 'error': return '❌';
-      case 'warning': return '⚠️';
-      case 'info': return 'ℹ️';
-      default: return '💡';
+const DB_SCHEMA = {
+  name: CONFIG.DB_NAME,
+  version: 1,
+  stores: {
+    envios_pendentes: {
+      keyPath: 'id',
+      autoIncrement: true,
+      indexes: [
+        { name: 'status', keyPath: 'status', unique: false },
+        { name: 'timestamp', keyPath: 'timestamp', unique: false },
+        { name: 'offlineId', keyPath: 'offlineId', unique: true }
+      ]
     }
   }
-  
-  static getBackgroundColor(type) {
-    switch(type) {
-      case 'success': return '#10b981'; // verde
-      case 'error': return '#ef4444';   // vermelho
-      case 'warning': return '#f59e0b'; // laranja
-      case 'info': return '#3b82f6';    // azul
-      default: return '#6b7280';        // cinza
-    }
-  }
-}
+};
 
 /* ================================
-   INDEXEDDB - VERSÃO ROBUSTA
+   BANCO DE DADOS SIMPLIFICADO
    ================================ */
 
-class DatabaseManager {
-  static async open() {
+class SendDatabase {
+  constructor() {
+    this.db = null;
+  }
+
+  async open() {
+    if (this.db) return this.db;
+    
     return new Promise((resolve, reject) => {
-      if (currentDb) {
-        resolve(currentDb);
-        return;
-      }
-      
-      const request = indexedDB.open(CONFIG.DB_NAME, CONFIG.DB_VERSION);
+      const request = indexedDB.open(DB_SCHEMA.name, DB_SCHEMA.version);
       
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
         
         // Criar object store se não existir
         if (!db.objectStoreNames.contains(CONFIG.STORE_NAME)) {
-          const store = db.createObjectStore(CONFIG.STORE_NAME, { 
-            keyPath: 'id', 
-            autoIncrement: true 
+          const store = db.createObjectStore(CONFIG.STORE_NAME, {
+            keyPath: 'id',
+            autoIncrement: true
           });
           
-          // Criar índices para buscas eficientes
+          // Criar índices
           store.createIndex('status', 'status', { unique: false });
           store.createIndex('timestamp', 'timestamp', { unique: false });
-          store.createIndex('attempts', 'attempts', { unique: false });
           store.createIndex('offlineId', 'offlineId', { unique: true });
-          
-          console.log('📦 Object store criada com índices');
         }
       };
       
       request.onsuccess = (event) => {
-        currentDb = event.target.result;
-        console.log('✅ Banco de dados aberto com sucesso');
-        resolve(currentDb);
+        this.db = event.target.result;
+        resolve(this.db);
       };
       
       request.onerror = (event) => {
-        console.error('❌ Erro ao abrir banco de dados:', event.target.error);
         reject(event.target.error);
       };
-      
-      // Timeout para evitar bloqueio infinito
-      setTimeout(() => {
-        if (request.readyState === 'pending') {
-          request.onerror(new Error('Timeout ao abrir banco de dados'));
-        }
-      }, 5000);
     });
   }
-  
-  static async close() {
-    if (currentDb) {
-      currentDb.close();
-      currentDb = null;
-      console.log('🔒 Banco de dados fechado');
-    }
-  }
-  
-  static async saveOffline(data) {
+
+  async saveOffline(payload) {
     const db = await this.open();
     
     return new Promise((resolve, reject) => {
       const transaction = db.transaction(CONFIG.STORE_NAME, 'readwrite');
       const store = transaction.objectStore(CONFIG.STORE_NAME);
       
-      const offlineId = `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const offlineId = `off_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
       
       const record = {
-        ...data,
+        data: payload,
         offlineId,
         status: 'pending',
         attempts: 0,
         timestamp: new Date().toISOString(),
-        lastAttempt: null,
-        nextRetry: null
+        created: new Date().toISOString()
       };
       
       const request = store.add(record);
       
       request.onsuccess = () => {
-        console.log('💾 Dados salvos offline:', offlineId);
         resolve({
           success: true,
           offlineId,
-          id: request.result,
+          dbId: request.result,
           timestamp: record.timestamp
         });
       };
       
       request.onerror = (event) => {
-        console.error('❌ Erro ao salvar offline:', event.target.error);
         reject(event.target.error);
-      };
-      
-      // Garantir que a transação seja concluída
-      transaction.oncomplete = () => {
-        console.log('💾 Transação de salvamento concluída');
       };
     });
   }
-  
-  static async getPendingRecords(limit = 50) {
+
+  async getPendingRecords() {
     const db = await this.open();
     
     return new Promise((resolve, reject) => {
@@ -291,24 +140,20 @@ class DatabaseManager {
       const request = statusIndex.getAll('pending');
       
       request.onsuccess = () => {
-        // Filtrar por tentativas e ordenar por timestamp
         const records = request.result
           .filter(record => record.attempts < CONFIG.MAX_RETRIES)
-          .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-          .slice(0, limit);
+          .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
         
-        console.log(`📋 ${records.length} registros pendentes encontrados`);
         resolve(records);
       };
       
       request.onerror = (event) => {
-        console.error('❌ Erro ao obter registros pendentes:', event.target.error);
         reject(event.target.error);
       };
     });
   }
-  
-  static async updateRecordStatus(id, status, attempts = null) {
+
+  async updateRecord(id, updates) {
     const db = await this.open();
     
     return new Promise((resolve, reject) => {
@@ -324,43 +169,27 @@ class DatabaseManager {
           return;
         }
         
-        record.status = status;
-        record.lastAttempt = new Date().toISOString();
-        
-        if (attempts !== null) {
-          record.attempts = attempts;
-        }
-        
-        if (status === 'failed' && record.attempts >= CONFIG.MAX_RETRIES) {
-          record.nextRetry = null;
-        } else if (status === 'pending') {
-          // Calcular próximo retry com backoff exponencial
-          const delay = CONFIG.RETRY_DELAY * Math.pow(CONFIG.BACKOFF_MULTIPLIER, record.attempts);
-          const nextRetry = new Date(Date.now() + delay);
-          record.nextRetry = nextRetry.toISOString();
-        }
+        // Atualizar registro
+        Object.assign(record, updates);
         
         const updateRequest = store.put(record);
         
         updateRequest.onsuccess = () => {
-          console.log(`🔄 Status atualizado: ${id} -> ${status} (tentativa ${record.attempts})`);
           resolve(true);
         };
         
         updateRequest.onerror = (event) => {
-          console.error('❌ Erro ao atualizar registro:', event.target.error);
           reject(event.target.error);
         };
       };
       
       getRequest.onerror = (event) => {
-        console.error('❌ Erro ao obter registro:', event.target.error);
         reject(event.target.error);
       };
     });
   }
-  
-  static async deleteRecord(id) {
+
+  async deleteRecord(id) {
     const db = await this.open();
     
     return new Promise((resolve, reject) => {
@@ -370,18 +199,16 @@ class DatabaseManager {
       const request = store.delete(id);
       
       request.onsuccess = () => {
-        console.log(`🗑️ Registro ${id} removido`);
         resolve(true);
       };
       
       request.onerror = (event) => {
-        console.error('❌ Erro ao remover registro:', event.target.error);
         reject(event.target.error);
       };
     });
   }
-  
-  static async getStats() {
+
+  async getStats() {
     const db = await this.open();
     
     return new Promise((resolve, reject) => {
@@ -391,15 +218,12 @@ class DatabaseManager {
       
       request.onsuccess = () => {
         const records = request.result;
-        const stats = {
+        resolve({
           total: records.length,
           pending: records.filter(r => r.status === 'pending').length,
           sent: records.filter(r => r.status === 'sent').length,
-          failed: records.filter(r => r.status === 'failed').length,
-          maxAttempts: Math.max(...records.map(r => r.attempts), 0)
-        };
-        
-        resolve(stats);
+          failed: records.filter(r => r.status === 'failed').length
+        });
       };
       
       request.onerror = (event) => {
@@ -410,20 +234,32 @@ class DatabaseManager {
 }
 
 /* ================================
-   ENVIO PARA GOOGLE SHEETS - COMPATÍVEL COM APPS SCRIPT
+   FUNÇÃO PRINCIPAL DE ENVIO
    ================================ */
 
 async function sendToGoogleSheets(formData) {
-  console.log('🚀 Iniciando envio para Google Sheets...', formData);
+  console.log('[SEND] Iniciando envio para Google Sheets');
   
-  // Validar dados obrigatórios
+  // Usar a função showModal do JS principal se existir
+  if (window.showModal) {
+    window.showModal('Enviando...', 'Processando dados...', true);
+  }
+  
+  // Validar campos obrigatórios
   const requiredFields = ['beneficiario', 'cpf', 'atendente', 'produto', 'quantidade', 'endereco', 'data'];
-  const missingFields = requiredFields.filter(field => !formData[field]);
+  const missingFields = requiredFields.filter(field => !formData[field] || formData[field].toString().trim() === '');
   
   if (missingFields.length > 0) {
-    const errorMsg = `Campos obrigatórios faltando: ${missingFields.join(', ')}`;
-    console.error('❌ Validação falhou:', errorMsg);
-    NotificationSystem.show(`Erro: ${errorMsg}`, 'error', 6000);
+    const errorMsg = `Campos obrigatórios: ${missingFields.join(', ')}`;
+    console.error('[SEND] Validação falhou:', errorMsg);
+    
+    // Usar showStatusMessage do JS principal se existir
+    if (window.showStatusMessage) {
+      window.showStatusMessage(`Erro: ${errorMsg}`, 'error');
+    }
+    
+    if (window.hideModal) window.hideModal();
+    
     return {
       success: false,
       error: errorMsg,
@@ -431,12 +267,12 @@ async function sendToGoogleSheets(formData) {
     };
   }
   
-  // Preparar payload no formato esperado pelo Apps Script
+  // Preparar payload para Apps Script
   const payload = {
     action: 'submit',
     data: {
       beneficiario: String(formData.beneficiario || '').trim(),
-      cpf: String(formData.cpf || '').trim(),
+      cpf: String(formData.cpf || '').replace(/\D/g, ''),
       atendente: String(formData.atendente || '').trim(),
       produto: String(formData.produto || '').trim(),
       quantidade: parseFloat(formData.quantidade) || 0,
@@ -450,45 +286,54 @@ async function sendToGoogleSheets(formData) {
     }
   };
   
-  console.log('📤 Payload preparado:', payload);
-  
-  // Mostrar notificação de processamento
-  NotificationSystem.show('Enviando dados para Google Sheets...', 'info');
+  console.log('[SEND] Payload preparado:', {
+    beneficiario: payload.data.beneficiario,
+    cpf: payload.data.cpf,
+    atendente: payload.data.atendente,
+    produto: payload.data.produto
+  });
   
   // Verificar conexão
   if (!navigator.onLine) {
-    console.log('🌐 Sem conexão - Salvando offline');
-    NotificationSystem.show('Sem conexão. Salvando localmente...', 'warning');
+    console.log('[SEND] Sem conexão - Salvando offline');
+    
+    if (window.showStatusMessage) {
+      window.showStatusMessage('Sem conexão. Salvando localmente...', 'warning');
+    }
     
     try {
-      const saveResult = await DatabaseManager.saveOffline(payload);
-      NotificationSystem.show('✅ Dados salvos localmente. Serão enviados quando a conexão voltar.', 'success');
+      const db = new SendDatabase();
+      const saveResult = await db.saveOffline(payload);
       
-      // Registrar sync com Service Worker se disponível
-      if ('serviceWorker' in navigator && 'SyncManager' in window) {
-        try {
-          const registration = await navigator.serviceWorker.ready;
-          await registration.sync.register('sync-offline-data');
-          console.log('🔄 Sync registrado no Service Worker');
-        } catch (swError) {
-          console.log('⚠️ Sync não registrado, mas dados salvos:', swError);
-        }
+      console.log('[SEND] Dados salvos offline:', saveResult.offlineId);
+      
+      if (window.showStatusMessage) {
+        window.showStatusMessage('✅ Dados salvos localmente!', 'success');
       }
+      
+      if (window.hideModal) window.hideModal();
       
       return {
         success: false,
         error: 'Sem conexão com a internet',
         savedLocally: true,
         offlineId: saveResult.offlineId,
+        dbId: saveResult.dbId,
         timestamp: saveResult.timestamp
       };
+      
     } catch (saveError) {
-      console.error('❌ Erro ao salvar offline:', saveError);
-      NotificationSystem.show('❌ Erro ao salvar localmente. Tente novamente.', 'error');
+      console.error('[SEND] Erro ao salvar offline:', saveError);
+      
+      if (window.showStatusMessage) {
+        window.showStatusMessage('❌ Erro ao salvar localmente', 'error');
+      }
+      
+      if (window.hideModal) window.hideModal();
       
       return {
         success: false,
-        error: 'Falha ao salvar localmente: ' + saveError.message,
+        error: 'Falha ao salvar localmente',
         savedLocally: false
       };
     }
@@ -496,15 +341,15 @@ async function sendToGoogleSheets(formData) {
   
   // Tentar envio online
   try {
-    console.log('📡 Enviando para:', CONFIG.APPS_SCRIPT_URL);
+    console.log('[SEND] Enviando para:', CONFIG.APPS_SCRIPT_URL);
     
-    // Configurar timeout
+    // Timeout configurável
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
     
     const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
       method: 'POST',
-      mode: 'no-cors', // Importante para Apps Script
+      mode: 'no-cors', // IMPORTANTE para Apps Script
       headers: {
         'Content-Type': 'application/json',
       },
@@ -514,12 +359,17 @@ async function sendToGoogleSheets(formData) {
     
     clearTimeout(timeoutId);
     
-    console.log('📨 Resposta recebida, status:', response.status);
+    console.log('[SEND] Resposta recebida, status:', response.type);
     
-    // Em modo no-cors, não podemos ler a resposta, mas assumimos sucesso se não houver erro de rede
-    if (response.type === 'opaque' || response.ok) {
-      console.log('✅ Envio presumido bem-sucedido (no-cors mode)');
-      NotificationSystem.show('✅ Dados enviados com sucesso!', 'success');
+    // Em modo no-cors, assumimos sucesso se não houve erro de rede
+    if (response.type === 'opaque') {
+      console.log('[SEND] Envio bem-sucedido (modo no-cors)');
+      
+      if (window.showStatusMessage) {
+        window.showStatusMessage('✅ Dados enviados com sucesso!', 'success');
+      }
+      
+      if (window.hideModal) window.hideModal();
       
       return {
         success: true,
@@ -528,20 +378,31 @@ async function sendToGoogleSheets(formData) {
         timestamp: new Date().toISOString()
       };
     } else {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      throw new Error('Resposta não-opaque do servidor');
     }
     
   } catch (error) {
-    console.error('❌ Erro no envio online:', error);
+    console.error('[SEND] Erro no envio online:', error);
     
-    // Se for timeout ou erro de rede, salvar offline
+    // Se for erro de rede, salvar offline
     if (error.name === 'AbortError' || error.message.includes('Failed to fetch') || error.message.includes('Network')) {
-      console.log('🌐 Erro de rede - Salvando offline');
-      NotificationSystem.show('Erro de conexão. Salvando localmente...', 'warning');
+      console.log('[SEND] Erro de rede - Salvando offline');
+      
+      if (window.showStatusMessage) {
+        window.showStatusMessage('Erro de rede. Salvando localmente...', 'warning');
+      }
       
       try {
-        const saveResult = await DatabaseManager.saveOffline(payload);
-        NotificationSystem.show('✅ Dados salvos localmente. Serão enviados automaticamente.', 'success');
+        const db = new SendDatabase();
+        const saveResult = await db.saveOffline(payload);
+        
+        console.log('[SEND] Dados salvos offline após erro:', saveResult.offlineId);
+        
+        if (window.showStatusMessage) {
+          window.showStatusMessage('✅ Dados salvos localmente!', 'success');
+        }
+        
+        if (window.hideModal) window.hideModal();
         
         return {
           success: false,
@@ -549,19 +410,31 @@ async function sendToGoogleSheets(formData) {
           savedLocally: true,
           offlineId: saveResult.offlineId
         };
+        
       } catch (saveError) {
-        console.error('❌ Erro ao salvar offline após falha:', saveError);
-        NotificationSystem.show('❌ Erro ao salvar localmente.', 'error');
+        console.error('[SEND] Erro ao salvar offline após falha:', saveError);
+        
+        if (window.showStatusMessage) {
+          window.showStatusMessage('❌ Erro ao salvar localmente', 'error');
+        }
+        
+        if (window.hideModal) window.hideModal();
         
         return {
           success: false,
-          error: 'Falha completa: ' + error.message + ' | ' + saveError.message,
+          error: 'Falha completa no envio',
           savedLocally: false
         };
       }
     } else {
       // Outro tipo de erro
-      NotificationSystem.show(`❌ Erro: ${error.message}`, 'error', 6000);
+      console.error('[SEND] Erro não relacionado a rede:', error);
+      
+      if (window.showStatusMessage) {
+        window.showStatusMessage('❌ Erro no envio: ' + error.message, 'error');
+      }
+      
+      if (window.hideModal) window.hideModal();
       
       return {
         success: false,
@@ -573,198 +446,109 @@ async function sendToGoogleSheets(formData) {
 }
 
 /* ================================
-   SINCRONIZAÇÃO AUTOMÁTICA
+   SINCRONIZAÇÃO DE DADOS OFFLINE
    ================================ */
 
-async function syncPendingRecords() {
-  if (isProcessing) {
-    console.log('⏸️ Sincronização já em andamento');
-    return;
-  }
+async function syncOfflineData() {
+  console.log('[SYNC] Iniciando sincronização offline');
   
   if (!navigator.onLine) {
-    console.log('🌐 Sem conexão - Sincronização adiada');
-    return;
+    console.log('[SYNC] Sem conexão - Sincronização adiada');
+    return { success: false, reason: 'offline' };
   }
   
-  isProcessing = true;
-  
   try {
-    console.log('🔄 Iniciando sincronização de registros pendentes...');
-    
-    const pendingRecords = await DatabaseManager.getPendingRecords();
+    const db = new SendDatabase();
+    const pendingRecords = await db.getPendingRecords();
     
     if (pendingRecords.length === 0) {
-      console.log('✅ Nenhum registro pendente para sincronizar');
-      isProcessing = false;
-      return;
+      console.log('[SYNC] Nenhum registro pendente');
+      return { success: true, synced: 0, total: 0 };
     }
     
-    // Mostrar notificação de progresso
-    NotificationSystem.show(`Sincronizando ${pendingRecords.length} registro(s)...`, 'info');
+    console.log(`[SYNC] ${pendingRecords.length} registros pendentes`);
+    
+    if (window.showStatusMessage) {
+      window.showStatusMessage(`Sincronizando ${pendingRecords.length} registro(s)...`, 'info');
+    }
     
     let successCount = 0;
     let errorCount = 0;
     
     for (const record of pendingRecords) {
       try {
-        console.log(`📤 Enviando registro ${record.offlineId}...`);
+        console.log(`[SYNC] Processando registro ${record.offlineId}`);
         
-        // Configurar timeout
+        // Tentar enviar
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
         
         const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
           method: 'POST',
           mode: 'no-cors',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(record.data),
           signal: controller.signal
         });
         
         clearTimeout(timeoutId);
         
-        // Atualizar tentativa
-        await DatabaseManager.updateRecordStatus(
-          record.id, 
-          'pending', 
-          record.attempts + 1
-        );
+        // Atualizar contador de tentativas
+        await db.updateRecord(record.id, {
+          attempts: record.attempts + 1,
+          lastAttempt: new Date().toISOString()
+        });
         
-        // Em modo no-cors, assumimos sucesso se não houver erro de rede
-        if (response.type === 'opaque' || response.ok) {
+        // Verificar se foi bem-sucedido (modo no-cors)
+        if (response.type === 'opaque') {
           // Marcar como enviado
-          await DatabaseManager.updateRecordStatus(record.id, 'sent');
+          await db.updateRecord(record.id, {
+            status: 'sent',
+            sentAt: new Date().toISOString()
+          });
+          
           successCount++;
-          console.log(`✅ Registro ${record.offlineId} sincronizado`);
+          console.log(`[SYNC] ✅ Registro ${record.offlineId} sincronizado`);
         } else {
           errorCount++;
-          console.log(`❌ Falha no registro ${record.offlineId}`);
+          console.log(`[SYNC] ❌ Falha no registro ${record.offlineId}`);
         }
         
       } catch (error) {
-        console.error(`❌ Erro ao sincronizar registro ${record.offlineId}:`, error);
+        console.error(`[SYNC] Erro no registro ${record.offlineId}:`, error);
         errorCount++;
         
-        // Atualizar contador de tentativas
-        await DatabaseManager.updateRecordStatus(
-          record.id, 
-          'pending', 
-          record.attempts + 1
-        );
+        // Atualizar tentativa
+        await db.updateRecord(record.id, {
+          attempts: record.attempts + 1,
+          lastAttempt: new Date().toISOString()
+        });
       }
     }
     
-    // Mostrar resultado
-    if (successCount > 0) {
-      NotificationSystem.show(
-        `✅ ${successCount} registro(s) sincronizado(s)${errorCount > 0 ? `, ${errorCount} falha(s)` : ''}`,
-        successCount === pendingRecords.length ? 'success' : 'warning'
+    console.log(`[SYNC] Concluído: ${successCount} sucesso, ${errorCount} falhas`);
+    
+    if (window.showStatusMessage && successCount > 0) {
+      window.showStatusMessage(
+        `✅ ${successCount} registro(s) sincronizado(s)`,
+        'success'
       );
     }
     
-    console.log(`📊 Sincronização concluída: ${successCount} sucesso, ${errorCount} falhas`);
-    
-  } catch (error) {
-    console.error('❌ Erro na sincronização:', error);
-    NotificationSystem.show('❌ Erro na sincronização: ' + error.message, 'error');
-  } finally {
-    isProcessing = false;
-  }
-}
-
-/* ================================
-   SERVICE WORKER SYNC
-   ================================ */
-
-async function registerServiceWorker() {
-  if ('serviceWorker' in navigator) {
-    try {
-      const registration = await navigator.serviceWorker.register('/service-worker.js');
-      console.log('👷 Service Worker registrado:', registration.scope);
-      
-      // Registrar sync event
-      if ('SyncManager' in window) {
-        registration.sync.register('sync-offline-data');
-        console.log('🔄 SyncManager registrado');
-      }
-      
-      return registration;
-    } catch (error) {
-      console.log('⚠️ Service Worker não registrado:', error);
-      return null;
-    }
-  }
-  return null;
-}
-
-/* ================================
-   MONITORAMENTO DE CONEXÃO
-   ================================ */
-
-function setupConnectionMonitoring() {
-  // Monitorar eventos de online/offline
-  window.addEventListener('online', () => {
-    console.log('🌐 Conexão restabelecida');
-    NotificationSystem.show('✅ Conexão restabelecida. Sincronizando...', 'success', 3000);
-    
-    // Esperar um pouco antes de sincronizar
-    setTimeout(() => {
-      syncPendingRecords();
-    }, 2000);
-  });
-  
-  window.addEventListener('offline', () => {
-    console.log('🌐 Sem conexão');
-    NotificationSystem.show('⚠️ Você está offline. Dados serão salvos localmente.', 'warning', 4000);
-  });
-  
-  // Verificar status inicial
-  if (!navigator.onLine) {
-    NotificationSystem.show('⚠️ Você está offline. Dados serão salvos localmente.', 'warning', 4000);
-  }
-}
-
-/* ================================
-   INICIALIZAÇÃO
-   ================================ */
-
-async function initializeSendSystem() {
-  console.log('🚀 Inicializando sistema de envio...');
-  
-  try {
-    // Configurar monitoramento de conexão
-    setupConnectionMonitoring();
-    
-    // Registrar Service Worker
-    await registerServiceWorker();
-    
-    // Abrir banco de dados
-    await DatabaseManager.open();
-    
-    // Verificar registros pendentes
-    const stats = await DatabaseManager.getStats();
-    console.log('📊 Estatísticas do banco:', stats);
-    
-    if (stats.pending > 0 && navigator.onLine) {
-      // Sincronizar automaticamente se houver registros pendentes
-      setTimeout(() => {
-        syncPendingRecords();
-      }, 3000);
-    }
-    
-    console.log('✅ Sistema de envio inicializado com sucesso');
-    
     return {
-      success: true,
-      stats,
-      isOnline: navigator.onLine
+      success: successCount > 0,
+      synced: successCount,
+      failed: errorCount,
+      total: pendingRecords.length
     };
     
   } catch (error) {
-    console.error('❌ Erro na inicialização:', error);
+    console.error('[SYNC] Erro na sincronização:', error);
+    
+    if (window.showStatusMessage) {
+      window.showStatusMessage('❌ Erro na sincronização', 'error');
+    }
+    
     return {
       success: false,
       error: error.message
@@ -773,30 +557,22 @@ async function initializeSendSystem() {
 }
 
 /* ================================
-   FUNÇÕES DE DEBUG E CONTROLE
+   FUNÇÕES UTILITÁRIAS
    ================================ */
 
-async function debugDatabase() {
+async function getSendStats() {
   try {
-    const stats = await DatabaseManager.getStats();
-    const pending = await DatabaseManager.getPendingRecords(100);
-    
-    console.group('🔍 DEBUG DATABASE');
-    console.log('📊 Estatísticas:', stats);
-    console.log('📋 Registros pendentes:', pending);
-    console.groupEnd();
-    
-    NotificationSystem.show(`📊 DB: ${stats.total} total, ${stats.pending} pendentes`, 'info');
-    
-    return { stats, pending };
+    const db = new SendDatabase();
+    const stats = await db.getStats();
+    return { success: true, stats };
   } catch (error) {
-    console.error('❌ Erro no debug:', error);
-    return { error: error.message };
+    console.error('[STATS] Erro:', error);
+    return { success: false, error: error.message };
   }
 }
 
-async function clearAllOfflineData() {
-  if (!confirm('⚠️ Tem certeza que deseja APAGAR TODOS os dados salvos localmente?')) {
+async function clearSendDatabase() {
+  if (!confirm('Tem certeza que deseja apagar TODOS os dados de envio salvos localmente?')) {
     return { cancelled: true };
   }
   
@@ -805,54 +581,109 @@ async function clearAllOfflineData() {
     
     return new Promise((resolve, reject) => {
       request.onsuccess = () => {
-        currentDb = null;
-        console.log('🗑️ Banco de dados apagado com sucesso');
-        NotificationSystem.show('✅ Todos os dados locais foram apagados', 'success');
+        console.log('[CLEAR] Banco de dados apagado');
+        
+        if (window.showStatusMessage) {
+          window.showStatusMessage('✅ Dados de envio apagados', 'success');
+        }
+        
         resolve({ success: true });
       };
       
       request.onerror = (event) => {
-        console.error('❌ Erro ao apagar banco:', event.target.error);
-        NotificationSystem.show('❌ Erro ao apagar dados', 'error');
+        console.error('[CLEAR] Erro:', event.target.error);
         reject(event.target.error);
       };
     });
   } catch (error) {
-    console.error('❌ Erro:', error);
+    console.error('[CLEAR] Erro:', error);
     return { success: false, error: error.message };
   }
 }
 
 /* ================================
-   EXPORTAÇÃO PARA USO GLOBAL
+   MONITORAMENTO DE CONEXÃO SIMPLES
+   ================================ */
+
+function setupSendConnectionMonitor() {
+  window.addEventListener('online', () => {
+    console.log('[NETWORK] Conexão restabelecida');
+    
+    // Aguardar 2 segundos e sincronizar
+    setTimeout(async () => {
+      const stats = await getSendStats();
+      if (stats.success && stats.stats.pending > 0) {
+        console.log(`[NETWORK] ${stats.stats.pending} registros para sincronizar`);
+        syncOfflineData();
+      }
+    }, 2000);
+  });
+  
+  window.addEventListener('offline', () => {
+    console.log('[NETWORK] Sem conexão');
+  });
+}
+
+/* ================================
+   INICIALIZAÇÃO
+   ================================ */
+
+async function initializeSendSystem() {
+  console.log('[INIT] Inicializando sistema de envio');
+  
+  try {
+    // Configurar monitor de conexão
+    setupSendConnectionMonitor();
+    
+    // Abrir banco de dados
+    const db = new SendDatabase();
+    await db.open();
+    
+    // Verificar se há registros pendentes
+    const stats = await getSendStats();
+    
+    console.log('[INIT] Sistema de envio pronto', stats);
+    
+    return {
+      success: true,
+      stats: stats.success ? stats.stats : null,
+      isOnline: navigator.onLine
+    };
+    
+  } catch (error) {
+    console.error('[INIT] Erro na inicialização:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/* ================================
+   EXPORTAÇÃO
    ================================ */
 
 window.SocialColetorSend = {
   // Funções principais
   sendToGoogleSheets,
-  syncPendingRecords,
+  syncOfflineData,
   initialize: initializeSendSystem,
   
-  // Gerenciamento de banco
-  debugDatabase,
-  clearAllOfflineData,
-  getDatabaseStats: DatabaseManager.getStats,
-  
   // Utilitários
-  showNotification: NotificationSystem.show,
-  hideNotifications: NotificationSystem.hideAll,
+  getStats: getSendStats,
+  clearDatabase: clearSendDatabase,
   
   // Configuração
-  updateConfig: (newConfig) => {
+  setConfig: (newConfig) => {
     Object.assign(CONFIG, newConfig);
-    console.log('⚙️ Configuração atualizada:', CONFIG);
+    console.log('[CONFIG] Atualizado:', CONFIG);
   },
   
   // Status
   getStatus: () => ({
+    config: CONFIG,
     isOnline: navigator.onLine,
-    isProcessing,
-    config: CONFIG
+    dbName: CONFIG.DB_NAME
   })
 };
 
@@ -860,13 +691,14 @@ window.SocialColetorSend = {
    INICIALIZAÇÃO AUTOMÁTICA
    ================================ */
 
-// Inicializar quando o DOM estiver pronto
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(initializeSendSystem, 1000);
+// Aguardar um pouco após o carregamento
+setTimeout(() => {
+  initializeSendSystem().then(result => {
+    if (result.success && result.stats && result.stats.pending > 0 && navigator.onLine) {
+      // Sincronizar automaticamente se houver dados pendentes
+      setTimeout(syncOfflineData, 3000);
+    }
   });
-} else {
-  setTimeout(initializeSendSystem, 1000);
-}
+}, 1500);
 
-console.log('📤 send.js profissional carregado!');
+console.log('[SEND] Sistema de envio carregado');
