@@ -74,7 +74,7 @@ function showActionButtons(successData = null) {
   
   // Título baseado no resultado
   const title = document.createElement('h3');
-  title.textContent = successData ? '✅ Enviado com Sucesso!' : '📋 Dados Salvos Localmente';
+  title.textContent = successData ? '✅' : '📋 Dados Salvos Localmente';
   title.style.cssText = `
     margin: 0 0 15px 0;
     color: ${successData ? '#10b981' : '#3b82f6'};
