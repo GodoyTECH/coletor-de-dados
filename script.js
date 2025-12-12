@@ -840,23 +840,6 @@ async function handleImageSelection(event) {
             await processOCR(enhancedImage);
             
             setProgress(100, 'Concluído!');
-            
-       
-        
-        reader.onerror = () => {
-            showModal('Erro', 'Falha ao ler a imagem.', false);
-            hideProgressBar();
-        };
-        
-        reader.readAsDataURL(file);
-        elements.fileInput.value = '';
-        
-    } catch (error) {
-        console.error('Erro:', error);
-        hideProgressBar();
-        showModal('Erro', 'Falha no processamento.', false);
-    }
-}
 
 async function enhanceAndUpdateImage(dataURL) {
     try {
