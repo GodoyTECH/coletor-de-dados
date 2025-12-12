@@ -844,7 +844,7 @@ async function handleImageSelection(event) {
                 hideProgressBar();
                 hideModal();
                 showModal('✅ Sucesso!', 'Dados extraídos com sucesso! Revise os campos.', false);
-            }, 500);
+            }, close);
         };
         
         reader.onerror = () => {
