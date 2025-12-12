@@ -79,18 +79,44 @@ body {
 /* ============================================
    LOGO FLUTUANDO NO TOPO (ALTERADO)
    ============================================ */
+/* ============================================
+   HEADER FIXO COM LOGO NO TOPO
+   ============================================ */
 .header {
     position: fixed;
-    top: 20px;
+    top: 20px;              /* distância do topo */
     left: 50%;
     transform: translateX(-50%);
-    z-index: 1000;
+    z-index: 9999;          /* sempre acima de tudo */
     text-align: center;
     background: transparent;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    padding: 0;
 }
+
+/* Logo maior, centralizada e fixa */
+.header .logo {
+    width: 160px;
+    height: 160px;
+    border-radius: 20%;
+    object-fit: cover;
+    border: 3px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Título e subtítulo logo abaixo da imagem */
+.header h1 {
+    margin-top: 10px;
+    font-size: 2rem;
+    color: white;
+}
+
+.header .subtitle {
+    font-size: 1.2rem;
+    color: white;
+    margin-top: -5px;
+}
+
+
 
 .logo-container {
     display: flex;
