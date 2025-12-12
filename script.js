@@ -1,6 +1,7 @@
 /**
  * SOCIAL COLETOR - SCRIPT PRINCIPAL COMPLETO
- * OCR.Space API + Controles de Imagem + PWA
+ * OCR.Space API + Controles de Imagem + PWA + Google Sheets
+ * Versão 2.0 - Completa
  */
 
 // ================================
@@ -8,6 +9,7 @@
 // ================================
 const OCR_API_KEY = 'K89229373088957'; // Chave gratuita do OCR.Space
 const OCR_API_URL = 'https://api.ocr.space/parse/image';
+const GOOGLE_SCRIPT_URL = ''; // Será configurada dinamicamente
 
 // ================================
 // VARIÁVEIS GLOBAIS
@@ -31,6 +33,14 @@ const MOVE_STEP = 20;
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 5;
 
+// Configurações do Google Sheets
+let googleScriptConfigured = false;
+let googleScriptUrl = '';
+
+// Cache para dados offline
+let offlineData = [];
+const OFFLINE_STORAGE_KEY = 'social_coletor_offline_data';
+
 // ================================
 // INICIALIZAÇÃO
 // ================================
@@ -39,6 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setupElements();
     initializeApp();
     setupPWA();
+    loadOfflineData();
+    loadGoogleScriptConfig();
 });
 
 function setupElements() {
@@ -82,7 +94,22 @@ function setupElements() {
         
         // PWA Install
         installBtn: document.getElementById('installBtn'),
-        installContainer: document.getElementById('installContainer')
+        installContainer: document.getElementById('installContainer'),
+        
+        // Configurações
+        configBtn: document.getElementById('configBtn'),
+        configModal: document.getElementById('configModal'),
+        configGoogleScriptUrl: document.getElementById('configGoogleScriptUrl'),
+        saveConfigBtn: document.getElementById('saveConfigBtn'),
+        closeConfigBtn: document.getElementById('closeConfigBtn'),
+        configStatus: document.getElementById('configStatus'),
+        
+        // Offline
+        offlineBadge: document.getElementById('offlineBadge'),
+        syncBtn: document.getElementById('syncBtn'),
+        
+        // Teste de conexão
+        testConnectionBtn: document.getElementById('testConnectionBtn')
     };
 
     formFields = {
@@ -104,6 +131,7 @@ function initializeApp() {
     setupDefaultDate();
     validateForm();
     setupImageControls();
+    checkConnectionStatus();
     console.log('✅ Aplicativo pronto!');
 }
 
@@ -150,16 +178,432 @@ function setupEventListeners() {
         elements.modalCloseBtn.addEventListener('click', hideModal);
     }
 
+    // Configurações
+    if (elements.configBtn) {
+        elements.configBtn.addEventListener('click', showConfigModal);
+    }
+
+    if (elements.saveConfigBtn) {
+        elements.saveConfigBtn.addEventListener('click', saveGoogleScriptConfig);
+    }
+
+    if (elements.closeConfigBtn) {
+        elements.closeConfigBtn.addEventListener('click', hideConfigModal);
+    }
+
+    // Offline sync
+    if (elements.syncBtn) {
+        elements.syncBtn.addEventListener('click', syncOfflineData);
+    }
+
+    // Teste de conexão
+    if (elements.testConnectionBtn) {
+        elements.testConnectionBtn.addEventListener('click', testGoogleScriptConnection);
+    }
+
     // Validação de campos
     Object.values(formFields).forEach(field => {
         if (field && field !== formFields.assinatura && field !== formFields.observacoes) {
             field.addEventListener('input', validateForm);
         }
     });
+
+    // Monitorar conexão
+    window.addEventListener('online', updateConnectionStatus);
+    window.addEventListener('offline', updateConnectionStatus);
 }
 
 // ================================
-// CONTROLES DE IMAGEM
+// CONFIGURAÇÕES DO GOOGLE SHEETS
+// ================================
+function loadGoogleScriptConfig() {
+    const savedUrl = localStorage.getItem('google_script_url');
+    if (savedUrl) {
+        googleScriptUrl = savedUrl;
+        googleScriptConfigured = true;
+        elements.configGoogleScriptUrl.value = savedUrl;
+        console.log('✅ URL do Google Script carregada:', savedUrl);
+    }
+}
+
+function showConfigModal() {
+    if (elements.configModal) {
+        elements.configModal.style.display = 'flex';
+        elements.configGoogleScriptUrl.focus();
+    }
+}
+
+function hideConfigModal() {
+    if (elements.configModal) {
+        elements.configModal.style.display = 'none';
+    }
+}
+
+function saveGoogleScriptConfig() {
+    const url = elements.configGoogleScriptUrl.value.trim();
+    
+    if (!url) {
+        showConfigStatus('⚠️ Digite a URL do Google Apps Script', 'error');
+        return;
+    }
+
+    // Validar URL básica
+    try {
+        new URL(url);
+    } catch (e) {
+        showConfigStatus('❌ URL inválida. Use: https://script.google.com/...', 'error');
+        return;
+    }
+
+    // Salvar no localStorage
+    localStorage.setItem('google_script_url', url);
+    googleScriptUrl = url;
+    googleScriptConfigured = true;
+    
+    showConfigStatus('✅ URL salva com sucesso!', 'success');
+    
+    // Testar conexão automaticamente
+    setTimeout(testGoogleScriptConnection, 1000);
+}
+
+function showConfigStatus(message, type) {
+    if (elements.configStatus) {
+        elements.configStatus.textContent = message;
+        elements.configStatus.className = `config-status ${type}`;
+        elements.configStatus.style.display = 'block';
+        
+        setTimeout(() => {
+            elements.configStatus.style.display = 'none';
+        }, 3000);
+    }
+}
+
+async function testGoogleScriptConnection() {
+    if (!googleScriptUrl) {
+        showModal('❌ Erro', 'Configure a URL do Google Apps Script primeiro.', false);
+        return;
+    }
+
+    showModal('Testando...', 'Verificando conexão com Google Sheets...', true);
+    
+    try {
+        const testData = {
+            action: 'test',
+            timestamp: new Date().toISOString()
+        };
+
+        const response = await fetch(googleScriptUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(testData)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+            showModal('✅ Conexão OK!', 
+                `Conexão com Google Sheets estabelecida com sucesso!<br><br>
+                <strong>Status:</strong> ${result.status || 'OK'}<br>
+                <strong>Serviço:</strong> ${result.service || 'Google Sheets'}`, 
+                false
+            );
+        } else {
+            showModal('⚠️ Atenção', 
+                `Resposta inesperada:<br>${result.message || 'Sem detalhes'}`, 
+                false
+            );
+        }
+    } catch (error) {
+        console.error('Erro na conexão:', error);
+        showModal('❌ Falha na Conexão', 
+            `Não foi possível conectar ao Google Sheets.<br><br>
+            <strong>Erro:</strong> ${error.message}<br><br>
+            Verifique:<br>
+            1. Se a URL está correta<br>
+            2. Se o Apps Script está publicado<br>
+            3. Se as permissões estão configuradas`, 
+            false
+        );
+    }
+}
+
+// ================================
+// ENVIO PARA GOOGLE SHEETS
+// ================================
+async function sendToGoogleSheets(formData) {
+    return new Promise(async (resolve) => {
+        // Verificar se está online
+        if (!navigator.onLine) {
+            const saved = saveDataOffline(formData);
+            resolve({
+                success: false,
+                error: 'Sem conexão com a internet',
+                savedLocally: saved
+            });
+            return;
+        }
+
+        // Verificar se a URL está configurada
+        if (!googleScriptUrl) {
+            const saved = saveDataOffline(formData);
+            resolve({
+                success: false,
+                error: 'URL do Google Sheets não configurada',
+                savedLocally: saved
+            });
+            return;
+        }
+
+        try {
+            // Preparar dados para envio
+            const payload = {
+                action: 'submit',
+                data: formData,
+                timestamp: new Date().toISOString()
+            };
+
+            // Converter imagem para base64 se for muito grande
+            if (formData.imagemBase64 && formData.imagemBase64.length > 50000) {
+                payload.data.imagemBase64 = '[IMAGEM_COMPRIMIDA]';
+                payload.hasImage = true;
+                payload.imageSize = Math.round(formData.imagemBase64.length / 1024);
+            }
+
+            showModal('Enviando...', 'Conectando ao Google Sheets...', true);
+
+            const response = await fetch(googleScriptUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            
+            if (result.success) {
+                // Remover dados offline se existirem
+                removeOfflineData(formData.timestamp);
+                
+                resolve({
+                    success: true,
+                    recordId: result.recordId || 'N/A',
+                    timestamp: result.timestamp || new Date().toLocaleString('pt-BR'),
+                    message: result.message
+                });
+            } else {
+                // Salvar offline em caso de erro
+                saveDataOffline(formData);
+                
+                resolve({
+                    success: false,
+                    error: result.error || 'Erro desconhecido no servidor',
+                    savedLocally: true
+                });
+            }
+        } catch (error) {
+            console.error('Erro no envio:', error);
+            
+            // Salvar offline
+            const saved = saveDataOffline(formData);
+            
+            resolve({
+                success: false,
+                error: error.message,
+                savedLocally: saved
+            });
+        }
+    });
+}
+
+// ================================
+// OFFLINE STORAGE
+// ================================
+function loadOfflineData() {
+    try {
+        const data = localStorage.getItem(OFFLINE_STORAGE_KEY);
+        if (data) {
+            offlineData = JSON.parse(data);
+            updateOfflineBadge();
+            console.log(`📦 Dados offline carregados: ${offlineData.length} registros`);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar dados offline:', error);
+        offlineData = [];
+    }
+}
+
+function saveDataOffline(formData) {
+    try {
+        // Adicionar ID único e timestamp
+        const offlineRecord = {
+            ...formData,
+            offlineId: Date.now().toString(),
+            savedAt: new Date().toISOString(),
+            status: 'pending'
+        };
+
+        offlineData.push(offlineRecord);
+        localStorage.setItem(OFFLINE_STORAGE_KEY, JSON.stringify(offlineData));
+        
+        updateOfflineBadge();
+        console.log('💾 Dados salvos offline:', offlineRecord.offlineId);
+        
+        return true;
+    } catch (error) {
+        console.error('Erro ao salvar dados offline:', error);
+        return false;
+    }
+}
+
+function removeOfflineData(timestamp) {
+    offlineData = offlineData.filter(item => item.timestamp !== timestamp);
+    localStorage.setItem(OFFLINE_STORAGE_KEY, JSON.stringify(offlineData));
+    updateOfflineBadge();
+}
+
+async function syncOfflineData() {
+    if (offlineData.length === 0) {
+        showModal('📦 Offline', 'Não há dados pendentes para sincronizar.', false);
+        return;
+    }
+
+    if (!navigator.onLine) {
+        showModal('❌ Offline', 'Conecte-se à internet para sincronizar.', false);
+        return;
+    }
+
+    if (!googleScriptUrl) {
+        showModal('⚙️ Configuração', 'Configure a URL do Google Sheets primeiro.', false);
+        return;
+    }
+
+    showModal('Sincronizando...', `Enviando ${offlineData.length} registros...`, true);
+    
+    let successCount = 0;
+    let errorCount = 0;
+    const errors = [];
+
+    for (let i = 0; i < offlineData.length; i++) {
+        const record = offlineData[i];
+        
+        try {
+            const payload = {
+                action: 'submit',
+                data: record,
+                timestamp: record.timestamp,
+                isOfflineSync: true
+            };
+
+            const response = await fetch(googleScriptUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    successCount++;
+                    // Marcar como enviado
+                    record.status = 'synced';
+                } else {
+                    errorCount++;
+                    errors.push(`Registro ${i+1}: ${result.error}`);
+                }
+            } else {
+                errorCount++;
+                errors.push(`Registro ${i+1}: HTTP ${response.status}`);
+            }
+        } catch (error) {
+            errorCount++;
+            errors.push(`Registro ${i+1}: ${error.message}`);
+        }
+    }
+
+    // Atualizar storage (remover apenas os enviados com sucesso)
+    offlineData = offlineData.filter(item => item.status !== 'synced');
+    localStorage.setItem(OFFLINE_STORAGE_KEY, JSON.stringify(offlineData));
+    
+    updateOfflineBadge();
+    
+    hideModal();
+    
+    if (successCount > 0) {
+        showModal(
+            '✅ Sincronização Parcial',
+            `${successCount} registro(s) enviado(s) com sucesso!<br>
+            ${errorCount > 0 ? `${errorCount} erro(s) encontrado(s).` : ''}`,
+            false
+        );
+    } else {
+        showModal(
+            '❌ Falha na Sincronização',
+            'Nenhum registro foi enviado.<br><br>' +
+            errors.slice(0, 3).map(e => `• ${e}`).join('<br>') +
+            (errors.length > 3 ? '<br>... e mais' : ''),
+            false
+        );
+    }
+}
+
+function updateOfflineBadge() {
+    if (elements.offlineBadge) {
+        if (offlineData.length > 0) {
+            elements.offlineBadge.textContent = offlineData.length;
+            elements.offlineBadge.style.display = 'flex';
+            
+            if (elements.syncBtn) {
+                elements.syncBtn.disabled = false;
+                elements.syncBtn.title = `Sincronizar ${offlineData.length} registro(s) pendente(s)`;
+            }
+        } else {
+            elements.offlineBadge.style.display = 'none';
+            
+            if (elements.syncBtn) {
+                elements.syncBtn.disabled = true;
+                elements.syncBtn.title = 'Nenhum dado pendente';
+            }
+        }
+    }
+}
+
+function checkConnectionStatus() {
+    if (!navigator.onLine) {
+        showModal('🌐 Offline', 
+            'Você está offline. Os dados serão salvos localmente e sincronizados quando a conexão voltar.',
+            false
+        );
+    }
+    updateConnectionStatus();
+}
+
+function updateConnectionStatus() {
+    const isOnline = navigator.onLine;
+    
+    if (elements.offlineBadge) {
+        if (!isOnline) {
+            document.body.classList.add('offline');
+        } else {
+            document.body.classList.remove('offline');
+        }
+    }
+}
+
+// ================================
+// CONTROLES DE IMAGEM (Mantido igual)
 // ================================
 function setupImageControls() {
     const imagePreview = elements.imagePreview;
@@ -889,42 +1333,30 @@ async function handleFormSubmit(event) {
         timestamp: new Date().toISOString()
     };
     
-    console.log('📤 Dados para envio:', formData);
+    console.log('📊 Dados para envio:', formData);
     
     try {
-        // Usar função de envio do send.js
-        if (typeof sendToGoogleSheets === 'function') {
-            const result = await sendToGoogleSheets(formData);
+        const result = await sendToGoogleSheets(formData);
+        
+        if (result.success) {
+            showModal('✅ Sucesso!', 
+                `Dados enviados com sucesso!<br><br>
+                <strong>ID do Registro:</strong> ${result.recordId || 'N/A'}<br>
+                <strong>Data/Hora:</strong> ${result.timestamp || new Date().toLocaleString('pt-BR')}`,
+                false
+            );
             
-            if (result.success) {
-                showModal('✅ Sucesso!', 
-                    `Dados enviados com sucesso!<br><br>
-                    <strong>ID do Registro:</strong> ${result.recordId || 'N/A'}<br>
-                    <strong>Data/Hora:</strong> ${result.timestamp || new Date().toLocaleString('pt-BR')}`,
-                    false
-                );
-                
-                // Limpar formulário após sucesso
-                setTimeout(() => {
-                    clearForm();
-                }, 3000);
-            } else {
-                showModal('❌ Erro no Envio', 
-                    `Não foi possível enviar os dados:<br>
-                    ${result.error || 'Erro desconhecido'}<br><br>
-                    ${result.savedLocally ? '<small>✓ Dados salvos localmente para envio posterior</small>' : ''}`,
-                    false
-                );
-            }
-        } else {
-            // Fallback se sendToGoogleSheets não existir
+            // Limpar formulário após sucesso
             setTimeout(() => {
-                showModal('⚠️ Configuração Necessária', 
-                    'Função de envio não encontrada.<br><br>' +
-                    'Configure a URL do Google Apps Script em send.js', 
-                    false
-                );
-            }, 1500);
+                clearForm();
+            }, 3000);
+        } else {
+            showModal('❌ Erro no Envio', 
+                `Não foi possível enviar os dados:<br>
+                ${result.error || 'Erro desconhecido'}<br><br>
+                ${result.savedLocally ? '<small>💾 Dados salvos localmente para envio posterior</small>' : ''}`,
+                false
+            );
         }
     } catch (error) {
         console.error('Erro no envio:', error);
@@ -1007,7 +1439,7 @@ async function installPWA() {
     if (!deferredPrompt) {
         showModal('ℹ️ Informação', 
             'O botão de instalação só aparece em dispositivos compatíveis.<br><br>' +
-            'Tente usar o menu do navegador (⋯) e selecione "Instalar aplicativo".',
+            'Tente usar o menu do navegador (⋮) e selecione "Instalar aplicativo".',
             false
         );
         return;
@@ -1076,16 +1508,45 @@ function hideModal() {
 }
 
 // ================================
-// EXPORT PARA DEBUG
+// EXPORT PARA DEBUG E TESTES
 // ================================
 window.SocialColetor = {
+    // Funções principais
     extractAndFillData,
     validateForm,
     clearForm,
+    
+    // Processamento de imagem
     enhanceImageProfessionally,
+    processOCR,
+    
+    // PWA
     installPWA,
     showInstallPrompt,
-    hideInstallPrompt
+    hideInstallPrompt,
+    
+    // Google Sheets
+    sendToGoogleSheets,
+    testGoogleScriptConnection,
+    saveGoogleScriptConfig,
+    
+    // Offline
+    syncOfflineData,
+    loadOfflineData,
+    
+    // Configurações
+    getConfig: () => ({
+        googleScriptConfigured,
+        googleScriptUrl,
+        offlineDataCount: offlineData.length,
+        isOnline: navigator.onLine
+    })
 };
 
-console.log('📦 Social Coletor carregado com PWA e controles de imagem!');
+console.log('🚀 Social Coletor v2.0 carregado com PWA, Google Sheets e Offline!');
+console.log('📱 Recursos disponíveis:', {
+    pwa: 'serviceWorker' in navigator,
+    offlineStorage: 'localStorage' in window,
+    camera: 'mediaDevices' in navigator,
+    fileSystem: 'showOpenFilePicker' in window
+});
