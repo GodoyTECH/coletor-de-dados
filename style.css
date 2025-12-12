@@ -69,7 +69,7 @@ body {
    LOGO FIXA NO TOPO – NÃO MOVE AO ROLAR
    ============================================ */
 .logo-container {
-    position: fixed;
+    position: relative;
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
@@ -81,8 +81,8 @@ body {
 }
 
 .logo {
-    width: 100px;
-    height: 100px;
+    width: 20vw;
+    height: auto;
     border-radius: 20%;
     object-fit: cover;
     border: 3px solid rgba(255, 255, 255, 0.6);
