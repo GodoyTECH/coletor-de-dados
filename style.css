@@ -1,7 +1,6 @@
 /* ============================================
-   SOCIAL COLETOR - CSS CORRIGIDO
-   Mantendo transparência e layout original
-   Logo centralizada + container de conteúdo transparente
+   SOCIAL COLETOR - CSS CORRIGIDO FINAL
+   Logo fixa no topo + conteúdo normal
    ============================================ */
 
 :root {
@@ -60,39 +59,15 @@ body {
 }
 
 @keyframes float {
-    0%, 100% {
-        transform: translateY(0) rotate(0deg);
-    }
-    25% {
-        transform: translateY(-20px) rotate(5deg);
-    }
-    50% {
-        transform: translateY(-40px) rotate(0deg);
-    }
-    75% {
-        transform: translateY(-20px) rotate(-5deg);
-    }
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-20px) rotate(5deg); }
+    50% { transform: translateY(-40px) rotate(0deg); }
+    75% { transform: translateY(-20px) rotate(-5deg); }
 }
-
-
 
 /* ============================================
-   HEADER FIXO + LOGO FIXA
+   LOGO FIXA NO TOPO – NÃO MOVE AO ROLAR
    ============================================ */
-.header {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 9999;
-    text-align: center;
-    background: transparent;
-    padding: 0;
-    width: 100%;
-    pointer-events: none; /* permite clicar no conteúdo abaixo */
-}
-
-/* container da logo fixo */
 .logo-container {
     position: fixed;
     top: 20px;
@@ -105,7 +80,6 @@ body {
     pointer-events: none;
 }
 
-/* LOGO FIXA */
 .logo {
     width: 160px;
     height: 160px;
@@ -113,37 +87,39 @@ body {
     object-fit: cover;
     border: 3px solid rgba(255, 255, 255, 0.6);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-    pointer-events: auto; /* permite clicar nela se quiser */
+    pointer-events: auto;
 }
 
-/* TEXTO ABAIXO DA LOGO */
-.header h1,
-.header .subtitle {
-    color: white;
-    pointer-events: none;
+/* ============================================
+   HEADER – NÃO FIXO, ROLA NORMAL
+   ============================================ */
+.header {
+    margin-top: 200px;  /* espaço por causa da logo fixa */
+    text-align: center;
 }
 
 .header h1 {
-    margin-top: 185px; /* empurra o título para baixo da logo fixa */
     font-size: 2rem;
+    color: white;
+    margin-top: 10px;
 }
 
 .header .subtitle {
-    margin-top: -5px;
     font-size: 1.2rem;
-
+    color: white;
+    margin-top: -5px;
 }
+
 /* ============================================
-   CONTAINER – agora empurrado mais para baixo
+   CONTAINER AJUSTADO – CONTEÚDO PRINCIPAL
    ============================================ */
 .container {
-    top: 50px; 
-    max-width:1000px;
-    margin: 230px auto 40px auto; /* ANTES ERA 180px - agora tem espaço real */
+    max-width: 1000px;
+    margin: 40px auto;
     padding: 20px;
     position: relative;
     z-index: 1;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 15px;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
@@ -151,14 +127,11 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-
-
- 
 /* ============================================
-   CARD PRINCIPAL – COM TRANSPARÊNCIA
+   CARD PRINCIPAL
    ============================================ */
 .main-card {
-    background: rgba(255, 255, 255, 0.5); /* Transparência mais sutil */
+    background: rgba(255, 255, 255, 0.5);
     border-radius: 15px;
     padding: 25px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
