@@ -13,7 +13,8 @@ const APP_SHELL = [
   '/send.js',
   '/manifest.json',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-512.png',
+  '/video.mp4'
 ];
 
 // ================================
