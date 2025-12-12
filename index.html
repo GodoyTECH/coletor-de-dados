@@ -2,34 +2,10 @@
 <html lang="pt-BR">
 <head>
     <!-- Forçar sempre carregar versão mais nova -->
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-
-<!-- Script para forçar update do Service Worker -->
-<script>
-// Forçar update do Service Worker ao carregar
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(registration => {
-        // Forçar update imediato
-        registration.update();
-        
-        // Recarregar se nova versão instalada
-        registration.addEventListener('updatefound', () => {
-          const newWorker = registration.installing;
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed') {
-              console.log('Nova versão! Recarregando...');
-              window.location.reload();
-            }
-          });
-        });
-      });
-  });
-}
-</script>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Social Coletor - Coletor de Dados via Imagem</title>
@@ -90,41 +66,31 @@ if ('serviceWorker' in navigator) {
                     <input type="file" id="fileInput" accept="image/*" hidden>
                 </div>
 
-               <!-- Preview da Imagem com Controles de Zoom -->
-<div class="image-preview-container">
-    <div class="image-controls-panel">
-        <!-- Controles de Zoom -->
-        <div class="zoom-controls">
-            <button class="zoom-btn" id="zoomOut" title="Reduzir zoom">−</button>
-            <span class="zoom-level" id="zoomLevel">100%</span>
-            <button class="zoom-btn" id="zoomIn" title="Aumentar zoom">+</button>
-        </div>
-        
-        <!-- Controles de Movimento -->
-        <div class="move-controls">
-            <div class="move-row">
-                <button class="move-btn" id="moveUp" title="Mover para cima">↑</button>
-            </div>
-            <div class="move-row">
-                <button class="move-btn" id="moveLeft" title="Mover para esquerda">←</button>
-                <button class="move-btn" id="moveCenter" title="Centralizar imagem">◎</button>
-                <button class="move-btn" id="moveRight" title="Mover para direita">→</button>
-            </div>
-            <div class="move-row">
-                <button class="move-btn" id="moveDown" title="Mover para baixo">↓</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Container da Imagem com Zoom -->
-    <div class="image-zoom-container" id="imageZoomContainer">
-        <div class="image-placeholder" id="imagePlaceholder">
-            <span>📄 Preview da imagem aparecerá aqui</span>
-            <p class="placeholder-hint">Use os controles para ajustar zoom e posição</p>
-        </div>
-        <img id="imagePreview" class="image-preview" alt="Preview da imagem capturada" hidden>
-    </div>
-</div>
+                <!-- Preview da Imagem com Controles de Zoom -->
+                <div class="image-preview-container">
+                    <div class="image-controls-panel">
+                        <!-- Controles de Zoom -->
+                        <div class="zoom-controls">
+                            <button class="zoom-btn" id="zoomOut" title="Reduzir zoom">−</button>
+                            <span class="zoom-level" id="zoomLevel">100%</span>
+                            <button class="zoom-btn" id="zoomIn" title="Aumentar zoom">+</button>
+                            <button class="zoom-btn" id="resetZoom" title="Resetar zoom e posição">◎</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Container da Imagem com Zoom (IMPORTANTE: container fixo) -->
+                    <div class="image-zoom-wrapper" id="imageZoomWrapper">
+                        <div class="image-zoom-container" id="imageZoomContainer">
+                            <div class="image-placeholder" id="imagePlaceholder">
+                                <span>📄 Preview da imagem aparecerá aqui</span>
+                                <p class="placeholder-hint">Toque e arraste para mover • Pinça para zoom</p>
+                            </div>
+                            <div class="image-draggable-container" id="imageDraggableContainer">
+                                <img id="imagePreview" class="image-preview" alt="Preview da imagem capturada" hidden>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Barra de Progresso OCR -->
                 <div class="progress-container" id="progressContainer" hidden>
@@ -134,11 +100,7 @@ if ('serviceWorker' in navigator) {
                     </div>
                 </div>
                 
-                <!-- Botão Melhorar Foto -->
-                <button id="btnMelhorarFoto" class="btn" style="display: none;">
-                    ✨ Melhorar Qualidade da Imagem
-                </button>
-                
+                <!-- Botão Melhorar Foto REMOVIDO (agora automático) -->
                 <canvas id="enhanced-preview" style="display:none;"></canvas>
             </section>
 
@@ -193,7 +155,7 @@ if ('serviceWorker' in navigator) {
                         <div class="form-group full-width">
                             <label for="endereco">Endereço *</label>
                             <textarea id="endereco" name="endereco" required 
-                                      placeholder="Endereço completo" rows="3"></textarea>
+                                      placeholder="Endereço completo" rows="2"></textarea>
                         </div>
 
                         <!-- Linha 5 -->
@@ -208,13 +170,15 @@ if ('serviceWorker' in navigator) {
                             <input type="text" id="numeroDocumento" name="numeroDocumento" required 
                                    placeholder="000000/0000">
                         </div>
-                        <!-- NOVO: Linha 6 - Observações -->
+
+                        <!-- Linha 6 - Observações -->
                         <div class="form-group full-width">
                             <label for="observacoes">Observações</label>
                             <textarea id="observacoes" name="observacoes" 
-                              placeholder="Observações adicionais sobre o registro..." rows="2"></textarea>
-                                <small class="form-hint">Opcional: adicione informações relevantes</small>
-                            </div>
+                                      placeholder="Observações adicionais sobre o registro..." 
+                                      rows="2"></textarea>
+                            <small class="form-hint">Opcional: adicione informações relevantes</small>
+                        </div>
                     </div>
 
                     <!-- Botões de Ação -->
@@ -228,32 +192,34 @@ if ('serviceWorker' in navigator) {
                     </div>
                 </form>
             </section>
+
+            <!-- Botão de Instalação PWA (ANTES DO FOOTER) -->
+            <div id="installContainer" class="install-container" style="display: none;">
+                <div class="install-card">
+                    <div class="install-icon">📱</div>
+                    <div class="install-content">
+                        <h3>Instalar Social Coletor</h3>
+                        <p>Para melhor experiência, instale o app em seu dispositivo!</p>
+                        <button id="installBtn" class="btn-install">📥 Instalar Agora</button>
+                        <button class="btn-install-secondary" onclick="document.getElementById('installContainer').style.display='none'">
+                            Agora não
+                        </button>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <!-- Rodapé -->
         <footer class="footer">
-            <p>Social Coletor v1.0 • PWA • OCR  • Google Sheets Integration</p>
-             <p>Desenvolvido por • Godoy Solutions In TECH</p>
+            <p>Social Coletor v1.0 • PWA • OCR • Google Sheets Integration</p>
+            <p>Desenvolvido por • Godoy Solutions In TECH</p>
         </footer>
     </div>
 
-    <!-- Botão de Instalação PWA -->
-<div id="installContainer" class="install-container" style="display: none;">
-    <div class="install-card">
-        <div class="install-icon">📱</div>
-        <div class="install-content">
-            <h3>Instalar Social Coletor</h3>
-            <p>Para melhor experiência, instale o app em seu dispositivo!</p>
-            <button id="installBtn" class="btn-install">📥 Instalar Agora</button>
-            <button onclick="hideInstallPrompt()" class="btn-install-secondary">Agora não</button>
-        </div>
-    </div>
-</div>
-
-    <!-- Script para funções de envio melhoradas -->
+    <!-- Script para funções de envio -->
     <script src="send.js"></script>
 
-    <!-- Script para emojis flutuantes -->
+    <!-- Script para emojis flutuantes e inicialização -->
     <script>
         // Cria emojis flutuantes
         function criarEmojisFlutuantes() {
@@ -288,7 +254,7 @@ if ('serviceWorker' in navigator) {
             }
         }
 
-        // Registrar Service Worker
+        // Inicialização
         window.addEventListener('load', function() {
             console.log('🌐 Tesseract carregado:', typeof Tesseract !== 'undefined');
             
@@ -300,28 +266,17 @@ if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('service-worker.js')
                     .then(function(registration) {
                         console.log('✅ Service Worker registrado:', registration.scope);
-                        
-                        // Verificar envios pendentes após registro do service worker
-                        if (typeof getSubmissionStatus === 'function') {
-                            const status = getSubmissionStatus();
-                            if (status.pendingCount > 0) {
-                                console.log(`📋 ${status.pendingCount} envio(s) pendente(s) encontrado(s)`);
-                                
-                                // Opcional: mostrar notificação suave sobre pendentes
-                                if (typeof showModal === 'function' && status.pendingCount > 0) {
-                                    setTimeout(() => {
-                                        showModal(
-                                            '📤 Envios Pendentes', 
-                                            `Existem ${status.pendingCount} envio(s) pendentes. O sistema tentará enviar automaticamente.`,
-                                            false
-                                        );
-                                    }, 2000);
-                                }
-                            }
-                        }
                     })
                     .catch(function(error) {
                         console.log('⚠️ Service Worker não registrado:', error);
+                    });
+            }
+
+            // Forçar update do Service Worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistration()
+                    .then(registration => {
+                        if (registration) registration.update();
                     });
             }
         });
