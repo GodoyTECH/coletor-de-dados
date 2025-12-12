@@ -70,7 +70,7 @@ body {
    ============================================ */
 .logo-container {
     position: relative;
-    top: 70px;
+    top: 100px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 10000;
@@ -81,7 +81,7 @@ body {
 }
 
 .logo {
-    width: 15vw;
+    width: 20vw;
     height: auto;
     border-radius: 20%;
     object-fit: cover;
