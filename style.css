@@ -1,6 +1,8 @@
 /* ============================================
-   VARIÁVEIS E RESET
+   SOCIAL COLETOR - CSS CORRIGIDO
+   Mantendo transparência e layout original
    ============================================ */
+
 :root {
     --primary-color: #0a0e29;
     --secondary-color: #2d6a4f;
@@ -83,55 +85,79 @@ body {
 }
 
 /* ============================================
-   CABEÇALHO
+   CABEÇALHO FIXO NO TOPO
    ============================================ */
 .header {
-    text-align: center;
-    margin-bottom: 30px;
-    padding: 20px;
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 15px;
-    box-shadow: var(--shadow);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 15px 0;
+    background: rgba(255, 255, 255, 0.92); /* Apenas 92% de opacidade */
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    text-align: center;
+}
+
+.header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .logo-container {
-    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
 }
 
 .logo {
-    width: 80px;
-    height: 80px;
+    width: 50px;
+    height: 50px;
     border-radius: 50%;
     object-fit: cover;
-    border: 3px solid var(--primary-color);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border: 2px solid var(--primary-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-h1 {
+.app-title {
+    font-size: 1.5rem;
+    font-weight: bold;
     color: var(--primary-color);
-    font-size: 2.2rem;
-    margin-bottom: 5px;
-    font-weight: 700;
 }
 
-.subtitle {
-    color: #666;
-    font-size: 1.1rem;
-    font-weight: 300;
+.header-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
 }
 
 /* ============================================
-   CARD PRINCIPAL
+   CONTEÚDO PRINCIPAL (com espaço para header fixo)
+   ============================================ */
+.main-content {
+    margin-top: 80px; /* Altura do header fixo */
+    padding-bottom: 40px;
+}
+
+/* ============================================
+   CARD PRINCIPAL COM TRANSPARÊNCIA
    ============================================ */
 .main-card {
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.85); /* 85% de opacidade */
     border-radius: 15px;
-    padding: 30px;
-    box-shadow: var(--shadow);
+    padding: 25px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    margin-bottom: 20px;
 }
 
 /* ============================================
@@ -139,12 +165,12 @@ h1 {
    ============================================ */
 .capture-section,
 .form-section {
-    margin-bottom: 40px;
+    margin-bottom: 30px;
 }
 
 h2 {
     color: var(--primary-color);
-    font-size: 1.8rem;
+    font-size: 1.6rem;
     margin-bottom: 10px;
     display: flex;
     align-items: center;
@@ -154,8 +180,8 @@ h2 {
 .section-description {
     color: #666;
     margin-bottom: 20px;
-    font-size: 1rem;
-    line-height: 1.6;
+    font-size: 0.95rem;
+    line-height: 1.5;
 }
 
 /* ============================================
@@ -163,8 +189,8 @@ h2 {
    ============================================ */
 .image-controls {
     display: flex;
-    gap: 15px;
-    margin-bottom: 25px;
+    gap: 10px;
+    margin-bottom: 20px;
     flex-wrap: wrap;
 }
 
@@ -172,7 +198,7 @@ h2 {
    CONTAINER DE PREVIEW DA IMAGEM
    ============================================ */
 .image-preview-container {
-    margin-bottom: 25px;
+    margin-bottom: 20px;
 }
 
 /* Painel de Controles */
@@ -180,9 +206,9 @@ h2 {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 20px;
+    gap: 15px;
     margin-bottom: 15px;
-    padding: 15px;
+    padding: 12px;
     background: rgba(10, 14, 41, 0.05);
     border-radius: 10px;
     border: 1px solid rgba(10, 14, 41, 0.1);
@@ -191,17 +217,17 @@ h2 {
 .zoom-controls {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .zoom-btn {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     border-radius: 8px;
     border: 2px solid var(--primary-color);
     background: white;
     color: var(--primary-color);
-    font-size: 20px;
+    font-size: 18px;
     font-weight: bold;
     cursor: pointer;
     display: flex;
@@ -224,7 +250,7 @@ h2 {
 #resetZoom {
     background: var(--primary-color);
     color: white;
-    font-size: 18px;
+    font-size: 16px;
 }
 
 #resetZoom:hover {
@@ -234,21 +260,21 @@ h2 {
 .zoom-level {
     font-weight: bold;
     color: var(--primary-color);
-    min-width: 60px;
+    min-width: 50px;
     text-align: center;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 /* Wrapper do Container de Zoom */
 .image-zoom-wrapper {
     width: 100%;
-    height: 400px;
+    height: 350px;
     border: 2px solid var(--border-color);
     border-radius: 10px;
     overflow: hidden;
     background: #f9f9f9;
     position: relative;
-    touch-action: none; /* Importante para touch */
+    touch-action: none;
 }
 
 /* Container de Zoom (área visível) */
@@ -285,15 +311,15 @@ h2 {
 }
 
 .image-placeholder span {
-    font-size: 1.2rem;
-    margin-bottom: 10px;
+    font-size: 1.1rem;
+    margin-bottom: 8px;
     color: #666;
 }
 
 .placeholder-hint {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: #888;
-    margin-top: 10px;
+    margin-top: 8px;
 }
 
 /* Container arrastável da imagem */
@@ -320,47 +346,47 @@ h2 {
    BARRA DE PROGRESSO
    ============================================ */
 .progress-container {
-    margin-top: 20px;
+    margin-top: 15px;
     background: rgba(10, 14, 41, 0.05);
-    padding: 15px;
+    padding: 12px;
     border-radius: 10px;
     border: 1px solid rgba(10, 14, 41, 0.1);
 }
 
 .progress-label {
     color: var(--primary-color);
-    font-size: 0.9rem;
-    margin-bottom: 8px;
+    font-size: 0.85rem;
+    margin-bottom: 6px;
     font-weight: 500;
 }
 
 .progress-bar {
-    height: 8px;
+    height: 6px;
     background: #e0e0e0;
-    border-radius: 4px;
+    border-radius: 3px;
     overflow: hidden;
 }
 
 .progress-fill {
     height: 100%;
     background: linear-gradient(90deg, var(--accent-color), var(--secondary-color));
-    border-radius: 4px;
+    border-radius: 3px;
     transition: width 0.3s ease;
     width: 0%;
 }
 
 /* ============================================
-   FORMULÁRIO
+   FORMULÁRIO COM TRANSPARÊNCIA
    ============================================ */
 .data-form {
-    margin-top: 20px;
+    margin-top: 15px;
 }
 
 .form-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-    margin-bottom: 25px;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
 }
 
 .form-group {
@@ -374,18 +400,18 @@ h2 {
 
 label {
     color: var(--primary-color);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
 }
 
 input, textarea, select {
-    padding: 12px 15px;
+    padding: 10px 12px;
     border: 2px solid var(--border-color);
     border-radius: 8px;
-    font-size: 1rem;
+    font-size: 0.95rem;
     transition: var(--transition);
-    background: white;
+    background: rgba(255, 255, 255, 0.9);
     width: 100%;
 }
 
@@ -397,13 +423,13 @@ input:focus, textarea:focus, select:focus {
 
 textarea {
     resize: vertical;
-    min-height: 80px;
+    min-height: 70px;
 }
 
 .form-hint {
     color: #888;
-    font-size: 0.85rem;
-    margin-top: 5px;
+    font-size: 0.8rem;
+    margin-top: 4px;
     font-style: italic;
 }
 
@@ -411,17 +437,17 @@ textarea {
    BOTÕES
    ============================================ */
 .btn {
-    padding: 12px 24px;
+    padding: 10px 20px;
     border: none;
     border-radius: 8px;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     text-align: center;
 }
 
@@ -477,17 +503,20 @@ textarea {
 
 .form-actions {
     display: flex;
-    gap: 15px;
+    gap: 12px;
     justify-content: flex-end;
-    padding-top: 20px;
+    padding-top: 15px;
     border-top: 1px solid var(--border-color);
 }
 
 /* ============================================
-   INSTALAÇÃO PWA
+   INSTALAÇÃO PWA FLUTUANTE
    ============================================ */
 .install-container {
-    margin: 30px 0;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 100;
     animation: slideUp 0.3s ease-out;
 }
 
@@ -495,53 +524,51 @@ textarea {
     background: linear-gradient(135deg, var(--primary-color) 0%, #1a237e 100%);
     color: white;
     border-radius: 15px;
-    padding: 25px;
-    display: flex;
-    align-items: center;
-    gap: 20px;
+    padding: 20px;
+    max-width: 300px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     border: 2px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
 }
 
 .install-icon {
-    font-size: 50px;
-    flex-shrink: 0;
-}
-
-.install-content {
-    flex: 1;
+    font-size: 40px;
+    margin-bottom: 10px;
+    text-align: center;
 }
 
 .install-content h3 {
     margin: 0 0 8px 0;
     color: var(--warning-color);
-    font-size: 1.4rem;
+    font-size: 1.2rem;
 }
 
 .install-content p {
-    margin: 0 0 20px 0;
+    margin: 0 0 15px 0;
     opacity: 0.9;
-    font-size: 0.95rem;
-    line-height: 1.5;
+    font-size: 0.9rem;
+    line-height: 1.4;
 }
 
 .btn-install {
     background: linear-gradient(135deg, var(--accent-color) 0%, var(--secondary-color) 100%);
     color: white;
     border: none;
-    padding: 12px 25px;
+    padding: 10px 20px;
     border-radius: 50px;
     font-weight: bold;
     cursor: pointer;
-    margin-right: 10px;
     transition: var(--transition);
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 8px;
 }
 
 .btn-install:hover {
-    transform: translateY(-3px);
+    transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(6, 214, 160, 0.4);
 }
 
@@ -549,10 +576,11 @@ textarea {
     background: transparent;
     color: #ccc;
     border: 1px solid #ccc;
-    padding: 12px 25px;
+    padding: 8px 15px;
     border-radius: 50px;
     cursor: pointer;
     transition: var(--transition);
+    width: 100%;
 }
 
 .btn-install-secondary:hover {
@@ -575,25 +603,20 @@ textarea {
    ============================================ */
 .footer {
     text-align: center;
-    padding: 25px;
-    margin-top: 30px;
+    padding: 20px;
+    margin-top: 20px;
     color: white;
-    font-size: 0.9rem;
-    line-height: 1.6;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    opacity: 0.8;
 }
 
 .footer p:first-child {
-    margin-bottom: 8px;
-    opacity: 0.9;
-}
-
-.footer p:last-child {
-    opacity: 0.7;
-    font-size: 0.85rem;
+    margin-bottom: 5px;
 }
 
 /* ============================================
-   MODAL (para uso no JavaScript)
+   MODAL
    ============================================ */
 .modal {
     display: none;
@@ -603,7 +626,7 @@ textarea {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 1000;
+    z-index: 2000;
     align-items: center;
     justify-content: center;
     animation: fadeIn 0.3s ease;
@@ -611,7 +634,7 @@ textarea {
 
 .modal-content {
     background: white;
-    padding: 30px;
+    padding: 25px;
     border-radius: 15px;
     max-width: 500px;
     width: 90%;
@@ -633,16 +656,27 @@ textarea {
         padding: 15px;
     }
     
+    .header-content {
+        padding: 0 15px;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .main-content {
+        margin-top: 120px;
+    }
+    
     .main-card {
         padding: 20px;
+        background: rgba(255, 255, 255, 0.9);
     }
     
     h1 {
-        font-size: 1.8rem;
+        font-size: 1.6rem;
     }
     
     h2 {
-        font-size: 1.5rem;
+        font-size: 1.4rem;
     }
     
     .image-controls {
@@ -661,30 +695,30 @@ textarea {
         height: 300px;
     }
     
+    .install-container {
+        position: relative;
+        bottom: auto;
+        right: auto;
+        margin: 20px 0;
+    }
+    
     .install-card {
-        flex-direction: column;
-        text-align: center;
-        gap: 15px;
-    }
-    
-    .install-icon {
-        font-size: 40px;
-    }
-    
-    .btn-install, .btn-install-secondary {
-        width: 100%;
-        margin: 5px 0;
+        max-width: 100%;
     }
 }
 
 @media (max-width: 480px) {
-    .header {
-        padding: 15px;
+    .main-content {
+        margin-top: 140px;
     }
     
     .logo {
-        width: 60px;
-        height: 60px;
+        width: 40px;
+        height: 40px;
+    }
+    
+    .app-title {
+        font-size: 1.3rem;
     }
     
     .form-grid {
@@ -732,7 +766,7 @@ textarea:valid:not(:placeholder-shown) {
 }
 
 /* ============================================
-   ANIMAÇÕES ADICIONAIS
+   ANIMAÇÕES
    ============================================ */
 @keyframes pulse {
     0% { transform: scale(1); }
@@ -772,29 +806,26 @@ textarea:valid:not(:placeholder-shown) {
 }
 
 /* ============================================
-   MELHORIAS PARA TOUCH (CELULAR)
+   MELHORIAS PARA TOUCH
    ============================================ */
 @media (hover: none) and (pointer: coarse) {
     .btn {
-        min-height: 44px; /* Tamanho mínimo para toque */
+        min-height: 44px;
+        padding: 12px;
     }
     
     input, textarea {
-        font-size: 16px; /* Evita zoom no iOS */
+        font-size: 16px;
+        padding: 12px;
     }
     
-    .image-zoom-container {
-        cursor: default;
+    .zoom-btn {
+        width: 44px;
+        height: 44px;
+        font-size: 20px;
     }
     
-    /* Melhor feedback para toque */
-    .zoom-btn:active {
-        background: var(--primary-color);
-        color: white;
-        transform: scale(0.95);
-    }
-    
-    .btn:active {
-        transform: scale(0.98);
+    .image-zoom-wrapper {
+        height: 300px;
     }
 }
