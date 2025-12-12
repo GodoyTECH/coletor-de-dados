@@ -81,8 +81,8 @@ body {
 }
 
 .logo {
-    width: 180px;
-    height: 160px;
+    width: 15vw;
+    height: auto;
     border-radius: 20%;
     object-fit: cover;
     border: 3px solid rgba(255, 255, 255, 0.6);
