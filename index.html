@@ -319,7 +319,7 @@
     h1 { color:#fff; font-size:2.5rem; margin-bottom:10px; text-shadow:0 0 10px rgba(255,255,255,.5); }
     p { color:#06d6a0; font-size:1.2rem; margin-bottom:40px; opacity:.9; }
 
-    .video-container { position:relative; width:100%; max-width:800px; margin:0 auto 30px; border-radius:15px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+    .video-container { width:100%; max-width:800px; margin:0 auto 30px; border-radius:15px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.5); position: relative; }
     video { width:100%; height:auto; display:block; }
 
     .controls { display:flex; gap:15px; justify-content:center; margin-top:20px; }
@@ -335,33 +335,28 @@
     .hidden { animation:fadeOut .5s forwards; pointer-events:none; }
     .removed { display:none !important; }
 
+    /* Botão discreto de áudio */
+    #audio-btn {
+        position:absolute;
+        top:10px;
+        right:10px;
+        background:rgba(0,0,0,0.4);
+        color:#06d6a0;
+        border:none;
+        padding:8px 12px;
+        border-radius:8px;
+        cursor:pointer;
+        font-size:0.9rem;
+        transition:0.3s;
+    }
+    #audio-btn:hover { background:rgba(0,0,0,0.6); }
+
     @keyframes fadeIn{from{opacity:0}to{opacity:1}}
     @keyframes fadeOut{from{opacity:1}to{opacity:0}}
     @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
 
     @media (max-width:768px){
-      h1{font-size:1.8rem} 
-      p{font-size:1rem} 
-      .logo{width:100px;height:100px} 
-      .video-container{max-width:95%} 
-      .controls{flex-direction:column;align-items:center} 
-      button{width:80%; max-width:300px;}
-    }
-
-    /* Botão discreto para áudio */
-    #audio-btn {
-      position:absolute;
-      top:10px;
-      right:10px;
-      background:rgba(0,0,0,0.4);
-      color:#06d6a0;
-      border:none;
-      padding:8px 12px;
-      border-radius:8px;
-      cursor:pointer;
-      font-size:0.9rem;
-      transition:0.3s;
-      z-index:10;
+      h1{font-size:1.8rem} p{font-size:1rem} .logo{width:100px;height:100px} .video-container{max-width:95%} .controls{flex-direction:column;align-items:center} button{width:80%; max-width:300px;}
     }
   </style>
 
@@ -371,11 +366,11 @@
     <p>Sistema de Coleta de Dados - ESPECIALMENTE PARA O DUDU</p>
 
     <div class="video-container">
-      <video id="video" muted playsinline>
+      <video id="video" playsinline muted>
         <source src="videob.mp4" type="video/mp4">
         Seu navegador não suporta o vídeo.
       </video>
-      <!-- Botão discreto para ativar áudio -->
+      <!-- Botão discreto para iniciar áudio -->
       <button id="audio-btn" title="Ativar som">🔊</button>
     </div>
 
@@ -396,7 +391,7 @@ const video = document.getElementById('video');
 const countdownEl = document.getElementById('countdown');
 const audioBtn = document.getElementById('audio-btn');
 
-// Botão para ativar áudio
+// Botão de áudio
 audioBtn.addEventListener('click', () => {
   video.muted = false;
   if(video.paused) video.play().catch(e => console.log(e));
@@ -408,6 +403,7 @@ let countdown = 20;
 let interval = setInterval(() => {
   countdown--;
   if(countdownEl) countdownEl.textContent = countdown;
+  if(countdown <= 0) { clearInterval(interval); closeOverlay(); }
 }, 1000);
 
 // Tenta tocar vídeo ao carregar
@@ -420,18 +416,18 @@ video.addEventListener('ended', closeOverlay);
 
 // Funções de controle
 function closeOverlay() {
+  if(video) { video.pause(); video.currentTime = 0; } // pausa antes de remover
   overlay.classList.add('hidden');
   setTimeout(() => {
     overlay.classList.add('removed');
     overlay.remove();
     document.dispatchEvent(new Event('inauguration-completed'));
-    if(video){ video.pause(); video.currentTime = 0; }
     clearInterval(interval);
   }, 500);
 }
 
-function skipOverlay() { if(video.paused) video.play().catch(e=>{}); closeOverlay(); }
-function enterNow() { if(video.paused) video.play().catch(e=>{}); closeOverlay(); }
+function skipOverlay(){ closeOverlay(); }
+function enterNow(){ closeOverlay(); }
 
 // Fecha ao pressionar ESC
 document.addEventListener('keydown', e => { if(e.key==='Escape') skipOverlay(); });
@@ -439,7 +435,6 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') skipOverlay(); 
 // Fecha ao clicar fora do conteúdo
 overlay.addEventListener('click', e => { if(e.target===overlay) skipOverlay(); });
 </script>
-
 
     
 </body>
