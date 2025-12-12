@@ -10,7 +10,7 @@
    CONFIGURAÇÕES
    ================================ */
 
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwID1I2Wz186kMLtl704gPtTZc0Tka44nNDyrwSNx3xePjpyRPEJd3tHvbLV9f3hbai/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxDVVzZheEEEfwzjJGaBfZjUxoZzXrstoFOHu6wi8qt697bbElCdzUQrvVNTJVAd99D3Q/exec";
 
 const DB_NAME = "SocialColetorDB";
 
