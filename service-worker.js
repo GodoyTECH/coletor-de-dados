@@ -2,16 +2,16 @@ const CACHE_NAME = 'social-coletor-v1.0';
 const OFFLINE_URL = '/offline.html';
 
 // Arquivos estáticos para cache (sem index.html!)
-const urlsToCache = [
-  '/css/styles.css',
-  '/js/script.js',
-  '/js/send.js',
-  '/manifest.json',
-  '/favicon.ico',
-  '/icon-192.png',
-  '/icon-512.png',
-  OFFLINE_URL
-];
+//const urlsToCache = [
+  //'/css/styles.css',
+  //'/js/script.js',
+  //'/js/send.js',
+  //'/manifest.json',
+  //'/favicon.ico',
+  //'/icon-192.png',
+  //'/icon-512.png',
+  //OFFLINE_URL /
+//];
 
 // Instalação do Service Worker
 self.addEventListener('install', event => {
