@@ -77,68 +77,60 @@ body {
 
 
 /* ============================================
-   LOGO FLUTUANDO NO TOPO (ALTERADO)
-   ============================================ */
-/* ============================================
-   HEADER FIXO COM LOGO NO TOPO
+   HEADER FIXO + LOGO FIXA
    ============================================ */
 .header {
     position: fixed;
-    top: 20px;              /* distância do topo */
+    top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 9999;          /* sempre acima de tudo */
+    z-index: 9999;
     text-align: center;
     background: transparent;
     padding: 0;
+    width: 100%;
+    pointer-events: none; /* permite clicar no conteúdo abaixo */
 }
 
-/* Logo maior, centralizada e fixa */
-.header .logo {
+/* container da logo fixo */
+.logo-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+}
+
+/* LOGO FIXA */
+.logo {
     width: 160px;
     height: 160px;
     border-radius: 20%;
     object-fit: cover;
     border: 3px solid rgba(255, 255, 255, 0.6);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    pointer-events: auto; /* permite clicar nela se quiser */
 }
 
-/* Título e subtítulo logo abaixo da imagem */
-.header h1 {
-    margin-top: 10px;
-    font-size: 2rem;
+/* TEXTO ABAIXO DA LOGO */
+.header h1,
+.header .subtitle {
     color: white;
+    pointer-events: none;
+}
+
+.header h1 {
+    margin-top: 185px; /* empurra o título para baixo da logo fixa */
+    font-size: 2rem;
 }
 
 .header .subtitle {
-    font-size: 1.2rem;
-    color: white;
     margin-top: -5px;
-}
-
-
-
-.logo-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.logo {
-    width: 160px;        /* AUMENTADO */
-    height: 160px;       /* AUMENTADO */
-    border-radius: 20%;
-    object-fit: cover;
-    border: 3px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-}
-
-.app-title {
-    font-size: 2rem;
-    font-weight: bold;
-    color: white;
-    margin-top: 12px;
-}
+    font-size: 1.2rem;
 
 
 /* ============================================
