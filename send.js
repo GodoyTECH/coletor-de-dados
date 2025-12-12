@@ -1,9 +1,25 @@
-// No início do send.js, após as configurações:
+/**
+ * SOCIAL COLETOR - FUNÇÕES DE ENVIO (com suporte offline)
+ * Responsável pelo envio dos dados para o Google Sheets via Apps Script
+ */
+
+// ============================================
+// CONFIGURAÇÃO DO APPS SCRIPT
+// ============================================
+
+// SUA URL DO GOOGLE APPS SCRIPT
+let APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwXmz9h5L6Ki5VWm3lC-HWJ_pNHpZMfSOjVcsvObF6yMVjmGAev48VwOC4pe71vmdyh3w/exec';
+
+// ============================================
+// VARIÁVEIS GLOBAIS PARA SUPORTE OFFLINE
+// ============================================
 let isOnline = navigator.onLine;
 let pendingSubmissions = [];
 const DB_NAME = 'SocialColetorDB';
 
-// Monitorar status da conexão
+// ============================================
+// MONITORAMENTO DE CONEXÃO
+// ============================================
 window.addEventListener('online', () => {
   isOnline = true;
   console.log('🌐 Conectado - Tentando enviar pendentes...');
@@ -14,6 +30,94 @@ window.addEventListener('offline', () => {
   isOnline = false;
   console.log('📴 Offline - Modo offline ativado');
 });
+
+// ============================================
+// FUNÇÃO PRINCIPAL DE ENVIO
+// ============================================
+async function sendToGoogleSheets(formData) {
+    // usa showModal global do script.js
+    showModal('Verificando conexão...', 'Conectando com o servidor...', true);
+    
+    // Se offline, salvar localmente
+    if (!isOnline) {
+        hideModal();
+        return handleOfflineSubmission(formData);
+    }
+    
+    // Se online, tentar enviar
+    try {
+        const payload = {
+            ...formData,
+            quantidade: parseFloat(formData.quantidade) || 0,
+            timestamp: new Date().toLocaleString('pt-BR'),
+            userAgent: navigator.userAgent,
+            platform: navigator.platform
+        };
+
+        console.log('📤 Payload (enviando):', payload);
+
+        // ATENÇÃO: por enquanto mantemos no-cors se você ainda não habilitou CORS no Apps Script.
+        await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        console.log('✅ Requisição enviada (no-cors). Sucesso presumido.');
+        
+        // Usamos showModal da aplicação principal
+        showModal('✅ Sucesso!', 'Dados enviados para a planilha!', false);
+
+        return { 
+            success: true, 
+            online: true,
+            timestamp: new Date().toLocaleString('pt-BR')
+        };
+
+    } catch (error) {
+        console.error('❌ Erro ao enviar dados:', error);
+        
+        // Se falhar, tentar salvar offline
+        hideModal();
+        return handleOfflineSubmission(formData);
+    }
+}
+
+// ============================================
+// FUNÇÕES PARA MANIPULAÇÃO OFFLINE
+// ============================================
+
+// Nova função para lidar com envio offline
+async function handleOfflineSubmission(formData) {
+  const userChoice = await showOfflineDialog();
+  
+  if (userChoice === 'save') {
+    const result = await saveOfflineData(formData);
+    
+    if (result.savedOffline) {
+      showModal('📴 Modo Offline', 
+        'Dados salvos localmente!<br><br>' +
+        '✅ Serão enviados automaticamente quando a conexão voltar.<br>' +
+        '📝 ID Offline: ' + result.offlineId,
+        false
+      );
+    }
+    
+    return result;
+    
+  } else if (userChoice === 'view') {
+    // Abrir planilha
+    window.open('https://docs.google.com/spreadsheets/', '_blank');
+    return { action: 'view_spreadsheet' };
+    
+  } else {
+    // Usuário cancelou
+    return { cancelled: true };
+  }
+}
 
 // Função para salvar dados offline
 async function saveOfflineData(formData) {
@@ -40,63 +144,6 @@ async function saveOfflineData(formData) {
       savedOffline: false,
       error: 'Falha ao salvar dados offline'
     };
-  }
-}
-
-// Função principal de envio MODIFICADA:
-async function sendToGoogleSheets(formData) {
-  showModal('Verificando conexão...', '', true);
-  
-  // Se offline, salvar localmente
-  if (!isOnline) {
-    hideModal();
-    return handleOfflineSubmission(formData);
-  }
-  
-  // Se online, tentar enviar
-  try {
-    const response = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    });
-    
-    showModal('✅ Sucesso!', 'Dados enviados para a planilha!', false);
-    return { success: true, online: true };
-    
-  } catch (error) {
-    // Se falhar, tentar salvar offline
-    return handleOfflineSubmission(formData);
-  }
-}
-
-// Nova função para lidar com envio offline
-async function handleOfflineSubmission(formData) {
-  const userChoice = await showOfflineDialog();
-  
-  if (userChoice === 'save') {
-    const result = await saveOfflineData(formData);
-    
-    if (result.savedOffline) {
-      showModal('📴 Modo Offline', 
-        'Dados salvos localmente!<br><br>' +
-        '✅ Serão enviados automaticamente quando a conexão voltar.<br>' +
-        '📝 ID Offline: ' + result.offlineId,
-        false
-      );
-    }
-    
-    return result;
-    
-  } else if (userChoice === 'view') {
-    // Abrir planilha (ela mostrará mensagem offline)
-    window.open('https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID', '_blank');
-    return { action: 'view_spreadsheet' };
-    
-  } else {
-    // Usuário cancelou
-    return { cancelled: true };
   }
 }
 
@@ -190,7 +237,10 @@ function showOfflineDialog() {
   });
 }
 
-// Funções IndexedDB
+// ============================================
+// FUNÇÕES INDEXEDDB
+// ============================================
+
 function openDatabase() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
@@ -229,6 +279,10 @@ function saveToIndexedDB(db, data) {
     request.onerror = (e) => reject(e.target.error);
   });
 }
+
+// ============================================
+// SINCRONIZAÇÃO DE DADOS PENDENTES
+// ============================================
 
 // Sincronizar pendentes quando voltar online
 async function syncPendingSubmissions() {
@@ -330,3 +384,28 @@ function incrementAttempts(db, id) {
     request.onerror = (e) => reject(e.target.error);
   });
 }
+
+// ============================================
+// UTILITÁRIOS PARA CONFIG
+// ============================================
+function setAppsScriptUrl(url) {
+    APPS_SCRIPT_URL = url;
+    console.log('🔧 URL do Apps Script atualizada:', url);
+}
+
+function getAppsScriptUrl() {
+    return APPS_SCRIPT_URL;
+}
+
+// Exportar funções para uso global (se necessário)
+window.saveToGoogleSheets = sendToGoogleSheets;
+window.syncPendingSubmissions = syncPendingSubmissions;
+
+// Verificar se há dados pendentes ao carregar
+if (isOnline) {
+    setTimeout(() => {
+        syncPendingSubmissions();
+    }, 3000);
+}
+
+console.log('📦 send.js carregado com suporte offline');
