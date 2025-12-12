@@ -1,4 +1,3 @@
-/**
  * SOCIAL COLETOR - SCRIPT PRINCIPAL COMPLETO
  * OCR.Space API + Controles de Imagem + PWA + Google Sheets
  * Versão 2.0 - Completa
@@ -70,13 +69,6 @@ function setupElements() {
         dataForm: document.getElementById('dataForm'),
         clearBtn: document.getElementById('clearBtn'),
         submitBtn: document.getElementById('submitBtn'),
-        
-        // Modal
-        modal: document.getElementById('statusModal'),
-        modalTitle: document.getElementById('modalTitle'),
-        modalMessage: document.getElementById('modalMessage'),
-        modalSpinner: document.getElementById('modalSpinner'),
-        modalCloseBtn: document.getElementById('modalCloseBtn'),
         
         // Controles de imagem
         zoomIn: document.getElementById('zoomIn'),
@@ -158,7 +150,7 @@ function setupEventListeners() {
     if (elements.btnMelhorarFoto) {
         elements.btnMelhorarFoto.addEventListener('click', () => {
             if (currentImageData) {
-                showModal('Melhorando...', 'Aplicando melhorias na imagem...', true);
+                showStatusMessage('Aplicando melhorias na imagem...', 'info');
                 enhanceAndUpdateImage(currentImageData);
             }
         });
@@ -171,11 +163,6 @@ function setupEventListeners() {
 
     if (elements.dataForm) {
         elements.dataForm.addEventListener('submit', handleFormSubmit);
-    }
-
-    // Modal
-    if (elements.modalCloseBtn) {
-        elements.modalCloseBtn.addEventListener('click', hideModal);
     }
 
     // Configurações
@@ -280,11 +267,11 @@ function showConfigStatus(message, type) {
 
 async function testGoogleScriptConnection() {
     if (!googleScriptUrl) {
-        showModal('❌ Erro', 'Configure a URL do Google Apps Script primeiro.', false);
+        showStatusMessage('Configure a URL do Google Apps Script primeiro.', 'error');
         return;
     }
 
-    showModal('Testando...', 'Verificando conexão com Google Sheets...', true);
+    showStatusMessage('Verificando conexão com Google Sheets...', 'info');
     
     try {
         const testData = {
@@ -307,29 +294,13 @@ async function testGoogleScriptConnection() {
         const result = await response.json();
         
         if (result.success) {
-            showModal('✅ Conexão OK!', 
-                `Conexão com Google Sheets estabelecida com sucesso!<br><br>
-                <strong>Status:</strong> ${result.status || 'OK'}<br>
-                <strong>Serviço:</strong> ${result.service || 'Google Sheets'}`, 
-                false
-            );
+            showStatusMessage('✅ Conexão com Google Sheets estabelecida com sucesso!', 'success');
         } else {
-            showModal('⚠️ Atenção', 
-                `Resposta inesperada:<br>${result.message || 'Sem detalhes'}`, 
-                false
-            );
+            showStatusMessage(`⚠️ Resposta inesperada: ${result.message || 'Sem detalhes'}`, 'warning');
         }
     } catch (error) {
         console.error('Erro na conexão:', error);
-        showModal('❌ Falha na Conexão', 
-            `Não foi possível conectar ao Google Sheets.<br><br>
-            <strong>Erro:</strong> ${error.message}<br><br>
-            Verifique:<br>
-            1. Se a URL está correta<br>
-            2. Se o Apps Script está publicado<br>
-            3. Se as permissões estão configuradas`, 
-            false
-        );
+        showStatusMessage(`❌ Não foi possível conectar ao Google Sheets: ${error.message}`, 'error');
     }
 }
 
@@ -375,7 +346,7 @@ async function sendToGoogleSheets(formData) {
                 payload.imageSize = Math.round(formData.imagemBase64.length / 1024);
             }
 
-            showModal('Enviando...', 'Conectando ao Google Sheets...', true);
+            showStatusMessage('Conectando ao Google Sheets...', 'info');
 
             const response = await fetch(googleScriptUrl, {
                 method: 'POST',
@@ -474,21 +445,21 @@ function removeOfflineData(timestamp) {
 
 async function syncOfflineData() {
     if (offlineData.length === 0) {
-        showModal('📦 Offline', 'Não há dados pendentes para sincronizar.', false);
+        showStatusMessage('Não há dados pendentes para sincronizar.', 'info');
         return;
     }
 
     if (!navigator.onLine) {
-        showModal('❌ Offline', 'Conecte-se à internet para sincronizar.', false);
+        showStatusMessage('Conecte-se à internet para sincronizar.', 'error');
         return;
     }
 
     if (!googleScriptUrl) {
-        showModal('⚙️ Configuração', 'Configure a URL do Google Sheets primeiro.', false);
+        showStatusMessage('Configure a URL do Google Sheets primeiro.', 'error');
         return;
     }
 
-    showModal('Sincronizando...', `Enviando ${offlineData.length} registros...`, true);
+    showStatusMessage(`Enviando ${offlineData.length} registros...`, 'info');
     
     let successCount = 0;
     let errorCount = 0;
@@ -539,22 +510,15 @@ async function syncOfflineData() {
     
     updateOfflineBadge();
     
-    hideModal();
-    
     if (successCount > 0) {
-        showModal(
-            '✅ Sincronização Parcial',
-            `${successCount} registro(s) enviado(s) com sucesso!<br>
-            ${errorCount > 0 ? `${errorCount} erro(s) encontrado(s).` : ''}`,
-            false
+        showStatusMessage(
+            `${successCount} registro(s) enviado(s) com sucesso! ${errorCount > 0 ? `${errorCount} erro(s) encontrado(s).` : ''}`,
+            'success'
         );
     } else {
-        showModal(
-            '❌ Falha na Sincronização',
-            'Nenhum registro foi enviado.<br><br>' +
-            errors.slice(0, 3).map(e => `• ${e}`).join('<br>') +
-            (errors.length > 3 ? '<br>... e mais' : ''),
-            false
+        showStatusMessage(
+            'Nenhum registro foi enviado. Erros: ' + errors.slice(0, 3).join(', '),
+            'error'
         );
     }
 }
@@ -582,10 +546,7 @@ function updateOfflineBadge() {
 
 function checkConnectionStatus() {
     if (!navigator.onLine) {
-        showModal('🌐 Offline', 
-            'Você está offline. Os dados serão salvos localmente e sincronizados quando a conexão voltar.',
-            false
-        );
+        showStatusMessage('Você está offline. Os dados serão salvos localmente.', 'info');
     }
     updateConnectionStatus();
 }
@@ -811,11 +772,11 @@ async function handleImageSelection(event) {
     if (!file) return;
 
     if (!file.type.startsWith('image')) {
-        showModal('Erro', 'Selecione apenas imagens (JPG/PNG).', false);
+        showStatusMessage('Selecione apenas imagens (JPG/PNG).', 'error');
         return;
     }
 
-    showModal('Processando', 'Carregando e melhorando imagem...', true);
+    showStatusMessage('Carregando e melhorando imagem...', 'info');
     showProgressBar();
     setProgress(10, 'Carregando...');
 
@@ -840,16 +801,30 @@ async function handleImageSelection(event) {
             await processOCR(enhancedImage);
             
             setProgress(100, 'Concluído!');
+            hideProgressBar();
+            showStatusMessage('Imagem processada com sucesso!', 'success');
+        };
+        
+        reader.onerror = () => {
+            hideProgressBar();
+            showStatusMessage('Erro ao ler a imagem.', 'error');
+        };
+        
+        reader.readAsDataURL(file);
+    } catch (error) {
+        console.error('Erro ao processar imagem:', error);
+        hideProgressBar();
+        showStatusMessage('Erro ao processar imagem: ' + error.message, 'error');
+    }
+}
 
 async function enhanceAndUpdateImage(dataURL) {
     try {
         const enhancedImage = await enhanceImageProfessionally(dataURL);
         showImagePreview(enhancedImage);
-        hideModal();
-        showModal('✅ Imagem Melhorada!', 'A qualidade da imagem foi otimizada para OCR.', false);
+        showStatusMessage('Imagem otimizada com sucesso!', 'success');
     } catch (error) {
-        hideModal();
-        showModal('❌ Erro', 'Não foi possível melhorar a imagem.', false);
+        showStatusMessage('Não foi possível melhorar a imagem.', 'error');
     }
 }
 
@@ -994,6 +969,7 @@ async function processOCR(imageDataURL) {
         
     } catch (error) {
         console.error('❌ Erro OCR:', error);
+        showStatusMessage('Erro ao processar OCR: ' + error.message, 'error');
         throw error;
     }
 }
@@ -1291,11 +1267,11 @@ async function handleFormSubmit(event) {
     event.preventDefault();
     
     if (!validateForm()) {
-        showModal('Erro', 'Preencha todos os campos obrigatórios corretamente.', false);
+        showStatusMessage('Preencha todos os campos obrigatórios corretamente.', 'error');
         return;
     }
     
-    showModal('Enviando...', 'Preparando dados para Google Sheets...', true);
+    showStatusMessage('Preparando dados para Google Sheets...', 'info');
     
     const formData = {
         beneficiario: formFields.beneficiario.value.trim(),
@@ -1318,28 +1294,21 @@ async function handleFormSubmit(event) {
         const result = await sendToGoogleSheets(formData);
         
         if (result.success) {
-            showModal('✅ Sucesso!', 
-                `Dados enviados com sucesso!<br><br>
-                <strong>ID do Registro:</strong> ${result.recordId || 'N/A'}<br>
-                <strong>Data/Hora:</strong> ${result.timestamp || new Date().toLocaleString('pt-BR')}`,
-                false
-            );
+            showStatusMessage(`✅ Dados enviados com sucesso! ID: ${result.recordId || 'N/A'}`, 'success');
             
             // Limpar formulário após sucesso
             setTimeout(() => {
                 clearForm();
             }, 3000);
         } else {
-            showModal('❌ Erro no Envio', 
-                `Não foi possível enviar os dados:<br>
-                ${result.error || 'Erro desconhecido'}<br><br>
-                ${result.savedLocally ? '<small>💾 Dados salvos localmente para envio posterior</small>' : ''}`,
-                false
+            showStatusMessage(
+                `❌ Não foi possível enviar os dados: ${result.error || 'Erro desconhecido'}`,
+                'error'
             );
         }
     } catch (error) {
         console.error('Erro no envio:', error);
-        showModal('❌ Erro', 'Falha ao processar envio: ' + error.message, false);
+        showStatusMessage('❌ Falha ao processar envio: ' + error.message, 'error');
     }
 }
 
@@ -1374,11 +1343,7 @@ function setupPWA() {
         hideInstallPrompt();
         instalacaoSolicitada = false;
         
-        showModal('🎉 App Instalado!', 
-            'O Social Coletor foi instalado com sucesso!<br><br>' +
-            'Agora você pode usá-lo offline diretamente da sua tela inicial.',
-            false
-        );
+        showStatusMessage('✅ App instalado com sucesso! Agora você pode usá-lo offline.', 'success');
     });
     
     // Verificar se já está em modo standalone (já instalado)
@@ -1416,10 +1381,9 @@ function hideInstallPrompt() {
 
 async function installPWA() {
     if (!deferredPrompt) {
-        showModal('ℹ️ Informação', 
-            'O botão de instalação só aparece em dispositivos compatíveis.<br><br>' +
-            'Tente usar o menu do navegador (⋮) e selecione "Instalar aplicativo".',
-            false
+        showStatusMessage(
+            'ℹ️ Use o menu do navegador (⋮) e selecione "Instalar aplicativo".',
+            'info'
         );
         return;
     }
@@ -1444,7 +1408,7 @@ async function installPWA() {
         deferredPrompt = null;
     } catch (error) {
         console.error('Erro na instalação:', error);
-        showModal('❌ Erro', 'Não foi possível instalar o aplicativo.', false);
+        showStatusMessage('❌ Não foi possível instalar o aplicativo.', 'error');
     }
 }
 
@@ -1472,18 +1436,91 @@ function setProgress(percent, message) {
     }
 }
 
-function showModal(title, message, showSpinner = true) {
-    if (elements.modalTitle) elements.modalTitle.textContent = title;
-    if (elements.modalMessage) elements.modalMessage.innerHTML = message;
-    if (elements.modalSpinner) elements.modalSpinner.style.display = showSpinner ? 'block' : 'none';
-    if (elements.modalCloseBtn) elements.modalCloseBtn.style.display = showSpinner ? 'none' : 'block';
-    if (elements.modal) elements.modal.style.display = 'flex';
+// Nova função para mostrar mensagens de status
+function showStatusMessage(message, type = 'info') {
+    // Cria uma notificação temporária
+    const notification = document.createElement('div');
+    notification.className = `status-notification ${type}`;
+    notification.innerHTML = `
+        <div class="status-content">
+            <span class="status-icon">${getStatusIcon(type)}</span>
+            <span class="status-text">${message}</span>
+        </div>
+    `;
+    
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 8px;
+        background: ${getStatusColor(type)};
+        color: white;
+        z-index: 10000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideIn 0.3s ease;
+        max-width: 400px;
+        word-wrap: break-word;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Remove após 5 segundos
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 5000);
 }
 
-function hideModal() {
-    if (elements.modal) {
-        elements.modal.style.display = 'none';
+function getStatusIcon(type) {
+    switch(type) {
+        case 'success': return '✅';
+        case 'error': return '❌';
+        case 'warning': return '⚠️';
+        default: return 'ℹ️';
     }
+}
+
+function getStatusColor(type) {
+    switch(type) {
+        case 'success': return '#4caf50';
+        case 'error': return '#f44336';
+        case 'warning': return '#ff9800';
+        default: return '#2196f3';
+    }
+}
+
+// Adicionar CSS para animações
+if (!document.querySelector('#status-styles')) {
+    const style = document.createElement('style');
+    style.id = 'status-styles';
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        .status-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-icon {
+            font-size: 18px;
+        }
+        .status-text {
+            font-size: 14px;
+            line-height: 1.4;
+        }
+    `;
+    document.head.appendChild(style);
 }
 
 // ================================
