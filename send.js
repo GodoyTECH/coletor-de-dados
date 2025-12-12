@@ -1,12 +1,11 @@
 /**
- * send.js - Social Coletor (Versão Corrigida e Simplificada)
+ * send.js - Social Coletor (Com botões de ação pós-envio)
  * ===========================================================
  * 
- * Versão que:
- * 1. NÃO tem modal/notificação própria (usa as do JS principal)
- * 2. NÃO tem Service Worker (o JS principal já tem)
- * 3. É 100% compatível com Apps Script
- * 4. Focado apenas no envio e gerenciamento offline
+ * Adiciona:
+ * 1. Botão "Ver Planilha" após envio bem-sucedido
+ * 2. Botão "Limpar e Voltar"
+ * 3. Opção de "Novo Registro"
  */
 
 /* ================================
@@ -17,7 +16,10 @@ const CONFIG = {
   // URL do seu Apps Script (ALTERE AQUI!)
   APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxDVVzZheEEEfwzjJGaBfZjUxoZzXrstoFOHu6wi8qt697bbElCdzUQrvVNTJVAd99D3Q/exec",
   
-  // Nome do banco de dados IndexedDB (DIFERENTE do JS principal)
+  // URL DA SUA PLANILHA GOOGLE (JÁ COM SEU LINK)
+  GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/18OsMuew-5_Mn6qFWLzLR4ce2jAyHFrUZNHD9hePRpK8/edit?gid=1594873236#gid=1594873236",
+  
+  // Nome do banco de dados IndexedDB
   DB_NAME: "SocialColetor_SendDB",
   
   // Nome da object store
@@ -32,27 +34,517 @@ const CONFIG = {
 };
 
 /* ================================
-   ÍNDICES PARA O BANCO DE DADOS
+   BOTÕES DE AÇÃO PÓS-ENVIO
    ================================ */
 
-const DB_SCHEMA = {
-  name: CONFIG.DB_NAME,
-  version: 1,
-  stores: {
-    envios_pendentes: {
-      keyPath: 'id',
-      autoIncrement: true,
-      indexes: [
-        { name: 'status', keyPath: 'status', unique: false },
-        { name: 'timestamp', keyPath: 'timestamp', unique: false },
-        { name: 'offlineId', keyPath: 'offlineId', unique: true }
-      ]
-    }
+function showActionButtons(successData = null) {
+  console.log('[ACTION] Mostrando botões de ação pós-envio');
+  
+  // Primeiro, esconder o modal existente
+  if (window.hideModal) {
+    window.hideModal();
   }
-};
+  
+  // Criar overlay para os botões de ação
+  const overlay = document.createElement('div');
+  overlay.id = 'sc-action-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    animation: fadeIn 0.3s ease;
+  `;
+  
+  // Conteúdo da caixa de ação
+  const actionBox = document.createElement('div');
+  actionBox.style.cssText = `
+    background: white;
+    padding: 25px;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 420px;
+    text-align: center;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+    animation: slideUp 0.4s ease;
+  `;
+  
+  // Título baseado no resultado
+  const title = document.createElement('h3');
+  title.textContent = successData ? '✅ Enviado com Sucesso!' : '📋 Dados Salvos Localmente';
+  title.style.cssText = `
+    margin: 0 0 15px 0;
+    color: ${successData ? '#10b981' : '#3b82f6'};
+    font-size: 20px;
+    font-weight: 600;
+  `;
+  
+  // Mensagem
+  const message = document.createElement('p');
+  if (successData) {
+    message.innerHTML = `
+      Registro enviado para a planilha!<br>
+      <small style="color: #666; font-size: 13px;">
+        Data: ${new Date().toLocaleDateString('pt-BR')}<br>
+        Hora: ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+      </small>
+    `;
+  } else {
+    message.innerHTML = `
+      Os dados foram salvos localmente.<br>
+      Serão enviados automaticamente quando a conexão voltar.<br>
+      <small style="color: #666; font-size: 13px;">
+        Você pode continuar offline.
+      </small>
+    `;
+  }
+  message.style.cssText = `
+    margin: 0 0 25px 0;
+    color: #444;
+    line-height: 1.5;
+  `;
+  
+  // Container para botões
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.cssText = `
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  `;
+  
+  // Botão VER PLANILHA (apenas se enviou com sucesso)
+  if (successData) {
+    const viewSheetBtn = document.createElement('button');
+    viewSheetBtn.innerHTML = `
+      <svg style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;" 
+           fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      Ver Planilha
+    `;
+    viewSheetBtn.style.cssText = `
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      border: none;
+      padding: 14px 20px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    `;
+    
+    viewSheetBtn.onmouseover = () => {
+      viewSheetBtn.style.transform = 'translateY(-2px)';
+      viewSheetBtn.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+    };
+    
+    viewSheetBtn.onmouseout = () => {
+      viewSheetBtn.style.transform = 'translateY(0)';
+      viewSheetBtn.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+    };
+    
+    viewSheetBtn.onclick = () => {
+      // Abrir SUA planilha específica em nova aba
+      window.open(CONFIG.GOOGLE_SHEETS_URL, '_blank');
+      
+      // Opcional: fechar a caixa de ação após abrir a planilha
+      setTimeout(() => {
+        closeActionOverlay();
+      }, 300);
+    };
+    
+    buttonContainer.appendChild(viewSheetBtn);
+  }
+  
+  // Botão LIMPAR E VOLTAR
+  const clearBtn = document.createElement('button');
+  clearBtn.innerHTML = `
+    <svg style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;" 
+         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+    Limpar e Voltar
+  `;
+  clearBtn.style.cssText = `
+    background: ${successData ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'};
+    color: white;
+    border: none;
+    padding: 14px 20px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px ${successData ? 'rgba(59, 130, 246, 0.3)' : 'rgba(245, 158, 11, 0.3)'};
+  `;
+  
+  clearBtn.onmouseover = () => {
+    clearBtn.style.transform = 'translateY(-2px)';
+    clearBtn.style.boxShadow = `0 6px 16px ${successData ? 'rgba(59, 130, 246, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`;
+  };
+  
+  clearBtn.onmouseout = () => {
+    clearBtn.style.transform = 'translateY(0)';
+    clearBtn.style.boxShadow = `0 4px 12px ${successData ? 'rgba(59, 130, 246, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`;
+  };
+  
+  clearBtn.onclick = () => {
+    // Chamar função clearForm do JS principal se existir
+    if (window.clearForm) {
+      window.clearForm();
+    } else {
+      // Fallback: recarregar a página se a função não existir
+      window.location.reload();
+    }
+    
+    // Fechar a caixa de ação
+    closeActionOverlay();
+  };
+  
+  buttonContainer.appendChild(clearBtn);
+  
+  // Botão NOVO REGISTRO (opcional)
+  const newRecordBtn = document.createElement('button');
+  newRecordBtn.innerHTML = `
+    <svg style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;" 
+         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+            d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+    </svg>
+    Continuar Editando
+  `;
+  newRecordBtn.style.cssText = `
+    background: transparent;
+    color: #6b7280;
+    border: 2px solid #e5e7eb;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    margin-top: 5px;
+  `;
+  
+  newRecordBtn.onmouseover = () => {
+    newRecordBtn.style.backgroundColor = '#f9fafb';
+    newRecordBtn.style.borderColor = '#d1d5db';
+  };
+  
+  newRecordBtn.onmouseout = () => {
+    newRecordBtn.style.backgroundColor = 'transparent';
+    newRecordBtn.style.borderColor = '#e5e7eb';
+  };
+  
+  newRecordBtn.onclick = () => {
+    // Fechar a caixa de ação
+    closeActionOverlay();
+    
+    // Se houver função para focar no primeiro campo
+    if (window.focusFirstField) {
+      window.focusFirstField();
+    }
+  };
+  
+  buttonContainer.appendChild(newRecordBtn);
+  
+  // Adicionar CSS para animações
+  if (!document.querySelector('#action-styles')) {
+    const style = document.createElement('style');
+    style.id = 'action-styles';
+    style.textContent = `
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      #sc-action-overlay button:hover {
+        transform: translateY(-2px);
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  // Montar a estrutura
+  actionBox.appendChild(title);
+  actionBox.appendChild(message);
+  actionBox.appendChild(buttonContainer);
+  overlay.appendChild(actionBox);
+  
+  // Adicionar ao documento
+  document.body.appendChild(overlay);
+  
+  // Fechar ao clicar fora (opcional)
+  overlay.onclick = (e) => {
+    if (e.target === overlay) {
+      closeActionOverlay();
+    }
+  };
+}
+
+function closeActionOverlay() {
+  const overlay = document.getElementById('sc-action-overlay');
+  if (overlay) {
+    overlay.style.animation = 'fadeOut 0.3s ease';
+    
+    // Adicionar animação de fadeOut se não existir
+    if (!document.querySelector('#fadeOut-style')) {
+      const style = document.createElement('style');
+      style.id = 'fadeOut-style';
+      style.textContent = `
+        @keyframes fadeOut {
+          from { opacity: 1; }
+          to { opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    setTimeout(() => {
+      if (overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+      }
+    }, 300);
+  }
+}
 
 /* ================================
-   BANCO DE DADOS SIMPLIFICADO
+   FUNÇÃO PRINCIPAL DE ENVIO ATUALIZADA
+   ================================ */
+
+async function sendToGoogleSheets(formData) {
+  console.log('[SEND] Iniciando envio para Google Sheets');
+  
+  // Usar a função showModal do JS principal se existir
+  if (window.showModal) {
+    window.showModal('Enviando...', 'Processando dados...', true);
+  }
+  
+  // Validar campos obrigatórios
+  const requiredFields = ['beneficiario', 'cpf', 'atendente', 'produto', 'quantidade', 'endereco', 'data'];
+  const missingFields = requiredFields.filter(field => !formData[field] || formData[field].toString().trim() === '');
+  
+  if (missingFields.length > 0) {
+    const errorMsg = `Campos obrigatórios: ${missingFields.join(', ')}`;
+    console.error('[SEND] Validação falhou:', errorMsg);
+    
+    if (window.showStatusMessage) {
+      window.showStatusMessage(`Erro: ${errorMsg}`, 'error');
+    }
+    
+    if (window.hideModal) window.hideModal();
+    
+    return {
+      success: false,
+      error: errorMsg,
+      savedLocally: false
+    };
+  }
+  
+  // Preparar payload para Apps Script
+  const payload = {
+    action: 'submit',
+    data: {
+      beneficiario: String(formData.beneficiario || '').trim(),
+      cpf: String(formData.cpf || '').replace(/\D/g, ''),
+      atendente: String(formData.atendente || '').trim(),
+      produto: String(formData.produto || '').trim(),
+      quantidade: parseFloat(formData.quantidade) || 0,
+      endereco: String(formData.endereco || '').trim(),
+      data: String(formData.data || '').trim(),
+      assinatura: String(formData.assinatura || 'N/A').trim(),
+      numeroDocumento: String(formData.numeroDocumento || '').trim(),
+      observacoes: String(formData.observacoes || '').trim(),
+      imagemBase64: formData.imagemBase64 || '',
+      timestamp: new Date().toISOString()
+    }
+  };
+  
+  console.log('[SEND] Payload preparado:', {
+    beneficiario: payload.data.beneficiario,
+    cpf: payload.data.cpf,
+    atendente: payload.data.atendente,
+    produto: payload.data.produto
+  });
+  
+  // Verificar conexão
+  if (!navigator.onLine) {
+    console.log('[SEND] Sem conexão - Salvando offline');
+    
+    if (window.showStatusMessage) {
+      window.showStatusMessage('Sem conexão. Salvando localmente...', 'warning');
+    }
+    
+    try {
+      const db = new SendDatabase();
+      const saveResult = await db.saveOffline(payload);
+      
+      console.log('[SEND] Dados salvos offline:', saveResult.offlineId);
+      
+      // Mostrar botões de ação para offline
+      setTimeout(() => {
+        if (window.hideModal) window.hideModal();
+        showActionButtons(); // Sem successData = modo offline
+      }, 500);
+      
+      return {
+        success: false,
+        error: 'Sem conexão com a internet',
+        savedLocally: true,
+        offlineId: saveResult.offlineId,
+        dbId: saveResult.dbId,
+        timestamp: saveResult.timestamp
+      };
+      
+    } catch (saveError) {
+      console.error('[SEND] Erro ao salvar offline:', saveError);
+      
+      if (window.showStatusMessage) {
+        window.showStatusMessage('❌ Erro ao salvar localmente', 'error');
+      }
+      
+      if (window.hideModal) window.hideModal();
+      
+      return {
+        success: false,
+        error: 'Falha ao salvar localmente',
+        savedLocally: false
+      };
+    }
+  }
+  
+  // Tentar envio online
+  try {
+    console.log('[SEND] Enviando para:', CONFIG.APPS_SCRIPT_URL);
+    
+    // Timeout configurável
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
+    
+    const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    console.log('[SEND] Resposta recebida, status:', response.type);
+    
+    // Em modo no-cors, assumimos sucesso se não houve erro de rede
+    if (response.type === 'opaque') {
+      console.log('[SEND] Envio bem-sucedido (modo no-cors)');
+      
+      // Dados para mostrar na tela de sucesso
+      const successData = {
+        success: true,
+        recordId: `SC${new Date().getTime().toString().slice(-8)}`,
+        timestamp: new Date().toLocaleTimeString('pt-BR'),
+        online: true,
+        message: 'Dados enviados para Google Sheets'
+      };
+      
+      // Mostrar botões de ação com sucesso
+      setTimeout(() => {
+        if (window.hideModal) window.hideModal();
+        showActionButtons(successData);
+      }, 500);
+      
+      return successData;
+      
+    } else {
+      throw new Error('Resposta não-opaque do servidor');
+    }
+    
+  } catch (error) {
+    console.error('[SEND] Erro no envio online:', error);
+    
+    // Se for erro de rede, salvar offline
+    if (error.name === 'AbortError' || error.message.includes('Failed to fetch') || error.message.includes('Network')) {
+      console.log('[SEND] Erro de rede - Salvando offline');
+      
+      if (window.showStatusMessage) {
+        window.showStatusMessage('Erro de rede. Salvando localmente...', 'warning');
+      }
+      
+      try {
+        const db = new SendDatabase();
+        const saveResult = await db.saveOffline(payload);
+        
+        console.log('[SEND] Dados salvos offline após erro:', saveResult.offlineId);
+        
+        // Mostrar botões de ação para erro de rede
+        setTimeout(() => {
+          if (window.hideModal) window.hideModal();
+          showActionButtons(); // Sem successData = modo erro
+        }, 500);
+        
+        return {
+          success: false,
+          error: 'Erro de rede: ' + error.message,
+          savedLocally: true,
+          offlineId: saveResult.offlineId
+        };
+        
+      } catch (saveError) {
+        console.error('[SEND] Erro ao salvar offline após falha:', saveError);
+        
+        if (window.showStatusMessage) {
+          window.showStatusMessage('❌ Erro ao salvar localmente', 'error');
+        }
+        
+        if (window.hideModal) window.hideModal();
+        
+        return {
+          success: false,
+          error: 'Falha completa no envio',
+          savedLocally: false
+        };
+      }
+    } else {
+      // Outro tipo de erro
+      console.error('[SEND] Erro não relacionado a rede:', error);
+      
+      if (window.showStatusMessage) {
+        window.showStatusMessage('❌ Erro no envio: ' + error.message, 'error');
+      }
+      
+      if (window.hideModal) window.hideModal();
+      
+      return {
+        success: false,
+        error: error.message,
+        savedLocally: false
+      };
+    }
+  }
+}
+
+/* ================================
+   BANCO DE DADOS (mantido igual - NÃO REMOVER)
    ================================ */
 
 class SendDatabase {
@@ -64,19 +556,17 @@ class SendDatabase {
     if (this.db) return this.db;
     
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_SCHEMA.name, DB_SCHEMA.version);
+      const request = indexedDB.open(CONFIG.DB_NAME, 1);
       
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
         
-        // Criar object store se não existir
         if (!db.objectStoreNames.contains(CONFIG.STORE_NAME)) {
           const store = db.createObjectStore(CONFIG.STORE_NAME, {
             keyPath: 'id',
             autoIncrement: true
           });
           
-          // Criar índices
           store.createIndex('status', 'status', { unique: false });
           store.createIndex('timestamp', 'timestamp', { unique: false });
           store.createIndex('offlineId', 'offlineId', { unique: true });
@@ -169,7 +659,6 @@ class SendDatabase {
           return;
         }
         
-        // Atualizar registro
         Object.assign(record, updates);
         
         const updateRequest = store.put(record);
@@ -234,219 +723,7 @@ class SendDatabase {
 }
 
 /* ================================
-   FUNÇÃO PRINCIPAL DE ENVIO
-   ================================ */
-
-async function sendToGoogleSheets(formData) {
-  console.log('[SEND] Iniciando envio para Google Sheets');
-  
-  // Usar a função showModal do JS principal se existir
-  if (window.showModal) {
-    window.showModal('Enviando...', 'Processando dados...', true);
-  }
-  
-  // Validar campos obrigatórios
-  const requiredFields = ['beneficiario', 'cpf', 'atendente', 'produto', 'quantidade', 'endereco', 'data'];
-  const missingFields = requiredFields.filter(field => !formData[field] || formData[field].toString().trim() === '');
-  
-  if (missingFields.length > 0) {
-    const errorMsg = `Campos obrigatórios: ${missingFields.join(', ')}`;
-    console.error('[SEND] Validação falhou:', errorMsg);
-    
-    // Usar showStatusMessage do JS principal se existir
-    if (window.showStatusMessage) {
-      window.showStatusMessage(`Erro: ${errorMsg}`, 'error');
-    }
-    
-    if (window.hideModal) window.hideModal();
-    
-    return {
-      success: false,
-      error: errorMsg,
-      savedLocally: false
-    };
-  }
-  
-  // Preparar payload para Apps Script
-  const payload = {
-    action: 'submit',
-    data: {
-      beneficiario: String(formData.beneficiario || '').trim(),
-      cpf: String(formData.cpf || '').replace(/\D/g, ''),
-      atendente: String(formData.atendente || '').trim(),
-      produto: String(formData.produto || '').trim(),
-      quantidade: parseFloat(formData.quantidade) || 0,
-      endereco: String(formData.endereco || '').trim(),
-      data: String(formData.data || '').trim(),
-      assinatura: String(formData.assinatura || 'N/A').trim(),
-      numeroDocumento: String(formData.numeroDocumento || '').trim(),
-      observacoes: String(formData.observacoes || '').trim(),
-      imagemBase64: formData.imagemBase64 || '',
-      timestamp: new Date().toISOString()
-    }
-  };
-  
-  console.log('[SEND] Payload preparado:', {
-    beneficiario: payload.data.beneficiario,
-    cpf: payload.data.cpf,
-    atendente: payload.data.atendente,
-    produto: payload.data.produto
-  });
-  
-  // Verificar conexão
-  if (!navigator.onLine) {
-    console.log('[SEND] Sem conexão - Salvando offline');
-    
-    if (window.showStatusMessage) {
-      window.showStatusMessage('Sem conexão. Salvando localmente...', 'warning');
-    }
-    
-    try {
-      const db = new SendDatabase();
-      const saveResult = await db.saveOffline(payload);
-      
-      console.log('[SEND] Dados salvos offline:', saveResult.offlineId);
-      
-      if (window.showStatusMessage) {
-        window.showStatusMessage('✅ Dados salvos localmente!', 'success');
-      }
-      
-      if (window.hideModal) window.hideModal();
-      
-      return {
-        success: false,
-        error: 'Sem conexão com a internet',
-        savedLocally: true,
-        offlineId: saveResult.offlineId,
-        dbId: saveResult.dbId,
-        timestamp: saveResult.timestamp
-      };
-      
-    } catch (saveError) {
-      console.error('[SEND] Erro ao salvar offline:', saveError);
-      
-      if (window.showStatusMessage) {
-        window.showStatusMessage('❌ Erro ao salvar localmente', 'error');
-      }
-      
-      if (window.hideModal) window.hideModal();
-      
-      return {
-        success: false,
-        error: 'Falha ao salvar localmente',
-        savedLocally: false
-      };
-    }
-  }
-  
-  // Tentar envio online
-  try {
-    console.log('[SEND] Enviando para:', CONFIG.APPS_SCRIPT_URL);
-    
-    // Timeout configurável
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
-    
-    const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors', // IMPORTANTE para Apps Script
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-    
-    console.log('[SEND] Resposta recebida, status:', response.type);
-    
-    // Em modo no-cors, assumimos sucesso se não houve erro de rede
-    if (response.type === 'opaque') {
-      console.log('[SEND] Envio bem-sucedido (modo no-cors)');
-      
-      if (window.showStatusMessage) {
-        window.showStatusMessage('✅ Dados enviados com sucesso!', 'success');
-      }
-      
-      if (window.hideModal) window.hideModal();
-      
-      return {
-        success: true,
-        online: true,
-        message: 'Dados enviados para Google Sheets',
-        timestamp: new Date().toISOString()
-      };
-    } else {
-      throw new Error('Resposta não-opaque do servidor');
-    }
-    
-  } catch (error) {
-    console.error('[SEND] Erro no envio online:', error);
-    
-    // Se for erro de rede, salvar offline
-    if (error.name === 'AbortError' || error.message.includes('Failed to fetch') || error.message.includes('Network')) {
-      console.log('[SEND] Erro de rede - Salvando offline');
-      
-      if (window.showStatusMessage) {
-        window.showStatusMessage('Erro de rede. Salvando localmente...', 'warning');
-      }
-      
-      try {
-        const db = new SendDatabase();
-        const saveResult = await db.saveOffline(payload);
-        
-        console.log('[SEND] Dados salvos offline após erro:', saveResult.offlineId);
-        
-        if (window.showStatusMessage) {
-          window.showStatusMessage('✅ Dados salvos localmente!', 'success');
-        }
-        
-        if (window.hideModal) window.hideModal();
-        
-        return {
-          success: false,
-          error: 'Erro de rede: ' + error.message,
-          savedLocally: true,
-          offlineId: saveResult.offlineId
-        };
-        
-      } catch (saveError) {
-        console.error('[SEND] Erro ao salvar offline após falha:', saveError);
-        
-        if (window.showStatusMessage) {
-          window.showStatusMessage('❌ Erro ao salvar localmente', 'error');
-        }
-        
-        if (window.hideModal) window.hideModal();
-        
-        return {
-          success: false,
-          error: 'Falha completa no envio',
-          savedLocally: false
-        };
-      }
-    } else {
-      // Outro tipo de erro
-      console.error('[SEND] Erro não relacionado a rede:', error);
-      
-      if (window.showStatusMessage) {
-        window.showStatusMessage('❌ Erro no envio: ' + error.message, 'error');
-      }
-      
-      if (window.hideModal) window.hideModal();
-      
-      return {
-        success: false,
-        error: error.message,
-        savedLocally: false
-      };
-    }
-  }
-}
-
-/* ================================
-   SINCRONIZAÇÃO DE DADOS OFFLINE
+   FUNÇÕES RESTANTES (mantidas iguais)
    ================================ */
 
 async function syncOfflineData() {
@@ -479,7 +756,6 @@ async function syncOfflineData() {
       try {
         console.log(`[SYNC] Processando registro ${record.offlineId}`);
         
-        // Tentar enviar
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
         
@@ -493,15 +769,12 @@ async function syncOfflineData() {
         
         clearTimeout(timeoutId);
         
-        // Atualizar contador de tentativas
         await db.updateRecord(record.id, {
           attempts: record.attempts + 1,
           lastAttempt: new Date().toISOString()
         });
         
-        // Verificar se foi bem-sucedido (modo no-cors)
         if (response.type === 'opaque') {
-          // Marcar como enviado
           await db.updateRecord(record.id, {
             status: 'sent',
             sentAt: new Date().toISOString()
@@ -518,7 +791,6 @@ async function syncOfflineData() {
         console.error(`[SYNC] Erro no registro ${record.offlineId}:`, error);
         errorCount++;
         
-        // Atualizar tentativa
         await db.updateRecord(record.id, {
           attempts: record.attempts + 1,
           lastAttempt: new Date().toISOString()
@@ -556,10 +828,6 @@ async function syncOfflineData() {
   }
 }
 
-/* ================================
-   FUNÇÕES UTILITÁRIAS
-   ================================ */
-
 async function getSendStats() {
   try {
     const db = new SendDatabase();
@@ -571,45 +839,10 @@ async function getSendStats() {
   }
 }
 
-async function clearSendDatabase() {
-  if (!confirm('Tem certeza que deseja apagar TODOS os dados de envio salvos localmente?')) {
-    return { cancelled: true };
-  }
-  
-  try {
-    const request = indexedDB.deleteDatabase(CONFIG.DB_NAME);
-    
-    return new Promise((resolve, reject) => {
-      request.onsuccess = () => {
-        console.log('[CLEAR] Banco de dados apagado');
-        
-        if (window.showStatusMessage) {
-          window.showStatusMessage('✅ Dados de envio apagados', 'success');
-        }
-        
-        resolve({ success: true });
-      };
-      
-      request.onerror = (event) => {
-        console.error('[CLEAR] Erro:', event.target.error);
-        reject(event.target.error);
-      };
-    });
-  } catch (error) {
-    console.error('[CLEAR] Erro:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-/* ================================
-   MONITORAMENTO DE CONEXÃO SIMPLES
-   ================================ */
-
 function setupSendConnectionMonitor() {
   window.addEventListener('online', () => {
     console.log('[NETWORK] Conexão restabelecida');
     
-    // Aguardar 2 segundos e sincronizar
     setTimeout(async () => {
       const stats = await getSendStats();
       if (stats.success && stats.stats.pending > 0) {
@@ -624,22 +857,15 @@ function setupSendConnectionMonitor() {
   });
 }
 
-/* ================================
-   INICIALIZAÇÃO
-   ================================ */
-
 async function initializeSendSystem() {
   console.log('[INIT] Inicializando sistema de envio');
   
   try {
-    // Configurar monitor de conexão
     setupSendConnectionMonitor();
     
-    // Abrir banco de dados
     const db = new SendDatabase();
     await db.open();
     
-    // Verificar se há registros pendentes
     const stats = await getSendStats();
     
     console.log('[INIT] Sistema de envio pronto', stats);
@@ -660,7 +886,7 @@ async function initializeSendSystem() {
 }
 
 /* ================================
-   EXPORTAÇÃO
+   EXPORTAÇÃO ATUALIZADA
    ================================ */
 
 window.SocialColetorSend = {
@@ -669,9 +895,12 @@ window.SocialColetorSend = {
   syncOfflineData,
   initialize: initializeSendSystem,
   
+  // Novas funções de interface
+  showActionButtons,
+  closeActionOverlay,
+  
   // Utilitários
   getStats: getSendStats,
-  clearDatabase: clearSendDatabase,
   
   // Configuração
   setConfig: (newConfig) => {
@@ -691,14 +920,12 @@ window.SocialColetorSend = {
    INICIALIZAÇÃO AUTOMÁTICA
    ================================ */
 
-// Aguardar um pouco após o carregamento
 setTimeout(() => {
   initializeSendSystem().then(result => {
     if (result.success && result.stats && result.stats.pending > 0 && navigator.onLine) {
-      // Sincronizar automaticamente se houver dados pendentes
       setTimeout(syncOfflineData, 3000);
     }
   });
 }, 1500);
 
-console.log('[SEND] Sistema de envio carregado');
+console.log('[SEND] Sistema de envio com botões de ação carregado');
