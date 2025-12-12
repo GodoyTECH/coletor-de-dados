@@ -564,7 +564,7 @@ function updateConnectionStatus() {
 }
 
 // ================================
-// CONTROLES DE IMAGEM (Mantido igual)
+// CONTROLES DE IMAGEM
 // ================================
 function setupImageControls() {
     const imagePreview = elements.imagePreview;
@@ -1271,65 +1271,48 @@ async function handleFormSubmit(event) {
         return;
     }
     
-    showStatusMessage('Preparando dados para Google Sheets...', 'info');
-    
-    const formData = {
-        beneficiario: formFields.beneficiario.value.trim(),
-        cpf: formFields.cpf.value.trim(),
-        atendente: formFields.atendente.value.trim(),
-        produto: formFields.produto.value.trim(),
-        quantidade: parseFloat(formFields.quantidade.value.replace(',', '.')),
-        endereco: formFields.endereco.value.trim(),
-        data: formFields.data.value,
-        assinatura: formFields.assinatura.value.trim() || 'N/A',
-        numeroDocumento: formFields.numeroDocumento.value.trim(),
-        observacoes: formFields.observacoes.value.trim() || '',
-        imagemBase64: currentImageData || '',
-        timestamp: new Date().toISOString()
-    };
-    
-    console.log('📊 Dados para envio:', formData);
-    
-    try {
-        const result = await sendToGoogleSheets(formData);
+    // Usar o send.js que criamos
+    if (window.SocialColetorSend && window.SocialColetorSend.sendToGoogleSheets) {
+        showStatusMessage('Preparando dados para Google Sheets...', 'info');
         
-        if (result.success) {
-            showStatusMessage(` Dados enviados com sucesso! ID: ${result.recordId || 'N/A'}`, 'success');
+        const formData = {
+            beneficiario: formFields.beneficiario.value.trim(),
+            cpf: formFields.cpf.value.trim(),
+            atendente: formFields.atendente.value.trim(),
+            produto: formFields.produto.value.trim(),
+            quantidade: parseFloat(formFields.quantidade.value.replace(',', '.')),
+            endereco: formFields.endereco.value.trim(),
+            data: formFields.data.value,
+            assinatura: formFields.assinatura.value.trim() || 'N/A',
+            numeroDocumento: formFields.numeroDocumento.value.trim(),
+            observacoes: formFields.observacoes.value.trim() || '',
+            imagemBase64: currentImageData || '',
+            timestamp: new Date().toISOString()
+        };
+        
+        console.log('📊 Dados para envio:', formData);
+        
+        try {
+            const result = await window.SocialColetorSend.sendToGoogleSheets(formData);
             
-            // Limpar formulário após sucesso
-            setTimeout(() => {
-                clearForm();
-            }, 3000);
-        } else {
-            showStatusMessage(
-                `❌ Não foi possível enviar os dados: ${result.error || 'Erro desconhecido'}`,
-                'error'
-            );
+            // O resultado será tratado pelo send.js que mostrará os botões de ação
+            console.log('Resultado do envio:', result);
+            
+        } catch (error) {
+            console.error('Erro no envio:', error);
+            showStatusMessage('❌ Falha ao processar envio: ' + error.message, 'error');
         }
-    } catch (error) {
-        console.error('Erro no envio:', error);
-        showStatusMessage('❌ Falha ao processar envio: ' + error.message, 'error');
+    } else {
+        // Fallback para o envio antigo se send.js não estiver disponível
+        showStatusMessage('⚠️ Sistema de envio não disponível. Tente recarregar a página.', 'warning');
     }
 }
 
 // ================================
-// PWA - INSTALAÇÃO
+// PWA - INSTALAÇÃO BÁSICA
 // ================================
 function setupPWA() {
-    // Registrar Service Worker
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('service-worker.js')
-                .then(registration => {
-                    console.log('✅ Service Worker registrado:', registration.scope);
-                })
-                .catch(error => {
-                    console.log('⚠️ Service Worker não registrado:', error);
-                });
-        });
-    }
-    
-    // Evento para instalação
+    // Evento para instalação PWA
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
