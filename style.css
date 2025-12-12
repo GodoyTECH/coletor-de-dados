@@ -117,7 +117,8 @@ body {
    CONTAINER AJUSTADO – CONTEÚDO PRINCIPAL
    ============================================ */
 .container {
-    max-width: 1000px;
+   left: 50%;
+    max-width: 90vw;
     margin: 40px auto;
     padding: 20px;
     position: relative;
@@ -134,6 +135,7 @@ body {
    CARD PRINCIPAL
    ============================================ */
 .main-card {
+   left: 50%;
     width:80vw;
     background: rgba(255, 255, 255, 0.10);
     border-radius: 15px;
