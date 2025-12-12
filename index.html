@@ -476,12 +476,12 @@
         <img src="logo.png" alt="Logo" class="inauguration-logo" onerror="this.style.display='none'">
         
         <h1 class="inauguration-title">🎉 Social Coletor 🎉</h1>
-        <p class="inauguration-subtitle">Sistema de Coleta de Dados - ESPECIALEMNTE PARA O DUDU</p>
+        <p class="inauguration-subtitle">Sistema de Coleta de Dados - ESPECIALMENTE PARA O DUDU</p>
         
-        <!-- Container do vídeo (substitua o src pelo seu vídeo) -->
+        <!-- Container do vídeo -->
         <div class="video-container">
-            <video id="inauguration-video" autoplay muted playsinline>
-                <source src="/video.mp4" type="video/mp4">
+            <video id="inauguration-video" muted playsinline>
+                <source src="video.mp4" type="video/mp4">
                 Seu navegador não suporta o vídeo.
             </video>
         </div>
@@ -500,82 +500,57 @@
 </div>
 
 <script>
-    // SISTEMA DE INAUGURAÇÃO - 8 SEGUNDOS AUTOMÁTICO
-    document.addEventListener('DOMContentLoaded', function() {
-        let countdown = 8;
-        const countdownElement = document.getElementById('countdown');
-        const overlay = document.getElementById('inauguration-overlay');
-        const video = document.getElementById('inauguration-video');
-        
-        // Tenta tocar o vídeo
+document.addEventListener('DOMContentLoaded', function() {
+    let countdown = 8;
+    const countdownElement = document.getElementById('countdown');
+    const overlay = document.getElementById('inauguration-overlay');
+    const video = document.getElementById('inauguration-video');
+
+    // Tentar tocar o vídeo após 500ms para evitar AbortError
+    setTimeout(() => {
         if(video) {
-            video.play().catch(e => console.log("Vídeo não pode ser reproduzido automaticamente:", e));
+            video.play().catch(e => console.log("Autoplay falhou, será reproduzido no clique:", e));
         }
-        
-        // Atualiza contador a cada segundo
-        const countdownInterval = setInterval(() => {
-            countdown--;
-            if(countdownElement) {
-                countdownElement.textContent = countdown;
-            }
-            
-            // Quando chegar a 0, fecha o overlay
-            if(countdown <= 0) {
-                clearInterval(countdownInterval);
-                closeInauguration();
-            }
-        }, 1000);
-        
-        // Função para pular introdução
-        window.skipIntro = function() {
+    }, 500);
+
+    // Atualiza contador
+    const countdownInterval = setInterval(() => {
+        countdown--;
+        if(countdownElement) countdownElement.textContent = countdown;
+
+        if(countdown <= 0) {
             clearInterval(countdownInterval);
             closeInauguration();
-        };
-        
-        // Função para entrar agora
-        window.enterNow = function() {
-            clearInterval(countdownInterval);
-            closeInauguration();
-        };
-        
-        // Função para fechar o overlay
-        function closeInauguration() {
-            if(overlay) {
-                // Adiciona classe de animação de saída
-                overlay.classList.add('inauguration-hidden');
-                
-                // Remove completamente após a animação
-                setTimeout(() => {
-                    overlay.classList.add('inauguration-removed');
-                    overlay.remove();
-                    
-                    // Dispara evento customizado para notificar outros scripts
-                    document.dispatchEvent(new Event('inauguration-completed'));
-                    
-                    // Para o vídeo se estiver tocando
-                    if(video) {
-                        video.pause();
-                        video.currentTime = 0;
-                    }
-                }, 500); // Tempo da animação de fadeOut
-            }
         }
-        
-        // Fecha se pressionar ESC
-        document.addEventListener('keydown', function(e) {
-            if(e.key === 'Escape') {
-                skipIntro();
-            }
-        });
-        
-        // Fecha se clicar fora do conteúdo (opcional)
-        overlay.addEventListener('click', function(e) {
-            if(e.target === overlay) {
-                skipIntro();
-            }
-        });
-    });
+    }, 1000);
+
+    // Funções de controle
+    window.skipIntro = window.enterNow = function() {
+        clearInterval(countdownInterval);
+        // Se o vídeo ainda não estiver tocando, toca ao entrar
+        if(video && video.paused) video.play().catch(e => {});
+        closeInauguration();
+    };
+
+    function closeInauguration() {
+        if(!overlay) return;
+        overlay.classList.add('inauguration-hidden');
+        setTimeout(() => {
+            overlay.classList.add('inauguration-removed');
+            overlay.remove();
+            document.dispatchEvent(new Event('inauguration-completed'));
+            if(video) { video.pause(); video.currentTime = 0; }
+        }, 500);
+    }
+
+    // Fecha ao pressionar ESC
+    document.addEventListener('keydown', e => { if(e.key === 'Escape') skipIntro(); });
+
+    // Fecha se clicar fora do conteúdo
+    overlay.addEventListener('click', e => { if(e.target === overlay) skipIntro(); });
+});
 </script>
+
     
 </body>
 </html>
