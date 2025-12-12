@@ -1,6 +1,35 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <!-- Forçar sempre carregar versão mais nova -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
+<!-- Script para forçar update do Service Worker -->
+<script>
+// Forçar update do Service Worker ao carregar
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(registration => {
+        // Forçar update imediato
+        registration.update();
+        
+        // Recarregar se nova versão instalada
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed') {
+              console.log('Nova versão! Recarregando...');
+              window.location.reload();
+            }
+          });
+        });
+      });
+  });
+}
+</script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Social Coletor - Coletor de Dados via Imagem</title>
