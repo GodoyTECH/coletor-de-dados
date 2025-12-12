@@ -119,7 +119,8 @@ body {
    CONTAINER – agora empurrado mais para baixo
    ============================================ */
 .container {
-    max-width: 1200px;
+    top: 50px; 
+    max-width:800px;
     margin: 230px auto 40px auto; /* ANTES ERA 180px - agora tem espaço real */
     padding: 20px;
     position: relative;
