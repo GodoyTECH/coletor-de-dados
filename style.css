@@ -644,7 +644,7 @@ textarea {
     
     .main-card {
         padding: 20px;
-        background: rgba(255, 255, 255, 0.0.15); /* manter transparência suave */
+        background: rgba(255, 255, 255, 0.15); /* manter transparência suave */
     }
     
     h1 {
