@@ -31,7 +31,10 @@ window.addEventListener('offline', () => {
 // FUNÇÃO PRINCIPAL DE ENVIO (SIMPLIFICADA)
 // ============================================
 async function sendToGoogleSheets(formData) {
-    showModal('Enviando...', 'Processando seus dados...', true);
+    // Usar showModal se disponível, senão console.log
+    if (typeof showModal === 'function') {
+        showModal('Enviando...', 'Processando seus dados...', true);
+    }
     
     try {
         // Preparar payload
@@ -56,7 +59,9 @@ async function sendToGoogleSheets(formData) {
         console.log('✅ Enviado com sucesso!');
         
         // Mostrar opções: Ver Planilha ou Voltar
-        hideModal();
+        if (typeof hideModal === 'function') {
+            hideModal();
+        }
         showSuccessOptions();
         
         return { 
@@ -94,7 +99,9 @@ async function saveAndContinue(formData) {
         }
         
         // Mostrar mensagem e opções
-        hideModal();
+        if (typeof hideModal === 'function') {
+            hideModal();
+        }
         showOfflineSuccessOptions(id);
         
         return {
@@ -106,7 +113,9 @@ async function saveAndContinue(formData) {
         
     } catch (error) {
         console.error('❌ Erro ao salvar offline:', error);
-        hideModal();
+        if (typeof hideModal === 'function') {
+            hideModal();
+        }
         showErrorOptions();
         return { 
             success: false, 
@@ -202,7 +211,7 @@ function createSimpleDialog(title, message, buttons) {
             <div style="display: flex; gap: 10px; justify-content: center;">
                 ${buttons.map(btn => `
                     <button 
-                        onclick="this.closest('div[style*=\"position: fixed\"]').remove(); handleDialogAction('${btn.action}')"
+                        onclick="handleDialogButtonClick('${btn.action}', this)"
                         style="
                             background: ${btn.color};
                             color: white;
@@ -228,8 +237,15 @@ function createSimpleDialog(title, message, buttons) {
     return dialog;
 }
 
-// Manipular ações do diálogo
-window.handleDialogAction = function(action) {
+// Função para lidar com clique nos botões do diálogo
+function handleDialogButtonClick(action, buttonElement) {
+    // Remover o diálogo
+    const dialog = buttonElement.closest('div[style*="position: fixed"]');
+    if (dialog) {
+        dialog.remove();
+    }
+    
+    // Executar a ação correspondente
     switch(action) {
         case 'view':
             // Abrir planilha do Google Sheets
@@ -240,7 +256,7 @@ window.handleDialogAction = function(action) {
             console.log('Voltando ao formulário...');
             break;
     }
-};
+}
 
 // ============================================
 // INDEXEDDB (MESMO CÓDIGO)
@@ -293,7 +309,7 @@ async function syncPendingSubmissions() {
         console.log(`🔄 Sincronizando ${pending.length} pendente(s)...`);
         
         // Mostrar notificação discreta se houver muitos pendentes
-        if (pending.length > 3) {
+        if (pending.length > 3 && typeof showModal === 'function') {
             showModal('Sincronizando...', `${pending.length} dados pendentes sendo enviados...`, true);
         }
         
@@ -317,7 +333,9 @@ async function syncPendingSubmissions() {
             }
         }
         
-        hideModal();
+        if (typeof hideModal === 'function') {
+            hideModal();
+        }
         
         // Notificar se muitos foram enviados
         const sentCount = pending.filter(p => p.attempts < 3).length;
@@ -327,7 +345,9 @@ async function syncPendingSubmissions() {
         
     } catch (error) {
         console.error('Erro na sincronização:', error);
-        hideModal();
+        if (typeof hideModal === 'function') {
+            hideModal();
+        }
     }
 }
 
@@ -389,5 +409,6 @@ if (isOnline) {
 // Exportar funções principais
 window.sendToGoogleSheets = sendToGoogleSheets;
 window.syncPendingSubmissions = syncPendingSubmissions;
+window.handleDialogButtonClick = handleDialogButtonClick;
 
 console.log('📦 send.js carregado - Modo automático');
