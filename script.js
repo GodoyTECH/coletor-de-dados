@@ -840,12 +840,8 @@ async function handleImageSelection(event) {
             await processOCR(enhancedImage);
             
             setProgress(100, 'Concluído!');
-            setTimeout(() => {
-                hideProgressBar();
-                hideModal();
-                showModal('✅ Sucesso!', 'Dados extraídos com sucesso! Revise os campos.', false);
-            }, close);
-        };
+            
+       
         
         reader.onerror = () => {
             showModal('Erro', 'Falha ao ler a imagem.', false);
