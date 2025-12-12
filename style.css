@@ -1,6 +1,7 @@
 /* ============================================
    SOCIAL COLETOR - CSS CORRIGIDO
    Mantendo transparência e layout original
+   Logo centralizada + container de conteúdo transparente
    ============================================ */
 
 :root {
@@ -78,28 +79,29 @@ body {
    ============================================ */
 .container {
     max-width: 1200px;
-    margin: 0 auto;
+    margin: 100px auto 40px auto; /* Espaço para logo no topo */
     padding: 20px;
     position: relative;
     z-index: 1;
+    background: rgba(255, 255, 255, 0.1); /* Container transparente */
+    border-radius: 15px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 /* ============================================
-   CABEÇALHO FIXO NO TOPO
+   CABEÇALHO FIXO NO TOPO (AJUSTADO PARA LOGO TRANSPARENTE)
    ============================================ */
 .header {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    padding: 15px 0;
-    background: rgba(255, 255, 255, 0.92); /* Apenas 92% de opacidade */
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 1000;
     text-align: center;
+    background: transparent; /* Sem tarja branca */
 }
 
 .header-content {
@@ -107,29 +109,30 @@ body {
     margin: 0 auto;
     padding: 0 20px;
     display: flex;
-    justify-content: space-between;
+    justify-content: center; /* Centralizado */
     align-items: center;
 }
 
 .logo-container {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 15px;
 }
 
 .logo {
-    width: 50px;
-    height: 50px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid var(--primary-color);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .app-title {
-    font-size: 1.5rem;
+    font-size: 1.8rem;
     font-weight: bold;
-    color: var(--primary-color);
+    color: white;
+    margin-top: 10px;
 }
 
 .header-controls {
@@ -142,7 +145,7 @@ body {
    CONTEÚDO PRINCIPAL (com espaço para header fixo)
    ============================================ */
 .main-content {
-    margin-top: 80px; /* Altura do header fixo */
+    margin-top: 20px; /* Ajustado para logo fixa */
     padding-bottom: 40px;
 }
 
@@ -150,7 +153,7 @@ body {
    CARD PRINCIPAL COM TRANSPARÊNCIA
    ============================================ */
 .main-card {
-    background: rgba(255, 255, 255, 0.85); /* 85% de opacidade */
+    background: rgba(255, 255, 255, 0.15); /* Transparência mais sutil */
     border-radius: 15px;
     padding: 25px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
@@ -169,7 +172,7 @@ body {
 }
 
 h2 {
-    color: var(--primary-color);
+    color: white;
     font-size: 1.6rem;
     margin-bottom: 10px;
     display: flex;
@@ -178,7 +181,7 @@ h2 {
 }
 
 .section-description {
-    color: #666;
+    color: rgba(255, 255, 255, 0.7);
     margin-bottom: 20px;
     font-size: 0.95rem;
     line-height: 1.5;
@@ -201,7 +204,6 @@ h2 {
     margin-bottom: 20px;
 }
 
-/* Painel de Controles */
 .image-controls-panel {
     display: flex;
     justify-content: center;
@@ -265,19 +267,17 @@ h2 {
     font-size: 13px;
 }
 
-/* Wrapper do Container de Zoom */
 .image-zoom-wrapper {
     width: 100%;
     height: 350px;
     border: 2px solid var(--border-color);
     border-radius: 10px;
     overflow: hidden;
-    background: #f9f9f9;
+    background: rgba(255, 255, 255, 0.05); /* Fundo transparente */
     position: relative;
     touch-action: none;
 }
 
-/* Container de Zoom (área visível) */
 .image-zoom-container {
     width: 100%;
     height: 100%;
@@ -293,7 +293,6 @@ h2 {
     cursor: grabbing;
 }
 
-/* Placeholder */
 .image-placeholder {
     position: absolute;
     top: 0;
@@ -322,7 +321,6 @@ h2 {
     margin-top: 8px;
 }
 
-/* Container arrastável da imagem */
 .image-draggable-container {
     position: absolute;
     transform-origin: center center;
@@ -332,7 +330,6 @@ h2 {
     max-height: 100%;
 }
 
-/* Imagem Preview */
 .image-preview {
     display: block;
     max-width: 100%;
@@ -399,7 +396,7 @@ h2 {
 }
 
 label {
-    color: var(--primary-color);
+    color: white; /* Texto branco para contraste */
     margin-bottom: 6px;
     font-weight: 600;
     font-size: 0.9rem;
@@ -407,11 +404,12 @@ label {
 
 input, textarea, select {
     padding: 10px 12px;
-    border: 2px solid var(--border-color);
+    border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 8px;
     font-size: 0.95rem;
     transition: var(--transition);
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.1); /* transparente */
+    color: white;
     width: 100%;
 }
 
@@ -427,7 +425,7 @@ textarea {
 }
 
 .form-hint {
-    color: #888;
+    color: rgba(255, 255, 255, 0.7);
     font-size: 0.8rem;
     margin-top: 4px;
     font-style: italic;
@@ -451,6 +449,7 @@ textarea {
     text-align: center;
 }
 
+/* Mantendo todos os botões originais */
 .btn-primary {
     background: var(--primary-color);
     color: white;
@@ -506,7 +505,7 @@ textarea {
     gap: 12px;
     justify-content: flex-end;
     padding-top: 15px;
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 /* ============================================
@@ -605,10 +604,9 @@ textarea {
     text-align: center;
     padding: 20px;
     margin-top: 20px;
-    color: white;
+    color: rgba(255, 255, 255, 0.8);
     font-size: 0.85rem;
     line-height: 1.5;
-    opacity: 0.8;
 }
 
 .footer p:first-child {
@@ -663,12 +661,12 @@ textarea {
     }
     
     .main-content {
-        margin-top: 120px;
+        margin-top: 20px;
     }
     
     .main-card {
         padding: 20px;
-        background: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.0.15); /* manter transparência suave */
     }
     
     h1 {
@@ -713,12 +711,12 @@ textarea {
     }
     
     .logo {
-        width: 40px;
-        height: 40px;
+        width: 60px;
+        height: 60px;
     }
     
     .app-title {
-        font-size: 1.3rem;
+        font-size: 1.4rem;
     }
     
     .form-grid {
