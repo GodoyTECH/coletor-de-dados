@@ -1,414 +1,392 @@
 /**
- * SOCIAL COLETOR - FUNÇÕES DE ENVIO SIMPLIFICADO
- * Modo automático: salva offline sem perguntar, sincroniza automaticamente
+ * send.js - Social Coletor (corrigido)
+ * - Envio online com verificação de resposta
+ * - Salvamento automático offline (IndexedDB)
+ * - SyncManager com tag 'sync-offline-data'
+ * - Modais simples (loading / success / offline / error)
  */
 
-// ============================================
-// CONFIGURAÇÃO DO APPS SCRIPT
-// ============================================
+/* ================================
+   CONFIGURAÇÕES
+   ================================ */
 
-let APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwID1I2Wz186kMLtl704gPtTZc0Tka44nNDyrwSNx3xePjpyRPEJd3tHvbLV9f3hbai/exec';
+// URL do Apps Script (recebida)
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwID1I2Wz186kMLtl704gPtTZc0Tka44nNDyrwSNx3xePjpyRPEJd3tHvbLV9f3hbai/exec';
 
-// ============================================
-// VARIÁVEIS GLOBAIS
-// ============================================
-let isOnline = navigator.onLine;
+// (Opcional) URL direta da planilha Google Sheets (coloque aqui se tiver)
+// Caso não tenha, o botão "Ver Planilha" abrirá o APPS_SCRIPT_URL como fallback.
+const SPREADSHEET_URL = ''; // ex: 'https://docs.google.com/spreadsheets/d/SEU_ID/edit#gid=0'
+
+/* ================================
+   VARIÁVEIS GLOBAIS
+   ================================ */
 const DB_NAME = 'SocialColetorDB';
+let isOnline = navigator.onLine;
 
-// Monitorar conexão
+/* ================================
+   UTILITÁRIOS DE UI (modal simples)
+   ================================ */
+
+function showModal(title = 'Aguarde', message = '', showSpinner = false) {
+  hideModal(); // garante que não haja múltiplos
+  const overlay = document.createElement('div');
+  overlay.id = 'sc-modal-overlay';
+  overlay.style.cssText = `
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.45); z-index: 99999;
+  `;
+  overlay.innerHTML = `
+    <div style="
+      background: #fff; color:#222; padding:20px 24px; border-radius:12px; width: 90%; max-width:420px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2); text-align:center;
+    ">
+      <h3 style="margin:0 0 8px 0; font-size:18px;">${title}</h3>
+      <p style="margin:0 0 12px 0; color:#555;">${message}</p>
+      ${showSpinner ? `<div style="margin-top:6px;"><small style="color:#999">Processando...</small></div>` : ''}
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+function hideModal() {
+  const existing = document.getElementById('sc-modal-overlay');
+  if (existing) existing.remove();
+}
+
+/* ================================
+   DIALOGS SIMPLES (success / offline / error)
+   ================================ */
+
+function createSimpleDialog(title, message, buttons = []) {
+  const dialog = document.createElement('div');
+  dialog.style.cssText = `
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.45); z-index: 99999;
+  `;
+
+  const btnsHtml = buttons.map(btn => {
+    const color = btn.color || '#0a0e29';
+    return `<button data-action="${btn.action}" style="
+              background:${color}; color:#fff; border:none; padding:10px 16px; margin:6px;
+              border-radius:8px; cursor:pointer; min-width:120px; font-weight:600;">
+              ${btn.text}
+            </button>`;
+  }).join('');
+
+  dialog.innerHTML = `
+    <div style="background:#fff; padding:22px; border-radius:12px; max-width:420px; width:92%; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.18);">
+      <h3 style="margin:0 0 8px 0; color:#0a0e29;">${title}</h3>
+      <p style="margin:0 0 14px 0; color:#444;">${message}</p>
+      <div style="display:flex; justify-content:center; flex-wrap:wrap;">${btnsHtml}</div>
+    </div>
+  `;
+
+  // Delegação de clique nos botões
+  dialog.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button[data-action]');
+    if (!btn) return;
+    const action = btn.getAttribute('data-action');
+    dialog.remove();
+    handleDialogButtonClick(action);
+  });
+
+  return dialog;
+}
+
+function showSuccessOptions() {
+  const dialog = createSimpleDialog(
+    '✅ Dados Enviados!',
+    'Seus dados foram enviados para a planilha com sucesso.',
+    [
+      { text: '📊 Abrir Planilha', action: 'view', color: '#2e7d32' },
+      { text: '↩️ Voltar', action: 'back', color: '#616161' }
+    ]
+  );
+  document.body.appendChild(dialog);
+}
+
+function showOfflineSuccessOptions(savedId) {
+  const dialog = createSimpleDialog(
+    '💾 Salvo para envio',
+    `Você está offline. Os dados foram salvos (ID: ${savedId}) e serão enviados automaticamente quando a conexão voltar.`,
+    [
+      { text: '📊 Ver Planilha', action: 'view', color: '#2e7d32' },
+      { text: '↩️ Continuar', action: 'back', color: '#616161' }
+    ]
+  );
+  document.body.appendChild(dialog);
+}
+
+function showErrorOptions(message = 'Erro ao processar os dados') {
+  const dialog = createSimpleDialog(
+    '⚠️ Erro',
+    message,
+    [
+      { text: '↩️ Voltar', action: 'back', color: '#616161' }
+    ]
+  );
+  document.body.appendChild(dialog);
+}
+
+// Ação dos botões (view/back)
+function handleDialogButtonClick(action) {
+  switch(action) {
+    case 'view':
+      // Abre a planilha se houver, senão abre o Apps Script como fallback
+      const target = SPREADSHEET_URL && SPREADSHEET_URL.trim() !== '' ? SPREADSHEET_URL : APPS_SCRIPT_URL;
+      window.open(target, '_blank');
+      break;
+    case 'back':
+    default:
+      // Apenas fecha o diálogo — o comportamento de voltar ao formulário fica a cargo do script principal
+      break;
+  }
+}
+
+/* ================================
+   INDEXEDDB - helpers
+   ================================ */
+
+function openDatabase() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('submissions')) {
+        const store = db.createObjectStore('submissions', { keyPath: 'id', autoIncrement: true });
+        store.createIndex('status', 'status', { unique: false });
+        store.createIndex('timestamp', 'timestamp', { unique: false });
+      }
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function saveToIndexedDB(db, data) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(['submissions'], 'readwrite');
+    const store = tx.objectStore('submissions');
+    const entry = {
+      data,
+      timestamp: new Date().toISOString(),
+      status: 'pending',
+      attempts: 0
+    };
+    const req = store.add(entry);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+function getPendingSubmissions(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(['submissions'], 'readonly');
+    const store = tx.objectStore('submissions');
+    const idx = store.index('status');
+    const req = idx.getAll('pending');
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function markAsSent(db, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(['submissions'], 'readwrite');
+    const store = tx.objectStore('submissions');
+    const req = store.get(id);
+    req.onsuccess = () => {
+      const obj = req.result;
+      if (!obj) return resolve();
+      obj.status = 'sent';
+      obj.sentAt = new Date().toISOString();
+      store.put(obj);
+      resolve();
+    };
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function incrementAttempts(db, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(['submissions'], 'readwrite');
+    const store = tx.objectStore('submissions');
+    const req = store.get(id);
+    req.onsuccess = () => {
+      const obj = req.result;
+      if (!obj) return resolve();
+      obj.attempts = (obj.attempts || 0) + 1;
+      if (obj.attempts >= 3) obj.status = 'failed';
+      store.put(obj);
+      resolve();
+    };
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+/* ================================
+   SINCRONIZAÇÃO AUTOMÁTICA
+   ================================ */
+
+async function syncPendingSubmissions() {
+  if (!navigator.onLine) return;
+  try {
+    const db = await openDatabase();
+    const pending = await getPendingSubmissions(db);
+    if (!pending || pending.length === 0) return;
+
+    console.log(`🔄 Sincronizando ${pending.length} pendente(s)...`);
+    showModal('Sincronizando', `Enviando ${pending.length} pendente(s)...`, true);
+
+    let sentCount = 0;
+
+    for (const item of pending) {
+      if (item.attempts >= 3) continue;
+      try {
+        const resp = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item.data)
+        });
+
+        // Se o Apps Script responder com OK (200..299) consideramos enviado.
+        if (resp && resp.ok) {
+          await markAsSent(db, item.id);
+          sentCount++;
+        } else {
+          // se não houver resp.ok, incrementar tentativas
+          await incrementAttempts(db, item.id);
+        }
+      } catch (err) {
+        // Falha de rede/CORS/etc
+        await incrementAttempts(db, item.id);
+        console.warn('Erro ao reenviar pendente', item.id, err);
+      }
+    }
+
+    hideModal();
+    if (sentCount > 0) {
+      console.log(`✅ ${sentCount} pendente(s) sincronizado(s)`);
+    }
+  } catch (err) {
+    console.error('Erro na sincronização automática:', err);
+    hideModal();
+  }
+}
+
+/* ================================
+   FUNÇÃO PRINCIPAL DE ENVIO
+   ================================ */
+
+async function sendToGoogleSheets(formData) {
+  showModal('Enviando...', 'Enviando seus dados, aguarde...', true);
+
+  // preparar payload (normalizar os campos)
+  const payload = {
+    ...formData,
+    quantidade: parseFloat(formData.quantidade) || 0,
+    timestamp: new Date().toLocaleString('pt-BR'),
+    userAgent: navigator.userAgent || '',
+    platform: navigator.platform || ''
+  };
+
+  console.log('📤 Enviando payload:', payload);
+
+  try {
+    // fetch NORMAL (sem no-cors)
+    const resp = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    // Alguns deployments do Apps Script respondem com conteúdo e CORS corretamente.
+    // Se recebermos resp.ok consideramos sucesso.
+    if (resp && resp.ok) {
+      console.log('✅ Enviado (resp.ok)');
+      hideModal();
+      showSuccessOptions();
+      return { success: true, online: true };
+    }
+
+    // Se não for ok, tentar ler texto para debug (algumas vezes GAS retorna 302/204)
+    try {
+      const text = await resp.text();
+      console.warn('Resposta inesperada do servidor:', resp.status, text);
+    } catch (e) {
+      console.warn('Não foi possível ler body da resposta:', e);
+    }
+
+    // Se chegou aqui, salvamos offline como fallback
+    hideModal();
+    return await saveAndContinue(payload);
+
+  } catch (err) {
+    // Erro de rede / CORS / etc => salvar offline
+    console.warn('Erro no fetch (salvando offline):', err);
+    hideModal();
+    return await saveAndContinue(payload);
+  }
+}
+
+/* ================================
+   SALVAR OFFLINE E REGISTRAR SYNC
+   ================================ */
+
+async function saveAndContinue(data) {
+  try {
+    const db = await openDatabase();
+    const id = await saveToIndexedDB(db, data);
+    console.log(`💾 Salvo offline (ID: ${id})`);
+
+    // Tentar registrar sync para enviar quando voltar
+    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        await reg.sync.register('sync-offline-data'); // TAG CORRIGIDA
+        console.log('🔔 SyncManager registrado: sync-offline-data');
+      } catch (swErr) {
+        console.warn('SyncManager não disponível ou falha ao registrar:', swErr);
+      }
+    }
+
+    showOfflineSuccessOptions(id);
+    return { success: false, savedOffline: true, offlineId: id };
+  } catch (err) {
+    console.error('Erro ao salvar offline:', err);
+    showErrorOptions('Erro ao salvar os dados localmente.');
+    return { success: false, error: err };
+  }
+}
+
+/* ================================
+   EVENTOS DE REDE
+   ================================ */
+
 window.addEventListener('online', () => {
   isOnline = true;
-  console.log('🌐 Conectado - Sincronizando...');
-  syncPendingSubmissions();
+  console.log('🌐 Online - iniciando sincronização automática');
+  // pequena espera para estabilizar a conexão
+  setTimeout(() => syncPendingSubmissions(), 1500);
 });
 
 window.addEventListener('offline', () => {
   isOnline = false;
-  console.log('📴 Offline - Modo automático ativado');
+  console.log('📴 Offline');
 });
 
-// ============================================
-// FUNÇÃO PRINCIPAL DE ENVIO (SIMPLIFICADA)
-// ============================================
-async function sendToGoogleSheets(formData) {
-    // Usar showModal se disponível, senão console.log
-    if (typeof showModal === 'function') {
-        showModal('Enviando...', 'Processando seus dados...', true);
-    }
-    
-    try {
-        // Preparar payload
-        const payload = {
-            ...formData,
-            quantidade: parseFloat(formData.quantidade) || 0,
-            timestamp: new Date().toLocaleString('pt-BR'),
-            userAgent: navigator.userAgent,
-            platform: navigator.platform
-        };
-
-        console.log('📤 Tentando enviar:', payload);
-
-        // Tentar enviar (online)
-        await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        console.log('✅ Enviado com sucesso!');
-        
-        // Mostrar opções: Ver Planilha ou Voltar
-        if (typeof hideModal === 'function') {
-            hideModal();
-        }
-        showSuccessOptions();
-        
-        return { 
-            success: true, 
-            online: true 
-        };
-
-    } catch (error) {
-        console.error('❌ Falha no envio:', error);
-        
-        // Se falhou (offline ou erro), salvar automaticamente
-        return await saveAndContinue(formData);
-    }
+/* ================================
+   INICIALIZAÇÃO (tenta sincronizar após carregar)
+   ================================ */
+if (navigator.onLine) {
+  setTimeout(() => syncPendingSubmissions(), 4000);
 }
 
-// ============================================
-// SALVAR AUTOMATICAMENTE (SEM PERGUNTAR)
-// ============================================
-async function saveAndContinue(formData) {
-    try {
-        // Salvar no IndexedDB automaticamente
-        const db = await openDatabase();
-        const id = await saveToIndexedDB(db, formData);
-        
-        console.log(`💾 Salvo automaticamente (ID: ${id}) - Offline detectado`);
-        
-        // Registrar sync para quando voltar online
-        if ('serviceWorker' in navigator && 'SyncManager' in window) {
-            try {
-                const registration = await navigator.serviceWorker.ready;
-                await registration.sync.register('sync-pending-data');
-            } catch (swError) {
-                console.log('⚠️ SyncManager não disponível, mas dados salvos');
-            }
-        }
-        
-        // Mostrar mensagem e opções
-        if (typeof hideModal === 'function') {
-            hideModal();
-        }
-        showOfflineSuccessOptions(id);
-        
-        return {
-            success: false,
-            savedOffline: true,
-            offlineId: id,
-            message: 'Salvo automaticamente para envio posterior'
-        };
-        
-    } catch (error) {
-        console.error('❌ Erro ao salvar offline:', error);
-        if (typeof hideModal === 'function') {
-            hideModal();
-        }
-        showErrorOptions();
-        return { 
-            success: false, 
-            error: 'Falha ao processar' 
-        };
-    }
-}
-
-// ============================================
-// OPÇÕES DE UI (SIMPLES)
-// ============================================
-
-// Opções após sucesso ONLINE
-function showSuccessOptions() {
-    const dialog = createSimpleDialog(
-        '✅ Dados Enviados!',
-        'Seus dados foram enviados com sucesso para a planilha.',
-        [
-            { text: '📊 Ver Planilha', action: 'view', color: '#4CAF50' },
-            { text: '↩️ Voltar', action: 'back', color: '#666' }
-        ]
-    );
-    
-    document.body.appendChild(dialog);
-}
-
-// Opções após sucesso OFFLINE (salvamento automático)
-function showOfflineSuccessOptions(savedId) {
-    const dialog = createSimpleDialog(
-        '💾 Dados Salvos',
-        `Você está offline. Os dados foram salvos automaticamente (ID: ${savedId}) e serão enviados quando a conexão voltar.`,
-        [
-            { text: '📊 Ver Planilha', action: 'view', color: '#4CAF50' },
-            { text: '↩️ Continuar Coletando', action: 'back', color: '#666' }
-        ]
-    );
-    
-    document.body.appendChild(dialog);
-}
-
-// Opções em caso de erro
-function showErrorOptions() {
-    const dialog = createSimpleDialog(
-        '⚠️ Atenção',
-        'Não foi possível processar os dados. Tente novamente.',
-        [
-            { text: '↩️ Voltar', action: 'back', color: '#666' }
-        ]
-    );
-    
-    document.body.appendChild(dialog);
-}
-
-// Criar diálogo simples
-function createSimpleDialog(title, message, buttons) {
-    const dialog = document.createElement('div');
-    dialog.style.cssText = `
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 9999;
-        animation: fadeIn 0.3s;
-    `;
-    
-    // Criar estilos para animação
-    if (!document.querySelector('#dialog-styles')) {
-        const style = document.createElement('style');
-        style.id = 'dialog-styles';
-        style.textContent = `
-            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        `;
-        document.head.appendChild(style);
-    }
-    
-    dialog.innerHTML = `
-        <div style="
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            max-width: 400px;
-            width: 90%;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            animation: slideUp 0.3s;
-        ">
-            <h2 style="color: #0a0e29; margin-bottom: 15px;">${title}</h2>
-            <p style="color: #666; margin-bottom: 25px; line-height: 1.5;">${message}</p>
-            
-            <div style="display: flex; gap: 10px; justify-content: center;">
-                ${buttons.map(btn => `
-                    <button 
-                        onclick="handleDialogButtonClick('${btn.action}', this)"
-                        style="
-                            background: ${btn.color};
-                            color: white;
-                            border: none;
-                            padding: 12px 24px;
-                            border-radius: 6px;
-                            cursor: pointer;
-                            font-weight: bold;
-                            font-size: 14px;
-                            transition: opacity 0.2s;
-                            min-width: 140px;
-                        "
-                        onmouseover="this.style.opacity='0.9'"
-                        onmouseout="this.style.opacity='1'"
-                    >
-                        ${btn.text}
-                    </button>
-                `).join('')}
-            </div>
-        </div>
-    `;
-    
-    return dialog;
-}
-
-// Função para lidar com clique nos botões do diálogo
-function handleDialogButtonClick(action, buttonElement) {
-    // Remover o diálogo
-    const dialog = buttonElement.closest('div[style*="position: fixed"]');
-    if (dialog) {
-        dialog.remove();
-    }
-    
-    // Executar a ação correspondente
-    switch(action) {
-        case 'view':
-            // Abrir planilha do Google Sheets
-            window.open('https://docs.google.com/spreadsheets/', '_blank');
-            break;
-        case 'back':
-            // Voltar para o formulário (o formulário já está limpo pelo script.js)
-            console.log('Voltando ao formulário...');
-            break;
-    }
-}
-
-// ============================================
-// INDEXEDDB (MESMO CÓDIGO)
-// ============================================
-
-function openDatabase() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, 1);
-        request.onupgradeneeded = function(e) {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains('submissions')) {
-                const store = db.createObjectStore('submissions', { keyPath: 'id', autoIncrement: true });
-                store.createIndex('timestamp', 'timestamp');
-                store.createIndex('status', 'status');
-            }
-        };
-        request.onsuccess = e => resolve(e.target.result);
-        request.onerror = e => reject(e.target.error);
-    });
-}
-
-function saveToIndexedDB(db, data) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['submissions'], 'readwrite');
-        const store = transaction.objectStore('submissions');
-        const request = store.add({
-            data: data,
-            timestamp: new Date().toISOString(),
-            status: 'pending',
-            attempts: 0
-        });
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = e => reject(e.target.error);
-    });
-}
-
-// ============================================
-// SINCRONIZAÇÃO AUTOMÁTICA
-// ============================================
-
-async function syncPendingSubmissions() {
-    if (!isOnline) return;
-    
-    try {
-        const db = await openDatabase();
-        const pending = await getPendingSubmissions(db);
-        
-        if (pending.length === 0) return;
-        
-        console.log(`🔄 Sincronizando ${pending.length} pendente(s)...`);
-        
-        // Mostrar notificação discreta se houver muitos pendentes
-        if (pending.length > 3 && typeof showModal === 'function') {
-            showModal('Sincronizando...', `${pending.length} dados pendentes sendo enviados...`, true);
-        }
-        
-        for (const item of pending) {
-            if (item.attempts >= 3) continue; // Pular falhas repetidas
-            
-            try {
-                await fetch(APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(item.data)
-                });
-                
-                await markAsSent(db, item.id);
-                console.log(`✅ Enviado pendente ${item.id}`);
-                
-            } catch (error) {
-                await incrementAttempts(db, item.id);
-                console.log(`⚠️ Falha no pendente ${item.id}, tentativa ${item.attempts + 1}`);
-            }
-        }
-        
-        if (typeof hideModal === 'function') {
-            hideModal();
-        }
-        
-        // Notificar se muitos foram enviados
-        const sentCount = pending.filter(p => p.attempts < 3).length;
-        if (sentCount > 0) {
-            console.log(`✅ ${sentCount} dado(s) sincronizado(s) automaticamente`);
-        }
-        
-    } catch (error) {
-        console.error('Erro na sincronização:', error);
-        if (typeof hideModal === 'function') {
-            hideModal();
-        }
-    }
-}
-
-// Funções auxiliares IndexedDB
-function getPendingSubmissions(db) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['submissions'], 'readonly');
-        const store = transaction.objectStore('submissions');
-        const index = store.index('status');
-        const request = index.getAll('pending');
-        request.onsuccess = () => resolve(request.result || []);
-        request.onerror = e => reject(e.target.error);
-    });
-}
-
-function markAsSent(db, id) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['submissions'], 'readwrite');
-        const store = transaction.objectStore('submissions');
-        const request = store.get(id);
-        request.onsuccess = function() {
-            const data = request.result;
-            data.status = 'sent';
-            data.sentAt = new Date().toISOString();
-            store.put(data);
-            resolve();
-        };
-        request.onerror = e => reject(e.target.error);
-    });
-}
-
-function incrementAttempts(db, id) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['submissions'], 'readwrite');
-        const store = transaction.objectStore('submissions');
-        const request = store.get(id);
-        request.onsuccess = function() {
-            const data = request.result;
-            data.attempts = (data.attempts || 0) + 1;
-            if (data.attempts >= 3) data.status = 'failed';
-            store.put(data);
-            resolve();
-        };
-        request.onerror = e => reject(e.target.error);
-    });
-}
-
-// ============================================
-// INICIALIZAÇÃO
-// ============================================
-
-// Sincronizar automaticamente ao carregar se estiver online
-if (isOnline) {
-    setTimeout(() => {
-        syncPendingSubmissions();
-    }, 5000); // Esperar 5 segundos para não sobrecarregar
-}
-
-// Exportar funções principais
+/* ================================
+   EXPORTS (para o código da UI)
+   ================================ */
 window.sendToGoogleSheets = sendToGoogleSheets;
 window.syncPendingSubmissions = syncPendingSubmissions;
 window.handleDialogButtonClick = handleDialogButtonClick;
 
-console.log('📦 send.js carregado - Modo automático');
+console.log('📦 send.js (corrigido) carregado');
