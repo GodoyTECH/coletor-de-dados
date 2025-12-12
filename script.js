@@ -1,4 +1,4 @@
- * SOCIAL COLETOR - SCRIPT PRINCIPAL COMPLETO
+/* SOCIAL COLETOR - SCRIPT PRINCIPAL COMPLETO
  * OCR.Space API + Controles de Imagem + PWA + Google Sheets
  * Versão 2.0 - Completa
  */
