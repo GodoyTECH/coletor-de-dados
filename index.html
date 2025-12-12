@@ -319,7 +319,7 @@
     h1 { color:#fff; font-size:2.5rem; margin-bottom:10px; text-shadow:0 0 10px rgba(255,255,255,.5); }
     p { color:#06d6a0; font-size:1.2rem; margin-bottom:40px; opacity:.9; }
 
-    .video-container { width:100%; max-width:800px; margin:0 auto 30px; border-radius:15px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+    .video-container { position:relative; width:100%; max-width:800px; margin:0 auto 30px; border-radius:15px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.5); }
     video { width:100%; height:auto; display:block; }
 
     .controls { display:flex; gap:15px; justify-content:center; margin-top:20px; }
@@ -340,7 +340,28 @@
     @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
 
     @media (max-width:768px){
-      h1{font-size:1.8rem} p{font-size:1rem} .logo{width:100px;height:100px} .video-container{max-width:95%} .controls{flex-direction:column;align-items:center} button{width:80%; max-width:300px;}
+      h1{font-size:1.8rem} 
+      p{font-size:1rem} 
+      .logo{width:100px;height:100px} 
+      .video-container{max-width:95%} 
+      .controls{flex-direction:column;align-items:center} 
+      button{width:80%; max-width:300px;}
+    }
+
+    /* Botão discreto para áudio */
+    #audio-btn {
+      position:absolute;
+      top:10px;
+      right:10px;
+      background:rgba(0,0,0,0.4);
+      color:#06d6a0;
+      border:none;
+      padding:8px 12px;
+      border-radius:8px;
+      cursor:pointer;
+      font-size:0.9rem;
+      transition:0.3s;
+      z-index:10;
     }
   </style>
 
@@ -351,60 +372,43 @@
 
     <div class="video-container">
       <video id="video" muted playsinline>
-
         <source src="videob.mp4" type="video/mp4">
         Seu navegador não suporta o vídeo.
       </video>
+      <!-- Botão discreto para ativar áudio -->
+      <button id="audio-btn" title="Ativar som">🔊</button>
     </div>
-<div class="countdown">
+
+    <div class="countdown">
       Entrando automaticamente em: <span class="countdown-number" id="countdown">20</span> segundos
-</div>
-    
+    </div>
 
     <div class="controls">
       <button class="skip" onclick="skipOverlay()">Pular Introdução</button>
       <button class="enter" onclick="enterNow()">Entrar Agora</button>
     </div>
   </div>
-</div><div class="video-container">
-    <video id="video" playsinline>
-        <source src="videob.mp4" type="video/mp4">
-        Seu navegador não suporta o vídeo.
-    </video>
-    <!-- Botão discreto para iniciar áudio -->
-    <button id="audio-btn" title="Ativar som" style="
-        position:absolute;
-        top:10px;
-        right:10px;
-        background:rgba(0,0,0,0.4);
-        color:#06d6a0;
-        border:none;
-        padding:8px 12px;
-        border-radius:8px;
-        cursor:pointer;
-        font-size:0.9rem;
-        transition:0.3s;
-    ">🔊</button>
 </div>
 
-
 <script>
-   const audioBtn = document.getElementById('audio-btn');
-
-audioBtn.addEventListener('click', () => {
-    if(video.paused) video.play().catch(e => console.log(e));
-    video.muted = false; // desativa mute
-    audioBtn.style.display = 'none'; // esconde o botão após clicar
-});
 const overlay = document.getElementById('inauguration-overlay');
 const video = document.getElementById('video');
 const countdownEl = document.getElementById('countdown');
+const audioBtn = document.getElementById('audio-btn');
 
-let countdown = 8;
+// Botão para ativar áudio
+audioBtn.addEventListener('click', () => {
+  video.muted = false;
+  if(video.paused) video.play().catch(e => console.log(e));
+  audioBtn.style.display = 'none';
+});
+
+// Contador regressivo
+let countdown = 20;
 let interval = setInterval(() => {
   countdown--;
   if(countdownEl) countdownEl.textContent = countdown;
-},1000);
+}, 1000);
 
 // Tenta tocar vídeo ao carregar
 video.addEventListener('canplaythrough', () => {
@@ -415,7 +419,7 @@ video.addEventListener('canplaythrough', () => {
 video.addEventListener('ended', closeOverlay);
 
 // Funções de controle
-function closeOverlay(){
+function closeOverlay() {
   overlay.classList.add('hidden');
   setTimeout(() => {
     overlay.classList.add('removed');
@@ -423,11 +427,11 @@ function closeOverlay(){
     document.dispatchEvent(new Event('inauguration-completed'));
     if(video){ video.pause(); video.currentTime = 0; }
     clearInterval(interval);
-  },500);
+  }, 500);
 }
 
-function skipOverlay(){ if(video.paused) video.play().catch(e=>{}); closeOverlay(); }
-function enterNow(){ if(video.paused) video.play().catch(e=>{}); closeOverlay(); }
+function skipOverlay() { if(video.paused) video.play().catch(e=>{}); closeOverlay(); }
+function enterNow() { if(video.paused) video.play().catch(e=>{}); closeOverlay(); }
 
 // Fecha ao pressionar ESC
 document.addEventListener('keydown', e => { if(e.key==='Escape') skipOverlay(); });
@@ -435,6 +439,7 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') skipOverlay(); 
 // Fecha ao clicar fora do conteúdo
 overlay.addEventListener('click', e => { if(e.target===overlay) skipOverlay(); });
 </script>
+
 
     
 </body>
