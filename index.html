@@ -57,7 +57,7 @@
         <section class="capture-section">
             <h2>📷 Capturar Documento</h2>
             <p class="section-description">
-                Tire uma foto ou selecione uma imagem da galeria. O sistema extrairá automaticamente os dados usando OCR.
+                Tire uma foto ou selecione uma imagem da galeria. O sistema extrairá automaticamente os dados usando IA.
             </p>
 
                 
@@ -268,7 +268,8 @@
 
             // Registrar Service Worker
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('service-worker.js')
+                navigator.serviceWorker.register('/service-worker.js?v=3')
+
                     .then(function(registration) {
                         console.log('✅ Service Worker registrado:', registration.scope);
                     })
