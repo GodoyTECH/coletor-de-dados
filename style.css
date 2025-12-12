@@ -74,30 +74,12 @@ body {
     }
 }
 
-/* ============================================
-   LAYOUT PRINCIPAL
-   ============================================ */
-.container {
-    max-width: 1200px;
-    margin: 100px auto 40px auto; /* Espaço para logo no topo */
-    padding: 20px;
-    position: relative;
-    z-index: 1;
-    background: rgba(255, 255, 255, 0.1); /* Container transparente */
-    border-radius: 15px;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
 
-/* ============================================
-   CABEÇALHO FIXO NO TOPO (AJUSTADO PARA LOGO TRANSPARENTE)
-   ============================================ */
 
-   .header {
+/* Logo flutuando no topo */
+.header {
     position: fixed;
-    top: 20px;       /* distância do topo */
+    top: 20px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 1000;
@@ -108,16 +90,11 @@ body {
     align-items: center;
 }
 
-.header-content {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
+.logo-container {
     display: flex;
-    justify-content: center; /* Centralizado */
+    flex-direction: column;
     align-items: center;
 }
-
-
 
 .logo {
     width: 100px;
@@ -135,10 +112,19 @@ body {
     margin-top: 10px;
 }
 
-.header-controls {
-    display: flex;
-    gap: 10px;
-    align-items: center;
+/* Container empurrado para baixo para abrir espaço da logo */
+.container {
+    max-width: 1200px;
+    margin: 180px auto 40px auto; /* ajuste o 180px conforme a altura da logo */
+    padding: 20px;
+    position: relative;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 /* ============================================
