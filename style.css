@@ -76,7 +76,9 @@ body {
 
 
 
-/* Logo flutuando no topo */
+/* ============================================
+   LOGO FLUTUANDO NO TOPO (ALTERADO)
+   ============================================ */
 .header {
     position: fixed;
     top: 20px;
@@ -97,25 +99,28 @@ body {
 }
 
 .logo {
-    width: 100px;
-    height: 80px;
+    width: 160px;        /* AUMENTADO */
+    height: 160px;       /* AUMENTADO */
     border-radius: 20%;
     object-fit: cover;
-    border: 2px solid rgba(255, 255, 255, 0.5);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border: 3px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 .app-title {
-    font-size: 1.8rem;
+    font-size: 2rem;
     font-weight: bold;
     color: white;
-    margin-top: 10px;
+    margin-top: 12px;
 }
 
-/* Container empurrado para baixo para abrir espaço da logo */
+
+/* ============================================
+   CONTAINER – agora empurrado mais para baixo
+   ============================================ */
 .container {
     max-width: 1200px;
-    margin: 180px auto 40px auto; /* ajuste o 180px conforme a altura da logo */
+    margin: 230px auto 40px auto; /* ANTES ERA 180px - agora tem espaço real */
     padding: 20px;
     position: relative;
     z-index: 1;
@@ -127,16 +132,11 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* ============================================
-   CONTEÚDO PRINCIPAL (com espaço para header fixo)
-   ============================================ */
-.main-content {
-    margin-top: 20px; /* Ajustado para logo fixa */
-    padding-bottom: 40px;
-}
 
+
+ 
 /* ============================================
-   CARD PRINCIPAL COM TRANSPARÊNCIA
+   CARD PRINCIPAL – COM TRANSPARÊNCIA
    ============================================ */
 .main-card {
     background: rgba(255, 255, 255, 0.5); /* Transparência mais sutil */
