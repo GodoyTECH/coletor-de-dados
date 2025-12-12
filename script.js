@@ -166,11 +166,7 @@ function setupEventListeners() {
 
     if (elements.btnMelhorarFoto) {
         elements.btnMelhorarFoto.addEventListener('click', () => {
-            if (currentImageData) {
-                // usa modal do send.js
-                showModal('Melhorando...', 'Aplicando melhorias na imagem...', true);
-                enhanceAndUpdateImage(currentImageData);
-            }
+            if (currentImageData) 
         });
     }
 
