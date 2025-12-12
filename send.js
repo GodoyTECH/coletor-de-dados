@@ -1,4 +1,4 @@
-/**
+/*
  * send.js - Social Coletor (Versão Profissional)
  * ==============================================
  * 
