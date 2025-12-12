@@ -1,128 +1,116 @@
-const CACHE_NAME = 'social-coletor-v4';
+const CACHE_NAME = 'social-coletor-v1.0';
 const OFFLINE_URL = '/offline.html';
 
-// URLs para cache
+// Arquivos estáticos para cache (sem index.html!)
 const urlsToCache = [
-  '/',
-  '/index.html',
   '/css/styles.css',
   '/js/script.js',
   '/js/send.js',
   '/manifest.json',
   '/favicon.ico',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-512.png',
+  OFFLINE_URL
 ];
 
 // Instalação do Service Worker
 self.addEventListener('install', event => {
-  console.log('✅ Service Worker instalando...');
+  console.log('📦 Instalando Service Worker...');
+  
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('📦 Cache aberto:', CACHE_NAME);
-        return cache.addAll(urlsToCache);
-      })
-      .then(() => {
-        console.log('🔄 Recursos em cache');
-        return self.skipWaiting();
-      })
+    caches.open(CACHE_NAME).then(cache => {
+      console.log('📁 Cache aberto:', CACHE_NAME);
+      return cache.addAll(urlsToCache);
+    })
   );
+
+  // Atualizar imediatamente
+  self.skipWaiting();
 });
 
 // Ativação do Service Worker
 self.addEventListener('activate', event => {
-  console.log('🔥 Service Worker ativado');
+  console.log('🔥 Ativando Service Worker...');
+
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('🗑️ Removendo cache antigo:', cacheName);
-            return caches.delete(cacheName);
+        cacheNames.map(cache => {
+          if (cache !== CACHE_NAME) {
+            console.log('🗑️ Removendo cache antigo:', cache);
+            return caches.delete(cache);
           }
         })
       );
-    }).then(() => {
-      console.log('✅ Cache atualizado');
-      return self.clients.claim();
     })
   );
+
+  self.clients.claim();
 });
 
 // Interceptar requisições
 self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
-  
-  // SEMPRE permitir POST requests para APIs externas
-  if (event.request.method === 'POST') {
-    console.log('📤 POST request permitido para:', url.origin);
+  const req = event.request;
+
+  // POST → Não intercepta
+  if (req.method === 'POST') {
     return;
   }
-  
-  // Permitir requests para APIs externas (OCR, Google Sheets)
+
+  const url = new URL(req.url);
+
+  // Pedidos externos → sempre rede
   if (url.origin !== self.location.origin) {
-    console.log('🌐 Request externo permitido:', url.href);
-    return fetch(event.request);
+    return event.respondWith(fetch(req));
   }
-  
-  // Estratégia: Cache First, depois Network
+
+  // Navegação (HTML) → NETWORK FIRST
+  if (req.mode === 'navigate') {
+    return event.respondWith(
+      fetch(req)
+        .then(response => response)
+        .catch(() => caches.match(OFFLINE_URL))
+    );
+  }
+
+  // Arquivos estáticos → Cache First
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          console.log('📦 Servindo do cache:', event.request.url);
+    caches.match(req).then(cached => {
+      if (cached) return cached;
+
+      return fetch(req).then(response => {
+        if (!response || response.status !== 200) {
           return response;
         }
-        
-        return fetch(event.request)
-          .then(response => {
-            // Não cachear se não for bem sucedido
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-            
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                cache.put(event.request, responseToCache);
-                console.log('➕ Adicionado ao cache:', event.request.url);
-              });
-            
-            return response;
-          })
-          .catch(error => {
-            console.log('❌ Fetch falhou:', error);
-            // Se offline e tentando acessar página, mostrar offline
-            if (event.request.mode === 'navigate') {
-              return caches.match(OFFLINE_URL);
-            }
-            return new Response('Offline', { 
-              status: 503, 
-              statusText: 'Service Unavailable' 
-            });
-          });
-      })
+
+        const clone = response.clone();
+
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(req, clone);
+        });
+
+        return response;
+      });
+    })
   );
 });
 
-// Mensagens do app principal
+// Receber mensagens do app
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
 
-// Sincronização em background (para dados offline)
+// (Opcional) Sincronização em background
 self.addEventListener('sync', event => {
   if (event.tag === 'sync-offline-data') {
-    console.log('🔄 Sincronizando dados offline...');
     event.waitUntil(syncOfflineData());
   }
 });
 
 async function syncOfflineData() {
-  // Implementação da sincronização
-  console.log('📡 Sincronizando...');
+  console.log('🔄 Sincronizando dados offline...');
   return Promise.resolve();
 }
+
