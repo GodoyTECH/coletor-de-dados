@@ -290,265 +290,122 @@
 <!-- 
     CÓDIGO TEMPORÁRIO PARA INAUGURAÇÃO
     Cole este código NO FINAL do <body> do seu site
-    O overlay desaparece automaticamente após 8 segundos
+    O overlay desaparece automaticamente após o vídeo terminar ou botão clicado
 -->
 
 <div id="inauguration-overlay">
-    <style>
-        /* ESTILOS TEMPORÁRIOS - APENAS PARA O VÍDEO */
-        #inauguration-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #0a0e29 0%, #1a237e 100%);
-            z-index: 999999;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            animation: fadeIn 0.5s ease;
-        }
-        
-        .inauguration-content {
-            max-width: 90%;
-            width: 800px;
-            text-align: center;
-            padding: 20px;
-        }
-        
-        .inauguration-logo {
-            width: 120px;
-            height: 120px;
-            border-radius: 20%;
-            margin-bottom: 30px;
-            border: 3px solid #06d6a0;
-            box-shadow: 0 0 30px rgba(6, 214, 160, 0.5);
-            animation: pulse 2s infinite;
-        }
-        
-        .inauguration-title {
-            color: white;
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-        }
-        
-        .inauguration-subtitle {
-            color: #06d6a0;
-            font-size: 1.2rem;
-            margin-bottom: 40px;
-            opacity: 0.9;
-        }
-        
-        .video-container {
-            width: 100%;
-            max-width: 800px;
-            margin: 0 auto 30px;
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            position: relative;
-        }
-        
-        #inauguration-video {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-        
-        .video-controls {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            margin-top: 20px;
-        }
-        
-        .skip-btn {
-            background: transparent;
-            color: rgba(255, 255, 255, 0.7);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            padding: 12px 30px;
-            border-radius: 50px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 600;
-        }
-        
-        .skip-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-        }
-        
-        .enter-btn {
-            background: linear-gradient(135deg, #06d6a0 0%, #2d6a4f 100%);
-            color: white;
-            border: none;
-            padding: 12px 40px;
-            border-radius: 50px;
-            font-size: 1.1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: bold;
-            box-shadow: 0 5px 15px rgba(6, 214, 160, 0.3);
-        }
-        
-        .enter-btn:hover {
-            transform: translateY(-2px);
-        }
-        
-        .countdown {
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 0.9rem;
-            margin-top: 15px;
-            font-family: monospace;
-        }
-        
-        .countdown-number {
-            color: #06d6a0;
-            font-weight: bold;
-            font-size: 1.2rem;
-        }
-        
-        /* ANIMAÇÕES */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        @keyframes fadeOut {
-            from { opacity: 1; }
-            to { opacity: 0; }
-        }
-        
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-        
-        /* RESPONSIVO */
-        @media (max-width: 768px) {
-            .inauguration-title {
-                font-size: 1.8rem;
-            }
-            
-            .inauguration-subtitle {
-                font-size: 1rem;
-            }
-            
-            .inauguration-logo {
-                width: 100px;
-                height: 100px;
-            }
-            
-            .video-container {
-                max-width: 95%;
-            }
-            
-            .video-controls {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .skip-btn, .enter-btn {
-                width: 80%;
-                max-width: 300px;
-            }
-        }
-        
-        /* ESTADO ESCONDIDO */
-        .inauguration-hidden {
-            animation: fadeOut 0.5s ease forwards;
-            pointer-events: none;
-        }
-        
-        .inauguration-removed {
-            display: none !important;
-        }
-    </style>
-    
-    <div class="inauguration-content">
-        <!-- Logo (substitua pela sua) -->
-        <img src="logo.png" alt="Logo" class="inauguration-logo" onerror="this.style.display='none'">
-        
-        <h1 class="inauguration-title">🎉 Social Coletor 🎉</h1>
-        <p class="inauguration-subtitle">Sistema de Coleta de Dados - ESPECIALMENTE PARA O DUDU</p>
-        
-        <!-- Container do vídeo -->
-        <div class="video-container">
-            <video id="inauguration-video" muted playsinline>
-                <source src="videob.mp4" type="video/mp4">
-                Seu navegador não suporta o vídeo.
-            </video>
-        </div>
-        
-        <!-- Contador regressivo -->
-        <div class="countdown">
-            Entrando automaticamente em: <span class="countdown-number" id="countdown">8</span> segundos
-        </div>
-        
-        <!-- Botões de controle -->
-        <div class="video-controls">
-            <button class="skip-btn" onclick="skipIntro()">Pular Introdução</button>
-            <button class="enter-btn" onclick="enterNow()">Entrar Agora</button>
-        </div>
+  <style>
+    /* Overlay */
+    #inauguration-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(135deg, #0a0e29 0%, #1a237e 100%);
+      z-index: 999999;
+      display: flex; justify-content: center; align-items: center;
+      animation: fadeIn .5s ease;
+    }
+
+    .content {
+      max-width: 90%; width: 800px; text-align: center; padding: 20px;
+    }
+
+    .logo {
+      width: 120px; height: 120px; border-radius: 20%;
+      margin-bottom: 30px; border: 3px solid #06d6a0;
+      box-shadow: 0 0 30px rgba(6,214,160,.5); animation: pulse 2s infinite;
+    }
+
+    h1 { color:#fff; font-size:2.5rem; margin-bottom:10px; text-shadow:0 0 10px rgba(255,255,255,.5); }
+    p { color:#06d6a0; font-size:1.2rem; margin-bottom:40px; opacity:.9; }
+
+    .video-container { width:100%; max-width:800px; margin:0 auto 30px; border-radius:15px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+    video { width:100%; height:auto; display:block; }
+
+    .controls { display:flex; gap:15px; justify-content:center; margin-top:20px; }
+    button { padding:12px 30px; border-radius:50px; font-weight:600; cursor:pointer; transition:.3s; }
+    .skip { background:transparent; color:rgba(255,255,255,.7); border:2px solid rgba(255,255,255,.3); }
+    .skip:hover { background:rgba(255,255,255,.1); color:#fff; }
+    .enter { background:linear-gradient(135deg,#06d6a0 0%,#2d6a4f 100%); color:#fff; border:none; font-weight:bold; }
+    .enter:hover { transform:translateY(-2px); }
+
+    .countdown { color:rgba(255,255,255,.6); font-size:.9rem; margin-top:15px; font-family:monospace; }
+    .countdown-number { color:#06d6a0; font-weight:bold; font-size:1.2rem; }
+
+    .hidden { animation:fadeOut .5s forwards; pointer-events:none; }
+    .removed { display:none !important; }
+
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes fadeOut{from{opacity:1}to{opacity:0}}
+    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+
+    @media (max-width:768px){
+      h1{font-size:1.8rem} p{font-size:1rem} .logo{width:100px;height:100px} .video-container{max-width:95%} .controls{flex-direction:column;align-items:center} button{width:80%; max-width:300px;}
+    }
+  </style>
+
+  <div class="content">
+    <img src="logo.png" class="logo" alt="Logo" onerror="this.style.display='none'">
+    <h1>🎉 Social Coletor 🎉</h1>
+    <p>Sistema de Coleta de Dados - ESPECIALMENTE PARA O DUDU</p>
+
+    <div class="video-container">
+      <video id="video" muted playsinline>
+        <source src="videob.mp4" type="video/mp4">
+        Seu navegador não suporta o vídeo.
+      </video>
     </div>
+
+    <div class="countdown">
+      Entrando automaticamente em: <span class="countdown-number" id="countdown">8</span> segundos
+    </div>
+
+    <div class="controls">
+      <button class="skip" onclick="skipOverlay()">Pular Introdução</button>
+      <button class="enter" onclick="enterNow()">Entrar Agora</button>
+    </div>
+  </div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    let countdown = 8;
-    const countdownElement = document.getElementById('countdown');
-    const overlay = document.getElementById('inauguration-overlay');
-    const video = document.getElementById('inauguration-video');
+const overlay = document.getElementById('inauguration-overlay');
+const video = document.getElementById('video');
+const countdownEl = document.getElementById('countdown');
 
-    // Tentar tocar o vídeo após 500ms para evitar AbortError
-    setTimeout(() => {
-        if(video) {
-            video.play().catch(e => console.log("Autoplay falhou, será reproduzido no clique:", e));
-        }
-    }, 500);
+let countdown = 8;
+let interval = setInterval(() => {
+  countdown--;
+  if(countdownEl) countdownEl.textContent = countdown;
+},1000);
 
-    // Atualiza contador
-    const countdownInterval = setInterval(() => {
-        countdown--;
-        if(countdownElement) countdownElement.textContent = countdown;
-
-        if(countdown <= 0) {
-            clearInterval(countdownInterval);
-            closeInauguration();
-        }
-    }, 1000);
-
-    // Funções de controle
-    window.skipIntro = window.enterNow = function() {
-        clearInterval(countdownInterval);
-        // Se o vídeo ainda não estiver tocando, toca ao entrar
-        if(video && video.paused) video.play().catch(e => {});
-        closeInauguration();
-    };
-
-    function closeInauguration() {
-        if(!overlay) return;
-        overlay.classList.add('inauguration-hidden');
-        setTimeout(() => {
-            overlay.classList.add('inauguration-removed');
-            overlay.remove();
-            document.dispatchEvent(new Event('inauguration-completed'));
-            if(video) { video.pause(); video.currentTime = 0; }
-        }, 500);
-    }
-
-    // Fecha ao pressionar ESC
-    document.addEventListener('keydown', e => { if(e.key === 'Escape') skipIntro(); });
-
-    // Fecha se clicar fora do conteúdo
-    overlay.addEventListener('click', e => { if(e.target === overlay) skipIntro(); });
+// Tenta tocar vídeo ao carregar
+video.addEventListener('canplaythrough', () => {
+  video.play().catch(e => console.log("Autoplay falhou, será reproduzido no clique:", e));
 });
+
+// Fecha overlay quando o vídeo terminar
+video.addEventListener('ended', closeOverlay);
+
+// Funções de controle
+function closeOverlay(){
+  overlay.classList.add('hidden');
+  setTimeout(() => {
+    overlay.classList.add('removed');
+    overlay.remove();
+    document.dispatchEvent(new Event('inauguration-completed'));
+    if(video){ video.pause(); video.currentTime = 0; }
+    clearInterval(interval);
+  },500);
+}
+
+function skipOverlay(){ if(video.paused) video.play().catch(e=>{}); closeOverlay(); }
+function enterNow(){ if(video.paused) video.play().catch(e=>{}); closeOverlay(); }
+
+// Fecha ao pressionar ESC
+document.addEventListener('keydown', e => { if(e.key==='Escape') skipOverlay(); });
+
+// Fecha ao clicar fora do conteúdo
+overlay.addEventListener('click', e => { if(e.target===overlay) skipOverlay(); });
 </script>
 
     
