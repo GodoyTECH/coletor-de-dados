@@ -69,8 +69,8 @@ body {
    LOGO FIXA NO TOPO – NÃO MOVE AO ROLAR
    ============================================ */
 .logo-container {
-    position: relative;
-    top: 100px;
+    position: fixed;
+    top: 20px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 10000;
@@ -81,8 +81,8 @@ body {
 }
 
 .logo {
-    width: 20vw;
-    height: auto;
+    width: 100px;
+    height: 100px;
     border-radius: 20%;
     object-fit: cover;
     border: 3px solid rgba(255, 255, 255, 0.6);
@@ -94,20 +94,23 @@ body {
    HEADER – NÃO FIXO, ROLA NORMAL
    ============================================ */
 .header {
-    margin-top: 200px;  /* espaço por causa da logo fixa */
+    margin-top: 140px;
     text-align: center;
+    padding: 0 20px;
 }
 
 .header h1 {
     font-size: 2rem;
     color: white;
     margin-top: 10px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .header .subtitle {
     font-size: 1.2rem;
     color: white;
     margin-top: -5px;
+    opacity: 0.9;
 }
 
 /* ============================================
@@ -156,6 +159,7 @@ h2 {
     display: flex;
     align-items: center;
     gap: 10px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .section-description {
@@ -173,6 +177,7 @@ h2 {
     gap: 10px;
     margin-bottom: 20px;
     flex-wrap: wrap;
+    justify-content: center;
 }
 
 /* ============================================
@@ -251,7 +256,7 @@ h2 {
     border: 2px solid var(--border-color);
     border-radius: 10px;
     overflow: hidden;
-    background: rgba(255, 255, 255, 0.05); /* Fundo transparente */
+    background: rgba(255, 255, 255, 0.05);
     position: relative;
     touch-action: none;
 }
@@ -374,7 +379,7 @@ h2 {
 }
 
 label {
-    color: white; /* Texto branco para contraste */
+    color: white;
     margin-bottom: 6px;
     font-weight: 600;
     font-size: 0.9rem;
@@ -386,7 +391,7 @@ input, textarea, select {
     border-radius: 8px;
     font-size: 0.95rem;
     transition: var(--transition);
-    background: rgba(255, 255, 255, 0.1); /* transparente */
+    background: rgba(255, 255, 255, 0.1);
     color: white;
     width: 100%;
 }
@@ -427,7 +432,6 @@ textarea {
     text-align: center;
 }
 
-/* Mantendo todos os botões originais */
 .btn-primary {
     background: var(--primary-color);
     color: white;
@@ -625,26 +629,40 @@ textarea {
 }
 
 /* ============================================
-   RESPONSIVIDADE
+   RESPONSIVIDADE CORRIGIDA
    ============================================ */
 @media (max-width: 768px) {
     .container {
         padding: 15px;
+        margin: 20px auto;
+        width: 95%;
+        background: rgba(255, 255, 255, 0.08);
     }
     
-    .header-content {
-        padding: 0 15px;
-        flex-direction: column;
-        gap: 10px;
+    .header {
+        margin-top: 130px;
     }
     
-    .main-content {
-        margin-top: 20px;
+    .logo-container {
+        top: 15px;
+    }
+    
+    .logo {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .header h1 {
+        font-size: 1.6rem;
+    }
+    
+    .header .subtitle {
+        font-size: 1rem;
     }
     
     .main-card {
         padding: 20px;
-        background: rgba(255, 255, 255, 0.15); /* manter transparência suave */
+        background: rgba(255, 255, 255, 0.10);
     }
     
     h1 {
@@ -657,10 +675,12 @@ textarea {
     
     .image-controls {
         flex-direction: column;
+        align-items: center;
     }
     
     .btn {
         width: 100%;
+        margin-bottom: 10px;
     }
     
     .form-actions {
@@ -681,16 +701,20 @@ textarea {
     .install-card {
         max-width: 100%;
     }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 480px) {
-    .main-content {
-        margin-top: 140px;
+    .header {
+        margin-top: 120px;
     }
     
     .logo {
-        width: 60px;
-        height: 60px;
+        width: 70px;
+        height: 70px;
     }
     
     .app-title {
@@ -708,6 +732,12 @@ textarea {
     .zoom-controls {
         flex-wrap: wrap;
         justify-content: center;
+    }
+    
+    .container {
+        padding: 12px;
+        margin: 10px auto;
+        width: 98%;
     }
 }
 
@@ -818,40 +848,116 @@ textarea:valid:not(:placeholder-shown) {
 }
 
 ::-webkit-scrollbar-track {
-    background: #0a0e29; /* fundo da barra */
+    background: #0a0e29;
     border-radius: 12px;
     box-shadow: inset 0 0 5px rgba(0,0,0,0.3);
 }
 
 ::-webkit-scrollbar-thumb {
-    background-color: #06d6a0; /* cor principal neon */
+    background-color: #06d6a0;
     border-radius: 12px;
-    border: 3px solid #0a0e29; 
+    border: 3px solid #0a0e29;
     box-shadow: 0 0 10px rgba(6, 214, 160, 0.6);
-    transition: all 0.3s ease; /* animação suave */
+    transition: all 0.3s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background-color: #2d6a4f; /* cor de destaque */
+    background-color: #2d6a4f;
     box-shadow: 0 0 20px rgba(45, 106, 79, 0.9), 
                 0 0 40px rgba(6, 214, 160, 0.7);
-    transform: scale(1.1); /* aumenta levemente ao passar mouse */
+    transform: scale(1.1);
 }
 
 /* -------- Firefox -------- */
 * {
     scrollbar-width: thin;
-    scrollbar-color: #06d6a0 #0a0e29; /* thumb e track */
+    scrollbar-color: #06d6a0 #0a0e29;
 }
 
-/* -------- Scrollbar em telas pequenas -------- */
+/* ============================================
+   CORREÇÕES FINAIS PARA MOBILE
+   ============================================ */
 @media (max-width: 768px) {
-    ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+    /* Garantir que o fundo gradiente permaneça visível */
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) fixed;
+        background-attachment: fixed;
     }
+    
+    /* Corrigir posicionamento absoluto que pode quebrar layout */
+    .logo-container {
+        position: fixed;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10000;
+    }
+    
+    /* Melhorar visibilidade do texto */
+    .section-description,
+    .form-hint {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 0.9rem;
+    }
+    
+    /* Ajustar botões para touch */
+    .btn {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+    }
+    
+    /* Melhorar espaçamento entre seções */
+    .capture-section,
+    .form-section {
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    /* Ajustar última seção sem borda */
+    .form-section:last-of-type {
+        border-bottom: none;
+    }
+}
 
-    ::-webkit-scrollbar-thumb {
-        border: 2px solid #0a0e29;
+/* ============================================
+   CORREÇÃO PARA TELAS MUITO PEQUENAS
+   ============================================ */
+@media (max-width: 360px) {
+    .header {
+        margin-top: 110px;
+    }
+    
+    .logo {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .header h1 {
+        font-size: 1.3rem;
+    }
+    
+    .header .subtitle {
+        font-size: 0.9rem;
+    }
+    
+    .container {
+        padding: 10px;
+        margin: 5px auto;
+    }
+    
+    .main-card {
+        padding: 15px;
+    }
+    
+    h2 {
+        font-size: 1.2rem;
+    }
+    
+    .image-zoom-wrapper {
+        height: 220px;
     }
 }
