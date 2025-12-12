@@ -2,7 +2,7 @@
   "name": "Social Coletor",
   "short_name": "Coletor",
   "description": "Aplicativo para coleta de dados via OCR de documentos sociais",
-  "start_url": "/",
+  "start_url": "/index.html",
   "display": "standalone",
   "orientation": "portrait",
   "theme_color": "#1a237e",
