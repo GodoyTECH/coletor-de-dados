@@ -1294,7 +1294,7 @@ async function handleFormSubmit(event) {
         const result = await sendToGoogleSheets(formData);
         
         if (result.success) {
-            showStatusMessage(`✅ Dados enviados com sucesso! ID: ${result.recordId || 'N/A'}`, 'success');
+            showStatusMessage(` Dados enviados com sucesso! ID: ${result.recordId || 'N/A'}`, 'success');
             
             // Limpar formulário após sucesso
             setTimeout(() => {
