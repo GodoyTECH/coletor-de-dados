@@ -7,7 +7,7 @@
 // CONFIGURAÇÃO DO APPS SCRIPT
 // ============================================
 
-let APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwBrQZFDBTqNfz4PdsaIwG3i7VdR9tgMKap_U-_a9OQ-4MVluDchrSed1rgtql1SdQozQ/exec';
+let APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwID1I2Wz186kMLtl704gPtTZc0Tka44nNDyrwSNx3xePjpyRPEJd3tHvbLV9f3hbai/exec';
 
 // ============================================
 // VARIÁVEIS GLOBAIS
