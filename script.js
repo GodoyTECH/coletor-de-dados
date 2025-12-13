@@ -1560,7 +1560,7 @@ function openGoogleSheetFixed() {
         return;
     }
 
-    window.open(CONFIG.GOOGLE_SHEETS_URL, '_blank');
+     window.open(CONFIG.GOOGLE_SHEETS_URL, '_blank');
 }
 
 // Ativa o botão após o DOM carregar
