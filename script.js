@@ -1549,3 +1549,24 @@ console.log('📱 Recursos disponíveis:', {
     camera: 'mediaDevices' in navigator,
     fileSystem: 'showOpenFilePicker' in window
 });
+/* =====================================
+   BOTÃO FIXO - ABRIR PLANILHA
+   ===================================== */
+
+function openGoogleSheetFixed() {
+    if (!window.CONFIG || !CONFIG.GOOGLE_SHEETS_URL) {
+        alert('⚠️ URL da planilha não configurada.');
+        return;
+    }
+
+    window.open(CONFIG.GOOGLE_SHEETS_URL, '_blank');
+}
+
+// Ativa o botão após o DOM carregar
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('viewSheetFixed');
+    if (btn) {
+        btn.addEventListener('click', openGoogleSheetFixed);
+    }
+});
+
