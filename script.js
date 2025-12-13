@@ -6,6 +6,10 @@
 // ================================
 // CONFIGURAÇÃO
 // ================================
+const CONFIG = {
+    GOOGLE_SHEETS_URL: 'https://docs.google.com/spreadsheets/d/18OsMuew-5_Mn6qFWLzLR4ce2jAyHFrUZNHD9hePRpK8/edit?gid=1594873236#gid=1594873236'
+};
+
 const OCR_API_KEY = 'K89229373088957'; // Chave gratuita do OCR.Space
 const OCR_API_URL = 'https://api.ocr.space/parse/image';
 const GOOGLE_SCRIPT_URL = ''; // Será configurada dinamicamente
