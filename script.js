@@ -1572,7 +1572,5 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('❌ Não foi possível abrir a planilha.');
         }
     });
-});
 
-});
 
