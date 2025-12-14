@@ -1554,21 +1554,25 @@ console.log('📱 Recursos disponíveis:', {
    BOTÃO FIXO - ABRIR PLANILHA
    ===================================== */
 
-function openGoogleSheetFixed() {
-    if (successData) {
-    const openGoogleSheetFixed = document.createElement('button');
-    viewSheetBtn.innerHTML = `
-      <svg style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;" 
-           fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-
-// Ativa o botão após o DOM carregar
 document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('viewSheetFixed');
-    if (btn) {
-        btn.addEventListener('click', openGoogleSheetFixed);
+    const viewSheetBtn = document.getElementById('viewSheetFixed');
+
+    if (!viewSheetBtn) {
+        console.warn('Botão viewSheetFixed não encontrado no DOM.');
+        return;
     }
+
+    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/18OsMuew-5_Mn6qFWLzLR4ce2jAyHFrUZNHD9hePRpK8/edit?gid=1594873236#gid=1594873236';
+
+    viewSheetBtn.addEventListener('click', () => {
+        try {
+            window.open(SHEET_URL, '_blank', 'noopener');
+        } catch (error) {
+            console.error('Erro ao abrir a planilha:', error);
+            alert('❌ Não foi possível abrir a planilha.');
+        }
+    });
+});
+
 });
 
