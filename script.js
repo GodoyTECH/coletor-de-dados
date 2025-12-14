@@ -1506,7 +1506,7 @@ if (!document.querySelector('#status-styles')) {
     `;
     document.head.appendChild(style);
 }
-
+});
 // ================================
 // EXPORT PARA DEBUG E TESTES
 // ================================
@@ -1573,4 +1573,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-
+});
