@@ -1177,13 +1177,13 @@ function showImagePreview(dataURL) {
 }
 
 // ================================
-// VALIDAÇÃO
+// VALIDAÇÃO DO FORMULÁRIO - MELHORADA
 // ================================
 function validateForm() {
     let valid = true;
     
     Object.entries(formFields).forEach(([key, field]) => {
-        if (!field || key === 'assinatura' || key === 'observacoes') return;
+        if (!field || key === 'assinatura' || key === 'observacoes' || key === 'numeroDocumento') return;
         
         const value = field.value.trim();
         if (!value) {
@@ -1194,20 +1194,62 @@ function validateForm() {
         
         // Validações específicas
         if (key === 'cpf') {
-            const cpfValid = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(value);
+            // Aceita CPF com ou sem formatação
+            const cpfNumbers = value.replace(/\D/g, '');
+            const cpfValid = cpfNumbers.length === 11;
             field.style.borderColor = cpfValid ? '#4caf50' : '#f44336';
             if (!cpfValid) valid = false;
+            
+            // Formatar automaticamente se válido
+            if (cpfValid && !value.includes('.') && !value.includes('-')) {
+                field.value = formatCPF(value);
+            }
         }
         
         if (key === 'quantidade') {
-            const qtd = parseFloat(value.replace(',', '.'));
-            const qtdValid = !isNaN(qtd) && qtd > 0;
+            // Aceita qualquer número real ou inteiro (2 = 2,00, 2.5 = 2,50, etc)
+            const qtdValue = value.replace(',', '.');
+            const qtd = parseFloat(qtdValue);
+            const qtdValid = !isNaN(qtd) && qtd > 0 && qtdValue.match(/^\d+(\.\d+)?$/);
             field.style.borderColor = qtdValid ? '#4caf50' : '#f44336';
             if (!qtdValid) valid = false;
+            
+            // Formatador automático para exibição
+            if (qtdValid) {
+                // Se o usuário digitar "2", mostra "2,00"
+                if (value.match(/^\d+$/)) {
+                    field.value = qtd.toFixed(2).replace('.', ',');
+                }
+                // Se o usuário digitar "2.5", mostra "2,50"
+                else if (value.match(/^\d+\.\d?$/)) {
+                    const parts = qtdValue.split('.');
+                    if (parts[1].length === 1) {
+                        field.value = qtd.toFixed(2).replace('.', ',');
+                    }
+                }
+            }
         }
         
         if (key === 'data') {
-            field.style.borderColor = value.length === 10 ? '#4caf50' : '#f44336';
+            // Valida formato de data (YYYY-MM-DD ou DD/MM/YYYY)
+            const dateValid = validateDate(value);
+            field.style.borderColor = dateValid ? '#4caf50' : '#f44336';
+            if (!dateValid) valid = false;
+            
+            // Converte para formato YYYY-MM-DD se necessário
+            if (dateValid && value.includes('/')) {
+                const parts = value.split('/');
+                if (parts.length === 3) {
+                    field.value = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                }
+            }
+        }
+        
+        // Validação genérica para campos de texto (nome, produto, etc)
+        if (['beneficiario', 'atendente', 'produto', 'endereco'].includes(key)) {
+            const textValid = value.length >= 3;
+            field.style.borderColor = textValid ? '#4caf50' : '#f44336';
+            if (!textValid) valid = false;
         }
     });
     
@@ -1217,6 +1259,23 @@ function validateForm() {
     }
     
     return valid;
+}
+
+// Função auxiliar para validação de data
+function validateDate(dateStr) {
+    // Aceita YYYY-MM-DD ou DD/MM/YYYY
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const date = new Date(dateStr);
+        return !isNaN(date.getTime());
+    }
+    
+    if (dateStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+        const parts = dateStr.split('/');
+        const date = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        return !isNaN(date.getTime());
+    }
+    
+    return false;
 }
 
 function clearForm() {
@@ -1505,7 +1564,8 @@ if (!document.querySelector('#status-styles')) {
         }
     `;
     document.head.appendChild(style);
-});
+}
+
 // ================================
 // EXPORT PARA DEBUG E TESTES
 // ================================
@@ -1549,6 +1609,7 @@ console.log('📱 Recursos disponíveis:', {
     camera: 'mediaDevices' in navigator,
     fileSystem: 'showOpenFilePicker' in window
 });
+
 /* =====================================
    BOTÃO FIXO - ABRIR PLANILHA
    ===================================== */
@@ -1571,5 +1632,4 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('❌ Não foi possível abrir a planilha.');
         }
     });
-
 });
