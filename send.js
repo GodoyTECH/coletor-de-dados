@@ -14,7 +14,7 @@
 
 const CONFIG = {
   // URL do seu Apps Script (ALTERE AQUI!)
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxDVVzZheEEEfwzjJGaBfZjUxoZzXrstoFOHu6wi8qt697bbElCdzUQrvVNTJVAd99D3Q/exec",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbw7rD3e1_8HKQ7zd23ggLZeQpK7cER6m8ruLEjZ3Z6L4GEhWZrf63mq8__WDxSYDrZt/exec",
   
   // URL DA SUA PLANILHA GOOGLE (JÁ COM SEU LINK)
   GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/18OsMuew-5_Mn6qFWLzLR4ce2jAyHFrUZNHD9hePRpK8/edit?gid=1594873236#gid=1594873236",
