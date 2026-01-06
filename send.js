@@ -13,25 +13,32 @@
    ================================ */
 
 const CONFIG = {
-  // URL do seu Apps Script (ALTERE AQUI!)
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbw7rD3e1_8HKQ7zd23ggLZeQpK7cER6m8ruLEjZ3Z6L4GEhWZrf63mq8__WDxSYDrZt/exec",
-  
-  // URL DA SUA PLANILHA GOOGLE (JÁ COM SEU LINK)
-  GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/18OsMuew-5_Mn6qFWLzLR4ce2jAyHFrUZNHD9hePRpK8/edit?gid=1594873236#gid=1594873236",
-  
-  // Nome do banco de dados IndexedDB
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwuy1FrPsi1nlonnGNdYRaLO0fTAXwyQH4_imh0Bd-Qtt9l67sdWEb76y4GO8j3HMYd/exec",
+
+  SYSTEM_URL: "https://script.google.com/macros/s/AKfycbwuy1FrPsi1nlonnGNdYRaLO0fTAXwyQH4_imh0Bd-Qtt9l67sdWEb76y4GO8j3HMYd/exec",
+
+  GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/1zgpcoY7oh2Hm_mQyj5Ev6jyBtxQWYrh0ozad1w8-a2g/edit",
+
   DB_NAME: "SocialColetor_SendDB",
-  
-  // Nome da object store
   STORE_NAME: "envios_pendentes",
-  
-  // Configurações de retry
   MAX_RETRIES: 3,
   RETRY_DELAY: 5000,
-  
-  // Timeout da requisição
   REQUEST_TIMEOUT: 25000,
 };
+let SC_MESSAGE_LOCK = false;
+
+function safeStatusMessage(msg, type = "info") {
+  if (SC_MESSAGE_LOCK) return;
+  SC_MESSAGE_LOCK = true;
+
+  if (window.showStatusMessage) {
+    window.showStatusMessage(msg, type);
+  }
+
+  setTimeout(() => {
+    SC_MESSAGE_LOCK = false;
+  }, 1200);
+}
 
 /* ================================
    BOTÕES DE AÇÃO PÓS-ENVIO
