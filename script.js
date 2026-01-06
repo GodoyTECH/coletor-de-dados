@@ -1183,7 +1183,7 @@ function validateForm() {
     let valid = true;
     
     Object.entries(formFields).forEach(([key, field]) => {
-        if (!field || key === 'assinatura' || key === 'observacoes' || key === 'numeroDocumento') return;
+        if (!field || key === 'assinatura' || key === 'observacoes') return;
         
         const value = field.value.trim();
         if (!value) {
@@ -1205,30 +1205,23 @@ function validateForm() {
                 field.value = formatCPF(value);
             }
         }
-        
-       if (key === 'quantidade') {
-  // Aceita SOMENTE número inteiro positivo (ex: 1, 2, 10...)
-  const raw = String(value).trim();
 
-  // Apenas dígitos (sem vírgula, sem ponto, sem espaço, sem sinal)
-  const isInteger = /^\d+$/.test(raw);
-  const qtd = isInteger ? parseInt(raw, 10) : NaN;
-
-  // Regra: tem que ser inteiro e > 0
-  const qtdValid = isInteger && !isNaN(qtd) && qtd > 0;
-
-  field.style.borderColor = qtdValid ? '#4caf50' : '#f44336';
-  if (!qtdValid) valid = false;
-
-  // Não aplica formatação tipo 2,00. Mantém exatamente como o usuário digitou.
-  // (Opcional) Se quiser evitar "0002", descomente:
-  // if (qtdValid) field.value = String(qtd);
-}
-
-                }
+        if (key === 'quantidade') {
+            // Aceita número inteiro ou decimal positivo (com ponto ou vírgula)
+            const normalized = value.replace(',', '.');
+            const qtd = Number(normalized);
+            const qtdValid = Number.isFinite(qtd) && qtd > 0;
+            
+            field.style.borderColor = qtdValid ? '#4caf50' : '#f44336';
+            if (!qtdValid) {
+                valid = false;
+            } else {
+                // Normaliza para evitar caracteres inválidos mantendo até 2 casas decimais
+                const decimals = normalized.includes('.') ? normalized.split('.')[1].length : 0;
+                field.value = decimals > 0 ? qtd.toFixed(Math.min(decimals, 2)) : String(qtd);
             }
         }
-        
+
         if (key === 'data') {
             // Valida formato de data (YYYY-MM-DD ou DD/MM/YYYY)
             const dateValid = validateDate(value);
@@ -1245,11 +1238,17 @@ function validateForm() {
         }
         
         // Validação genérica para campos de texto (nome, produto, etc)
-        if (['beneficiario', 'atendente', 'produto', 'endereco'].includes(key)) {
-            const textValid = value.length >= 3;
-            field.style.borderColor = textValid ? '#4caf50' : '#f44336';
-            if (!textValid) valid = false;
-        }
+            if (['beneficiario', 'atendente', 'produto', 'endereco'].includes(key)) {
+                const textValid = value.length >= 3;
+                field.style.borderColor = textValid ? '#4caf50' : '#f44336';
+                if (!textValid) valid = false;
+            }
+
+            if (key === 'numeroDocumento') {
+                const docValid = value.length >= 4;
+                field.style.borderColor = docValid ? '#4caf50' : '#f44336';
+                if (!docValid) valid = false;
+            }
     });
     
     if (elements.submitBtn) {
