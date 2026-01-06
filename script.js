@@ -1622,7 +1622,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/18OsMuew-5_Mn6qFWLzLR4ce2jAyHFrUZNHD9hePRpK8/edit?gid=1594873236#gid=1594873236';
+    const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwuy1FrPsi1nlonnGNdYRaLO0fTAXwyQH4_imh0Bd-Qtt9l67sdWEb76y4GO8j3HMYd/exec';
 
     viewSheetBtn.addEventListener('click', () => {
         try {
