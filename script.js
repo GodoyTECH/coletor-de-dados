@@ -1206,26 +1206,25 @@ function validateForm() {
             }
         }
         
-        if (key === 'quantidade') {
-            // Aceita qualquer número real ou inteiro (2 = 2,00, 2.5 = 2,50, etc)
-            const qtdValue = value.replace(',', '.');
-            const qtd = parseFloat(qtdValue);
-            const qtdValid = !isNaN(qtd) && qtd > 0 && qtdValue.match(/^\d+(\.\d+)?$/);
-            field.style.borderColor = qtdValid ? '#4caf50' : '#f44336';
-            if (!qtdValid) valid = false;
-            
-            // Formatador automático para exibição
-            if (qtdValid) {
-                // Se o usuário digitar "2", mostra "2,00"
-                if (value.match(/^\d+$/)) {
-                    field.value = qtd.toFixed(2).replace('.', ',');
-                }
-                // Se o usuário digitar "2.5", mostra "2,50"
-                else if (value.match(/^\d+\.\d?$/)) {
-                    const parts = qtdValue.split('.');
-                    if (parts[1].length === 1) {
-                        field.value = qtd.toFixed(2).replace('.', ',');
-                    }
+       if (key === 'quantidade') {
+  // Aceita SOMENTE número inteiro positivo (ex: 1, 2, 10...)
+  const raw = String(value).trim();
+
+  // Apenas dígitos (sem vírgula, sem ponto, sem espaço, sem sinal)
+  const isInteger = /^\d+$/.test(raw);
+  const qtd = isInteger ? parseInt(raw, 10) : NaN;
+
+  // Regra: tem que ser inteiro e > 0
+  const qtdValid = isInteger && !isNaN(qtd) && qtd > 0;
+
+  field.style.borderColor = qtdValid ? '#4caf50' : '#f44336';
+  if (!qtdValid) valid = false;
+
+  // Não aplica formatação tipo 2,00. Mantém exatamente como o usuário digitou.
+  // (Opcional) Se quiser evitar "0002", descomente:
+  // if (qtdValid) field.value = String(qtd);
+}
+
                 }
             }
         }
