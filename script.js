@@ -10,6 +10,11 @@
 const OCR_API_KEY = 'K89229373088957'; // Chave gratuita do OCR.Space
 const OCR_API_URL = 'https://api.ocr.space/parse/image';
 const GOOGLE_SCRIPT_URL = ''; // Será configurada dinamicamente
+const AUTH_USER = 'Eduardo';
+const AUTH_PASS = 'decore';
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxw-FYkrlqXXmtM_-PgKUYdxMA7oBb9xeRg_cUiw02h7Fopv-QQ4uBLYDS55Xd7m0pY/exec';
+const AUTH_REMEMBER_KEY = 'social_coletor_remember';
+const AUTH_SESSION_KEY = 'social_coletor_session';
 
 // ================================
 // VARIÁVEIS GLOBAIS
@@ -47,6 +52,7 @@ const OFFLINE_STORAGE_KEY = 'social_coletor_offline_data';
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Inicializando Social Coletor...');
     setupElements();
+    setupAuthFlow();
     initializeApp();
     setupPWA();
     loadOfflineData();
@@ -84,6 +90,18 @@ function setupElements() {
         rotateRight: document.getElementById('rotateRight'),
         imageZoomContainer: document.getElementById('imageZoomContainer'),
         imageWrapper: document.getElementById('imageWrapper'),
+
+        // Autenticação
+        loginContainer: document.getElementById('loginContainer'),
+        homeContainer: document.getElementById('homeContainer'),
+        appContainer: document.getElementById('appContainer'),
+        loginForm: document.getElementById('loginForm'),
+        loginUser: document.getElementById('loginUser'),
+        loginPass: document.getElementById('loginPass'),
+        loginRemember: document.getElementById('loginRemember'),
+        loginError: document.getElementById('loginError'),
+        btnGoCollect: document.getElementById('btnGoCollect'),
+        btnGoRecords: document.getElementById('btnGoRecords'),
         
         // PWA Install
         installBtn: document.getElementById('installBtn'),
@@ -117,6 +135,85 @@ function setupElements() {
         numeroDocumento: document.getElementById('numeroDocumento'),
         observacoes: document.getElementById('observacoes')
     };
+}
+
+// ================================
+// AUTENTICAÇÃO LOCAL
+// ================================
+function setupAuthFlow() {
+    const remembered = localStorage.getItem(AUTH_REMEMBER_KEY) === 'true';
+    const hasSession = sessionStorage.getItem(AUTH_SESSION_KEY) === 'true';
+    const isLoggedIn = remembered || hasSession;
+
+    if (elements.loginRemember) {
+        elements.loginRemember.checked = remembered;
+    }
+
+    if (elements.loginForm) {
+        elements.loginForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            handleLogin();
+        });
+    }
+
+    if (elements.btnGoCollect) {
+        elements.btnGoCollect.addEventListener('click', () => {
+            showAppView();
+        });
+    }
+
+    if (elements.btnGoRecords) {
+        elements.btnGoRecords.addEventListener('click', () => {
+            window.open(WEBAPP_URL, '_blank');
+        });
+    }
+
+    if (isLoggedIn) {
+        showHomeView();
+    } else {
+        showLoginView();
+    }
+}
+
+function handleLogin() {
+    const user = elements.loginUser?.value?.trim() || '';
+    const pass = elements.loginPass?.value || '';
+    const isValid = user === AUTH_USER && pass === AUTH_PASS;
+
+    if (!isValid) {
+        if (elements.loginError) {
+            elements.loginError.hidden = false;
+        }
+        return;
+    }
+
+    if (elements.loginError) {
+        elements.loginError.hidden = true;
+    }
+
+    const remember = Boolean(elements.loginRemember?.checked);
+    localStorage.setItem(AUTH_REMEMBER_KEY, String(remember));
+    sessionStorage.setItem(AUTH_SESSION_KEY, 'true');
+
+    showHomeView();
+}
+
+function showLoginView() {
+    if (elements.loginContainer) elements.loginContainer.hidden = false;
+    if (elements.homeContainer) elements.homeContainer.hidden = true;
+    if (elements.appContainer) elements.appContainer.hidden = true;
+}
+
+function showHomeView() {
+    if (elements.loginContainer) elements.loginContainer.hidden = true;
+    if (elements.homeContainer) elements.homeContainer.hidden = false;
+    if (elements.appContainer) elements.appContainer.hidden = true;
+}
+
+function showAppView() {
+    if (elements.loginContainer) elements.loginContainer.hidden = true;
+    if (elements.homeContainer) elements.homeContainer.hidden = true;
+    if (elements.appContainer) elements.appContainer.hidden = false;
 }
 
 function initializeApp() {
@@ -1031,6 +1128,7 @@ function extractAndFillData(text) {
 
     // Extrair quantidade
     const qtdMatch = text.match(patterns.quantidade);
+    if (qtdMatch) data.quantidade = normalizeQuantityInput(qtdMatch[1]);
 
     // Verificar assinatura
     if (patterns.assinatura.test(text)) data.assinatura = 'OK';
@@ -1179,8 +1277,6 @@ function normalizeQuantityInput(value) {
     return integerValue || cleaned;
 }
 
-
-
 function formatCPF(cpf) {
     const numbers = cpf.replace(/\D/g, '');
     if (numbers.length !== 11) return cpf;
@@ -1257,49 +1353,49 @@ function validateForm() {
                 field.value = formatCPF(value);
             }
         }
-if (key === 'quantidade') {
-    // Aceita número inteiro ou decimal positivo (com ponto ou vírgula)
-    const normalized = value.replace(',', '.');
-    const qtd = Number(normalized);
-    const qtdValid = Number.isFinite(qtd) && qtd > 0;
-    
-    field.style.borderColor = qtdValid ? '#4caf50' : '#f44336';
-    if (!qtdValid) {
-        valid = false;
-    } else {
-        // Normaliza para evitar caracteres inválidos mantendo até 2 casas decimais
-        field.value = normalizeQuantityInput(normalized);
-    }
-}
 
-if (key === 'data') {
-    // Valida formato de data (YYYY-MM-DD ou DD/MM/YYYY)
-    const dateValid = validateDate(value);
-    field.style.borderColor = dateValid ? '#4caf50' : '#f44336';
-    if (!dateValid) valid = false;
-    
-    // Converte para formato YYYY-MM-DD se necessário
-    if (dateValid && value.includes('/')) {
-        const parts = value.split('/');
-        if (parts.length === 3) {
-            field.value = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        if (key === 'quantidade') {
+            // Aceita número inteiro ou decimal positivo (com ponto ou vírgula)
+            const normalized = value.replace(',', '.');
+            const qtd = Number(normalized);
+            const qtdValid = Number.isFinite(qtd) && qtd > 0;
+            
+            field.style.borderColor = qtdValid ? '#4caf50' : '#f44336';
+            if (!qtdValid) {
+                valid = false;
+            } else {
+                // Normaliza para evitar caracteres inválidos mantendo até 2 casas decimais
+                field.value = normalizeQuantityInput(normalized);
+            }
         }
-    }
-}
 
-// Validação genérica para campos de texto (nome, produto, etc)
-if (['beneficiario', 'atendente', 'produto', 'endereco'].includes(key)) {
-    const textValid = value.length >= 3;
-    field.style.borderColor = textValid ? '#4caf50' : '#f44336';
-    if (!textValid) valid = false;
-}
+        if (key === 'data') {
+            // Valida formato de data (YYYY-MM-DD ou DD/MM/YYYY)
+            const dateValid = validateDate(value);
+            field.style.borderColor = dateValid ? '#4caf50' : '#f44336';
+            if (!dateValid) valid = false;
+            
+            // Converte para formato YYYY-MM-DD se necessário
+            if (dateValid && value.includes('/')) {
+                const parts = value.split('/');
+                if (parts.length === 3) {
+                    field.value = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                }
+            }
+        }
+        
+        // Validação genérica para campos de texto (nome, produto, etc)
+        if (['beneficiario', 'atendente', 'produto', 'endereco'].includes(key)) {
+            const textValid = value.length >= 3;
+            field.style.borderColor = textValid ? '#4caf50' : '#f44336';
+            if (!textValid) valid = false;
+        }
 
-if (key === 'numeroDocumento') {
-    const docValid = value.length >= 4;
-    field.style.borderColor = docValid ? '#4caf50' : '#f44336';
-    if (!docValid) valid = false;
-}
-
+        if (key === 'numeroDocumento') {
+            const docValid = value.length >= 4;
+            field.style.borderColor = docValid ? '#4caf50' : '#f44336';
+            if (!docValid) valid = false;
+        }
     });
     
     if (elements.submitBtn) {
