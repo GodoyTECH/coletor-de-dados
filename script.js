@@ -1277,6 +1277,7 @@ function normalizeQuantityInput(value) {
     return integerValue || cleaned;
 }
 
+
 function formatCPF(cpf) {
     const numbers = cpf.replace(/\D/g, '');
     if (numbers.length !== 11) return cpf;
