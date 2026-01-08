@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><?= webAppTitle ?></title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --primary: #4f46e5;
+      --secondary: #64748b;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #0f172a;
+      --muted: #94a3b8;
+      --border: #e2e8f0;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      background: var(--card);
+      box-shadow: var(--shadow);
+      padding: 20px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header h1 {
+      font-size: 20px;
+      margin: 0;
+    }
+
+    header span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .container {
+      padding: 24px 32px 40px;
+      display: grid;
+      gap: 24px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tabs button {
+      border: 1px solid var(--border);
+      background: var(--card);
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tabs button.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    .grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .card .value {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-size: 13px;
+    }
+
+    th {
+      color: var(--secondary);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 11px;
+    }
+
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      display: inline-block;
+    }
+
+    .badge.dup { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+    .badge.ok { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+    .badge.del { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .btn.primary { background: var(--primary); color: #fff; }
+    .btn.secondary { background: var(--secondary); color: #fff; }
+    .btn.warning { background: var(--warning); color: #fff; }
+    .btn.danger { background: var(--danger); color: #fff; }
+
+    .hidden { display: none; }
+
+    .status {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #fff7ed;
+      color: #9a3412;
+      border: 1px solid #fed7aa;
+      font-size: 13px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1><?= webAppTitle ?></h1>
+      <span>Painel administrativo · Social Coletor</span>
+    </div>
+    <div class="tabs" id="tabs">
+      <button data-tab="dashboard" class="active">Dashboard</button>
+      <button data-tab="registros">Registros</button>
+      <button data-tab="duplicados">Duplicados</button>
+      <button data-tab="relatorios">Relatórios</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="status" class="status"></div>
+
+    <section id="dashboard" class="tab-content">
+      <div class="grid" id="dashboardCards"></div>
+      <div class="card">
+        <h3>Total por produto</h3>
+        <div id="produtosResumo"></div>
+      </div>
+    </section>
+
+    <section id="registros" class="tab-content hidden">
+      <div class="card">
+        <h3>Registros recentes</h3>
+        <div class="actions" style="margin-bottom:12px;">
+          <button class="btn secondary" onclick="loadRegistros()">Atualizar</button>
+        </div>
+        <div style="overflow:auto; max-height: 520px;">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Beneficiário</th>
+                <th>Produto</th>
+                <th>Status</th>
+                <th>Imagem</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="registrosBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="duplicados" class="tab-content hidden">
+      <div class="card">
+        <h3>Duplicados para analisar</h3>
+        <div class="actions" style="margin-bottom:12px;">
+          <button class="btn secondary" onclick="loadDuplicados()">Atualizar</button>
+        </div>
+        <div style="overflow:auto; max-height: 520px;">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Beneficiário</th>
+                <th>Produto</th>
+                <th>Motivo</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="duplicadosBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="relatorios" class="tab-content hidden">
+      <div class="card">
+        <h3>Relatórios mensais</h3>
+        <div class="actions" style="margin-bottom:12px;">
+          <button class="btn primary" onclick="gerarRelatorio()">Gerar relatório</button>
+          <button class="btn secondary" onclick="loadRelatorios()">Atualizar</button>
+        </div>
+        <div style="overflow:auto; max-height: 520px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Competência</th>
+                <th>Status</th>
+                <th>PDF</th>
+                <th>Resumo</th>
+              </tr>
+            </thead>
+            <tbody id="relatoriosBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const statusBox = document.getElementById('status');
+
+    function setStatus(message) {
+      if (!message) {
+        statusBox.style.display = 'none';
+        statusBox.textContent = '';
+        return;
+      }
+      statusBox.style.display = 'block';
+      statusBox.textContent = message;
+    }
+
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach((section) => {
+        section.classList.toggle('hidden', section.id !== tabId);
+      });
+      document.querySelectorAll('#tabs button').forEach((button) => {
+        button.classList.toggle('active', button.dataset.tab === tabId);
+      });
+    }
+
+    document.getElementById('tabs').addEventListener('click', (event) => {
+      const button = event.target.closest('button');
+      if (!button) return;
+      showTab(button.dataset.tab);
+    });
+
+    function loadDashboard() {
+      google.script.run.withSuccessHandler((data) => {
+        const cards = [
+          { label: 'Registros', value: data.total },
+          { label: 'Duplicados', value: data.duplicados },
+          { label: 'Ativos', value: data.ativos }
+        ];
+        const container = document.getElementById('dashboardCards');
+        container.innerHTML = cards.map(card => `
+          <div class="card">
+            <h3>${card.label}</h3>
+            <div class="value">${card.value}</div>
+          </div>
+        `).join('');
+
+        const produtosDiv = document.getElementById('produtosResumo');
+        produtosDiv.innerHTML = Object.entries(data.porProduto || {}).map(([produto, total]) => `
+          <p><strong>${produto}</strong>: ${total}</p>
+        `).join('') || '<p>Nenhum dado disponível.</p>';
+      }).getDashboardData();
+    }
+
+    function loadRegistros() {
+      setStatus('Carregando registros...');
+      google.script.run.withSuccessHandler((registros) => {
+        const body = document.getElementById('registrosBody');
+        body.innerHTML = registros.map((registro) => {
+          const statusBadge = registro.DELETADO ? '<span class="badge del">Excluído</span>' : '<span class="badge ok">' + (registro.STATUS || 'OK') + '</span>';
+          const imgLink = registro.IMG_URL ? `<a href="${registro.IMG_URL}" target="_blank">Abrir</a>` : '-';
+          return `
+            <tr>
+              <td>${registro.ID}</td>
+              <td>${registro.BENEFICIARIO || '-'}</td>
+              <td>${registro.PRODUTO || '-'}</td>
+              <td>${statusBadge}</td>
+              <td>${imgLink}</td>
+              <td>
+                <div class="actions">
+                  <button class="btn warning" onclick="marcarExcluido('${registro.ID}')">Excluir</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+        setStatus('');
+      }).getRegistros();
+    }
+
+    function loadDuplicados() {
+      setStatus('Carregando duplicados...');
+      google.script.run.withSuccessHandler((duplicados) => {
+        const body = document.getElementById('duplicadosBody');
+        body.innerHTML = duplicados.map((registro) => `
+          <tr>
+            <td>${registro.ID}</td>
+            <td>${registro.BENEFICIARIO || '-'}</td>
+            <td>${registro.PRODUTO || '-'}</td>
+            <td>${registro.DUP_REASON || '-'}</td>
+            <td>
+              <div class="actions">
+                <button class="btn primary" onclick="resolverDuplicado('${registro.ID}', 'validar')">Validar</button>
+                <button class="btn warning" onclick="resolverDuplicado('${registro.ID}', 'manter')">Manter</button>
+                <button class="btn danger" onclick="resolverDuplicado('${registro.ID}', 'excluir')">Excluir</button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+        setStatus('');
+      }).getDuplicados();
+    }
+
+    function loadRelatorios() {
+      setStatus('Carregando relatórios...');
+      google.script.run.withSuccessHandler((relatorios) => {
+        const body = document.getElementById('relatoriosBody');
+        body.innerHTML = relatorios.map((relatorio) => `
+          <tr>
+            <td>${relatorio.COMPETENCIA}</td>
+            <td>${relatorio.STATUS}</td>
+            <td>${relatorio.URL_PDF ? `<a href="${relatorio.URL_PDF}" target="_blank">PDF</a>` : '-'}</td>
+            <td>${relatorio.RESUMO || '-'}</td>
+          </tr>
+        `).join('');
+        setStatus('');
+      }).getRelatorios();
+    }
+
+    function marcarExcluido(id) {
+      setStatus('Atualizando...');
+      google.script.run.withSuccessHandler((result) => {
+        setStatus(result.success ? 'Registro atualizado.' : 'Erro ao atualizar.');
+        loadRegistros();
+      }).softDeleteRegistro(id);
+    }
+
+    function resolverDuplicado(id, action) {
+      setStatus('Atualizando duplicado...');
+      google.script.run.withSuccessHandler((result) => {
+        setStatus(result.success ? 'Duplicado atualizado.' : 'Erro ao atualizar.');
+        loadDuplicados();
+        loadDashboard();
+      }).resolveDuplicado({ id, action });
+    }
+
+    function gerarRelatorio() {
+      setStatus('Gerando relatório...');
+      google.script.run.withSuccessHandler((result) => {
+        setStatus(result.success ? 'Relatório gerado.' : 'Erro ao gerar relatório.');
+        loadRelatorios();
+      }).gerarRelatorioMensal({});
+    }
+
+    loadDashboard();
+    loadRegistros();
+    loadDuplicados();
+    loadRelatorios();
+  </script>
+</body>
+</html>
