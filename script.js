@@ -1031,7 +1031,6 @@ function extractAndFillData(text) {
 
     // Extrair quantidade
     const qtdMatch = text.match(patterns.quantidade);
-    if (qtdMatch) data.quantidade = normalizeQuantityInput(qtdMatch[1]);
 
     // Verificar assinatura
     if (patterns.assinatura.test(text)) data.assinatura = 'OK';
@@ -1180,6 +1179,8 @@ function normalizeQuantityInput(value) {
     return integerValue || cleaned;
 }
 
+}
+
 function formatCPF(cpf) {
     const numbers = cpf.replace(/\D/g, '');
     if (numbers.length !== 11) return cpf;
@@ -1256,49 +1257,49 @@ function validateForm() {
                 field.value = formatCPF(value);
             }
         }
+if (key === 'quantidade') {
+    // Aceita número inteiro ou decimal positivo (com ponto ou vírgula)
+    const normalized = value.replace(',', '.');
+    const qtd = Number(normalized);
+    const qtdValid = Number.isFinite(qtd) && qtd > 0;
+    
+    field.style.borderColor = qtdValid ? '#4caf50' : '#f44336';
+    if (!qtdValid) {
+        valid = false;
+    } else {
+        // Normaliza para evitar caracteres inválidos mantendo até 2 casas decimais
+        field.value = normalizeQuantityInput(normalized);
+    }
+}
 
-        if (key === 'quantidade') {
-            // Aceita número inteiro ou decimal positivo (com ponto ou vírgula)
-            const normalized = value.replace(',', '.');
-            const qtd = Number(normalized);
-            const qtdValid = Number.isFinite(qtd) && qtd > 0;
-            
-            field.style.borderColor = qtdValid ? '#4caf50' : '#f44336';
-            if (!qtdValid) {
-                valid = false;
-            } else {
-                // Normaliza para evitar caracteres inválidos mantendo até 2 casas decimais
-                field.value = normalizeQuantityInput(normalized);
-            }
+if (key === 'data') {
+    // Valida formato de data (YYYY-MM-DD ou DD/MM/YYYY)
+    const dateValid = validateDate(value);
+    field.style.borderColor = dateValid ? '#4caf50' : '#f44336';
+    if (!dateValid) valid = false;
+    
+    // Converte para formato YYYY-MM-DD se necessário
+    if (dateValid && value.includes('/')) {
+        const parts = value.split('/');
+        if (parts.length === 3) {
+            field.value = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
         }
+    }
+}
 
-        if (key === 'data') {
-            // Valida formato de data (YYYY-MM-DD ou DD/MM/YYYY)
-            const dateValid = validateDate(value);
-            field.style.borderColor = dateValid ? '#4caf50' : '#f44336';
-            if (!dateValid) valid = false;
-            
-            // Converte para formato YYYY-MM-DD se necessário
-            if (dateValid && value.includes('/')) {
-                const parts = value.split('/');
-                if (parts.length === 3) {
-                    field.value = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                }
-            }
-        }
-        
-        // Validação genérica para campos de texto (nome, produto, etc)
-        if (['beneficiario', 'atendente', 'produto', 'endereco'].includes(key)) {
-            const textValid = value.length >= 3;
-            field.style.borderColor = textValid ? '#4caf50' : '#f44336';
-            if (!textValid) valid = false;
-        }
+// Validação genérica para campos de texto (nome, produto, etc)
+if (['beneficiario', 'atendente', 'produto', 'endereco'].includes(key)) {
+    const textValid = value.length >= 3;
+    field.style.borderColor = textValid ? '#4caf50' : '#f44336';
+    if (!textValid) valid = false;
+}
 
-        if (key === 'numeroDocumento') {
-            const docValid = value.length >= 4;
-            field.style.borderColor = docValid ? '#4caf50' : '#f44336';
-            if (!docValid) valid = false;
-        }
+if (key === 'numeroDocumento') {
+    const docValid = value.length >= 4;
+    field.style.borderColor = docValid ? '#4caf50' : '#f44336';
+    if (!docValid) valid = false;
+}
+
     });
     
     if (elements.submitBtn) {
