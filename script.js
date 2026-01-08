@@ -1080,12 +1080,14 @@ function extractAndFillData(text) {
                 if (nextMatch) data.quantidade = formatQuantityForDisplay(nextMatch[1]);
             }
         }
+codex/revise-codigo-e-elimine-erros-cpw9vb
 
         // Quantidade na mesma linha de "produto" (ex: "... Produto ... 2,00")
         if (!data.quantidade && /produto|item|descrição/.test(lowerLine)) {
             const match = line.match(quantidadeSolta);
             if (match) data.quantidade = formatQuantityForDisplay(match[1]);
         }
+       main
         
         // Endereço
         if (!data.endereco && /rua|av\.|avenida|travessa|alameda|endereço/.test(lowerLine)) {
@@ -1257,19 +1259,21 @@ function validateForm() {
                 field.value = formatCPF(value);
             }
         }
+if (key === 'quantidade') {
+    // Aceita número inteiro ou decimal positivo (com ponto ou vírgula)
+    const normalized = value.replace(',', '.');
+    const qtd = Number(normalized);
+    const qtdValid = Number.isFinite(qtd) && qtd > 0;
+    
+    field.style.borderColor = qtdValid ? '#4caf50' : '#f44336';
+    if (!qtdValid) {
+        valid = false;
+    } else {
+        // Normaliza para evitar caracteres inválidos mantendo até 2 casas decimais
+        field.value = formatQuantityForDisplay(normalized);
+    }
+}
 
-        if (key === 'quantidade') {
-            // Aceita número inteiro ou decimal positivo (com ponto ou vírgula)
-            const normalized = value.replace(',', '.');
-            const qtd = Number(normalized);
-            const qtdValid = Number.isFinite(qtd) && qtd > 0;
-            
-            field.style.borderColor = qtdValid ? '#4caf50' : '#f44336';
-            if (!qtdValid) {
-                valid = false;
-            } else {
-                // Normaliza para evitar caracteres inválidos mantendo até 2 casas decimais
-                field.value = formatQuantityForDisplay(normalized);
             }
         }
 
