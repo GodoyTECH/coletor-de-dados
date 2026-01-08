@@ -1262,7 +1262,9 @@ function validateForm() {
                 valid = false;
             } else {
                 // Normaliza para evitar caracteres inválidos mantendo até 2 casas decimais
-                field.value = formatQuantityForDisplay(normalized);
+
+                field.value = decimals > 0 ? qtd.toFixed(Math.min(decimals, 2)) : String(qtd);
+
             }
         }
 
