@@ -1,7 +1,7 @@
 // service-worker.js - Social Coletor PWA
 // ======================================
 
-const APP_VERSION = '2.2.0';
+const APP_VERSION = '2.3.0';
 const CACHE_NAME = `social-coletor-${APP_VERSION}`;
 
 // Arquivos para cache (App Shell)
@@ -68,48 +68,28 @@ self.addEventListener('activate', (event) => {
 // ================================
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  
+
   // Ignorar requisições que não são GET
   if (event.request.method !== 'GET') {
     return;
   }
-  
+
   // Ignorar APIs externas
   if (url.href.includes('ocr.space') || url.href.includes('google.com')) {
     return fetch(event.request);
   }
-  
-  // Para arquivos locais, usar estratégia Cache First com Network Fallback
-  event.respondWith(
-    caches.match(event.request)
-      .then((cachedResponse) => {
-        // Se tem no cache, retornar
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        
-        // Se não tem, buscar na rede
-        return fetch(event.request)
-          .then((networkResponse) => {
-            // Se a resposta é válida, cachear
-            if (networkResponse && networkResponse.status === 200) {
-              const responseToCache = networkResponse.clone();
-              caches.open(CACHE_NAME)
-                .then((cache) => {
-                  cache.put(event.request, responseToCache);
-                });
-            }
-            return networkResponse;
-          })
-          .catch(() => {
-            // Se offline e não tem no cache, retornar fallback para navegação
-            if (event.request.mode === 'navigate') {
-              return caches.match('/index.html');
-            }
-            return new Response('Recurso não disponível offline');
-          });
-      })
-  );
+
+  const isNavigation = event.request.mode === 'navigate';
+  const isSameOrigin = url.origin === self.location.origin;
+  const isAppShell = isSameOrigin && APP_SHELL.includes(url.pathname);
+  const isCriticalAsset = ['style', 'script', 'document'].includes(event.request.destination);
+
+  if (isNavigation || isAppShell || isCriticalAsset) {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+
+  event.respondWith(cacheFirst(event.request));
 });
 
 // ================================
@@ -166,6 +146,46 @@ async function clearAllCaches() {
   const cacheNames = await caches.keys();
   await Promise.all(cacheNames.map(name => caches.delete(name)));
   console.log('🧹 Todos os caches foram limpos');
+}
+
+async function networkFirst(request) {
+  try {
+    const freshRequest = new Request(request, { cache: 'reload' });
+    const response = await fetch(freshRequest);
+
+    if (response && response.status === 200) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, response.clone());
+    }
+
+    return response;
+  } catch (error) {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    if (request.mode === 'navigate') {
+      return caches.match('/index.html');
+    }
+    return new Response('Recurso não disponível offline');
+  }
+}
+
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(request);
+    if (response && response.status === 200) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    if (request.mode === 'navigate') {
+      return caches.match('/index.html');
+    }
+    return new Response('Recurso não disponível offline');
+  }
 }
 
 // Verificar atualizações periodicamente (a cada 30 minutos)

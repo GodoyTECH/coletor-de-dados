@@ -1277,7 +1277,6 @@ function normalizeQuantityInput(value) {
     return integerValue || cleaned;
 }
 
-
 function formatCPF(cpf) {
     const numbers = cpf.replace(/\D/g, '');
     if (numbers.length !== 11) return cpf;
@@ -1518,6 +1517,14 @@ async function handleFormSubmit(event) {
 // PWA - INSTALAÇÃO BÁSICA
 // ================================
 function setupPWA() {
+    // Recarregar automaticamente quando uma nova versão do Service Worker assumir controle
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('🔄 Atualização aplicada. Recarregando...');
+            window.location.reload();
+        });
+    }
+
     // Evento para instalação PWA
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
