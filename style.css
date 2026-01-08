@@ -36,6 +36,113 @@ body {
     position: relative;
 }
 
+.auth-screen,
+.home-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+}
+
+.auth-card,
+.home-card {
+    width: min(520px, 92vw);
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 20px;
+    padding: 32px;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15);
+    backdrop-filter: blur(8px);
+}
+
+.auth-card h1 {
+    margin: 18px 0 8px;
+    font-size: 24px;
+    color: #111827;
+    text-align: center;
+}
+
+.auth-subtitle {
+    text-align: center;
+    color: #4b5563;
+    margin-bottom: 24px;
+}
+
+.auth-logo {
+    display: flex;
+    justify-content: center;
+}
+
+.auth-logo img,
+.home-header img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.auth-form label {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.auth-form input {
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    font-size: 15px;
+}
+
+.auth-remember {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #374151;
+}
+
+.auth-error {
+    color: #dc2626;
+    font-weight: 600;
+    text-align: center;
+}
+
+.home-card {
+    width: min(720px, 92vw);
+}
+
+.home-header {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.home-header h2 {
+    margin: 0;
+    color: #111827;
+}
+
+.home-header p {
+    margin: 4px 0 0;
+    color: #6b7280;
+}
+
+.home-actions {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.home-actions .btn {
+    flex: 1 1 200px;
+}
+
 /* ============================================
    EMOJIS FLUTUANTES
    ============================================ */

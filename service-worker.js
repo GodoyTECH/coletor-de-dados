@@ -8,13 +8,11 @@ const CACHE_NAME = `social-coletor-${APP_VERSION}`;
 const APP_SHELL = [
   '/',
   '/index.html',
-  '/styles.css',
-  '/app.js',
+  '/style.css',
   '/send.js',
-  '/script.js,
+  '/script.js',
   '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png'
+  '/logo.png'
 ];
 
 // ================================
