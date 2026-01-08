@@ -938,6 +938,7 @@ async function processOCR(imageDataURL) {
         formData.append('isOverlayRequired', 'false');
         formData.append('detectOrientation', 'true');
         formData.append('scale', 'true');
+        formData.append('isTable', 'true');
         formData.append('OCREngine', '2'); // Engine 2 é mais precisa
 
         setProgress(70, 'Enviando para OCR...');
@@ -1001,6 +1002,7 @@ function extractAndFillData(text) {
         data: '',
         assinatura: '',
         numeroDocumento: '',
+        fornecedor: '',
         observacoes: ''
     };
 
@@ -1009,7 +1011,8 @@ function extractAndFillData(text) {
         cpf: /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b|\b\d{11}\b/,
         numeroDocumento: /\b\d{6,7}\/\d{4}\b/,
         data: /\b(0[1-9]|[12][0-9]|3[01])[\/\-](0[1-9]|1[0-2])[\/\-]\d{4}\b/,
-        quantidade: /\b(\d+(?:[.,]\d+)?)(?=\s*(?:un|kg|g|ml|l|cx|unidades?))/i,
+        quantidade: /\b(\d+(?:[.,]\d{1,2})?)(?=\s*(?:un|kg|g|ml|l|cx|unidades?))/i,
+        quantidadeRotulo: /\b(?:quantidade|qtd|qtde)\b[^\d]*(\d+(?:[.,]\d{1,2})?)/i,
         assinatura: /(assinado|assinatura|_+|\sX\s)/i
     };
 
@@ -1027,7 +1030,7 @@ function extractAndFillData(text) {
 
     // Extrair quantidade
     const qtdMatch = text.match(patterns.quantidade);
-    if (qtdMatch) data.quantidade = qtdMatch[1].replace(',', '.');
+    if (qtdMatch) data.quantidade = formatQuantityForDisplay(qtdMatch[1]);
 
     // Verificar assinatura
     if (patterns.assinatura.test(text)) data.assinatura = 'OK';
@@ -1064,6 +1067,18 @@ function extractAndFillData(text) {
                 data.produto = nextLine;
             }
         }
+
+        // Quantidade (campo dedicado, ex: "Quantidade 2,00")
+        if (!data.quantidade && /quantidade|qtd|qtde/.test(lowerLine)) {
+            const match = line.match(patterns.quantidadeRotulo);
+            if (match) {
+                data.quantidade = formatQuantityForDisplay(match[1]);
+            } else {
+                const nextLine = lines[index + 1];
+                const nextMatch = nextLine?.match(/(\d+(?:[.,]\d{1,2})?)/);
+                if (nextMatch) data.quantidade = formatQuantityForDisplay(nextMatch[1]);
+            }
+        }
         
         // Endereço
         if (!data.endereco && /rua|av\.|avenida|travessa|alameda|endereço/.test(lowerLine)) {
@@ -1076,6 +1091,19 @@ function extractAndFillData(text) {
                 }
             }
             data.endereco = address;
+        }
+
+        // Fornecedor
+        if (!data.fornecedor && /fornecedor/.test(lowerLine)) {
+            const match = line.match(/fornecedor\s*:\s*(.+)/i);
+            if (match) {
+                data.fornecedor = match[1];
+            } else {
+                const nextLine = lines[index + 1];
+                if (nextLine && nextLine.length > 2) {
+                    data.fornecedor = nextLine;
+                }
+            }
         }
     });
 
@@ -1092,6 +1120,13 @@ function extractAndFillData(text) {
         data.observacoes = textoParaObservacoes.join('; ');
     }
 
+    if (data.fornecedor) {
+        const fornecedorInfo = `Fornecedor: ${data.fornecedor}`;
+        data.observacoes = data.observacoes
+            ? `${fornecedorInfo}; ${data.observacoes}`
+            : fornecedorInfo;
+    }
+
     // Preencher formulário
     fillFormWithData(data);
 }
@@ -1103,6 +1138,7 @@ function isClassifiedLine(line, data) {
         data.atendente && lineLower.includes(data.atendente.toLowerCase()) ||
         data.produto && lineLower.includes(data.produto.toLowerCase()) ||
         data.endereco && lineLower.includes(data.endereco.toLowerCase()) ||
+        data.fornecedor && lineLower.includes(data.fornecedor.toLowerCase()) ||
         /cpf|documento|assinatura|data|quantidade|valor/i.test(lineLower)
     );
 }
@@ -1129,6 +1165,15 @@ function fillFormWithData(data) {
 // ================================
 // UTILITÁRIOS
 // ================================
+function formatQuantityForDisplay(value) {
+    const normalized = String(value).replace(/\s/g, '').replace(',', '.');
+    const numberValue = Number(normalized);
+    if (!Number.isFinite(numberValue)) return value;
+    const decimals = normalized.includes('.') ? normalized.split('.')[1].length : 0;
+    if (decimals === 0) return String(numberValue);
+    return numberValue.toFixed(Math.min(decimals, 2)).replace('.', ',');
+}
+
 function formatCPF(cpf) {
     const numbers = cpf.replace(/\D/g, '');
     if (numbers.length !== 11) return cpf;
@@ -1217,8 +1262,9 @@ function validateForm() {
                 valid = false;
             } else {
                 // Normaliza para evitar caracteres inválidos mantendo até 2 casas decimais
-                const decimals = normalized.includes('.') ? normalized.split('.')[1].length : 0;
+
                 field.value = decimals > 0 ? qtd.toFixed(Math.min(decimals, 2)) : String(qtd);
+
             }
         }
 
