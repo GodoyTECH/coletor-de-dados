@@ -1031,7 +1031,6 @@ function extractAndFillData(text) {
 
     // Extrair quantidade
     const qtdMatch = text.match(patterns.quantidade);
-    if (qtdMatch) data.quantidade = formatQuantityForDisplay(qtdMatch[1]);
 
     // Verificar assinatura
     if (patterns.assinatura.test(text)) data.assinatura = 'OK';
@@ -1073,21 +1072,19 @@ function extractAndFillData(text) {
         if (!data.quantidade && /quantidade|qtd|qtde/.test(lowerLine)) {
             const match = line.match(patterns.quantidadeRotulo);
             if (match) {
-                data.quantidade = formatQuantityForDisplay(match[1]);
+                data.quantidade = normalizeQuantityInput(match[1]);
             } else {
                 const nextLine = lines[index + 1];
                 const nextMatch = nextLine?.match(/(\d+(?:[.,]\d{1,2})?)/);
-                if (nextMatch) data.quantidade = formatQuantityForDisplay(nextMatch[1]);
+                if (nextMatch) data.quantidade = normalizeQuantityInput(nextMatch[1]);
             }
         }
-
 
         // Quantidade na mesma linha de "produto" (ex: "... Produto ... 2,00")
         if (!data.quantidade && /produto|item|descrição/.test(lowerLine)) {
             const match = line.match(quantidadeSolta);
-            if (match) data.quantidade = formatQuantityForDisplay(match[1]);
+            if (match) data.quantidade = normalizeQuantityInput(match[1]);
         }
-
         
         // Endereço
         if (!data.endereco && /rua|av\.|avenida|travessa|alameda|endereço/.test(lowerLine)) {
@@ -1174,13 +1171,14 @@ function fillFormWithData(data) {
 // ================================
 // UTILITÁRIOS
 // ================================
-function formatQuantityForDisplay(value) {
-    const normalized = String(value).replace(/\s/g, '').replace(',', '.');
-    const numberValue = Number(normalized);
-    if (!Number.isFinite(numberValue)) return value;
-    const decimals = normalized.includes('.') ? normalized.split('.')[1].length : 0;
-    if (decimals === 0) return String(numberValue);
-    return numberValue.toFixed(Math.min(decimals, 2)).replace('.', ',');
+function normalizeQuantityInput(value) {
+    const cleaned = String(value).trim();
+    if (!cleaned) return '';
+    const numberPart = cleaned.split(/[.,]/)[0];
+    const integerValue = numberPart.replace(/\D/g, '');
+    return integerValue || cleaned;
+}
+
 }
 
 function formatCPF(cpf) {
@@ -1270,7 +1268,7 @@ if (key === 'quantidade') {
         valid = false;
     } else {
         // Normaliza para evitar caracteres inválidos mantendo até 2 casas decimais
-        field.value = formatQuantityForDisplay(normalized);
+        field.value = normalizeQuantityInput(normalized);
     }
 }
 
