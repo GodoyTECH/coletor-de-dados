@@ -36,19 +36,61 @@
     <!-- Emojis flutuantes -->
     <div class="emoji-background" id="emojiContainer"></div>
 
-    <div class="logo-container">
-        <img src="logo.png" class="logo" alt="Logo Social Coletor">
-    </div>
-       <!-- Cabeçalho -->
-<header class="header">
+    <!-- TELA DE LOGIN -->
+    <section class="auth-screen" id="loginContainer" hidden>
+        <div class="auth-card">
+            <div class="auth-logo">
+                <img src="logo.png" alt="Logo Social Coletor">
+            </div>
+            <h1>Sistema De Coleta e Organização de Dados</h1>
+            <p class="auth-subtitle">Acesse para iniciar a coleta e organização dos registros.</p>
 
+            <form class="auth-form" id="loginForm">
+                <label for="loginUser">Usuário</label>
+                <input type="text" id="loginUser" placeholder="Digite o usuário" autocomplete="username">
 
-    
-    <p class="subtitle">Coletor de dados via imagem</p>
-</header>
+                <label for="loginPass">Senha</label>
+                <input type="password" id="loginPass" placeholder="Digite a senha" autocomplete="current-password">
 
-<!-- CONTAINER principal (todo o conteúdo do site fica aqui) -->
-<div class="container">
+                <div class="auth-remember">
+                    <input type="checkbox" id="loginRemember">
+                    <label for="loginRemember">Lembrar-me</label>
+                </div>
+
+                <button type="submit" class="btn btn-success">Entrar</button>
+                <p class="auth-error" id="loginError" hidden>Usuário ou senha inválidos.</p>
+            </form>
+        </div>
+    </section>
+
+    <!-- TELA INICIAL APÓS LOGIN -->
+    <section class="home-screen" id="homeContainer" hidden>
+        <div class="home-card">
+            <div class="home-header">
+                <img src="logo.png" alt="Logo Social Coletor">
+                <div>
+                    <h2>Bem-vindo ao Social Coletor</h2>
+                    <p>Escolha o fluxo que deseja acessar.</p>
+                </div>
+            </div>
+            <div class="home-actions">
+                <button type="button" class="btn btn-primary" id="btnGoCollect">Coletar</button>
+                <button type="button" class="btn btn-secondary" id="btnGoRecords">Registros</button>
+            </div>
+        </div>
+    </section>
+
+    <div id="appContainer" hidden>
+        <div class="logo-container">
+            <img src="logo.png" class="logo" alt="Logo Social Coletor">
+        </div>
+        <!-- Cabeçalho -->
+        <header class="header">
+            <p class="subtitle">Coletor de dados via imagem</p>
+        </header>
+
+        <!-- CONTAINER principal (todo o conteúdo do site fica aqui) -->
+        <div class="container">
 
     <!-- Card Principal -->
     <main class="main-card">
@@ -211,6 +253,7 @@
                     </div>
                 </form>
             </section>
+        </div>
 
             <!-- Botão de Instalação PWA (ANTES DO FOOTER) -->
             <div id="installContainer" class="install-container" style="display: none;">
@@ -233,6 +276,7 @@
             <p>Social Coletor v1.0 • PWA • OCR • Google Sheets Integration</p>
             <p>Desenvolvido por • Godoy Solutions In TECH</p>
         </footer>
+    </div>
     </div>
 
    
@@ -280,23 +324,25 @@
             // Criar emojis flutuantes
             criarEmojisFlutuantes();
 
-            // Registrar Service Worker
+            // Registrar Service Worker (sempre buscar versão mais recente)
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/service-worker.js?v=3')
-
+                navigator.serviceWorker.register('/service-worker.js', { updateViaCache: 'none' })
                     .then(function(registration) {
                         console.log('✅ Service Worker registrado:', registration.scope);
+
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            if (!newWorker) return;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('🔄 Nova versão detectada. Atualizando...');
+                                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                }
+                            });
+                        });
                     })
                     .catch(function(error) {
                         console.log('⚠️ Service Worker não registrado:', error);
-                    });
-            }
-
-            // Forçar update do Service Worker
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistration()
-                    .then(registration => {
-                        if (registration) registration.update();
                     });
             }
         });

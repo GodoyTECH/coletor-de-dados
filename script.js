@@ -10,6 +10,11 @@
 const OCR_API_KEY = 'K89229373088957'; // Chave gratuita do OCR.Space
 const OCR_API_URL = 'https://api.ocr.space/parse/image';
 const GOOGLE_SCRIPT_URL = ''; // Será configurada dinamicamente
+const AUTH_USER = 'Eduardo';
+const AUTH_PASS = 'decore';
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxw-FYkrlqXXmtM_-PgKUYdxMA7oBb9xeRg_cUiw02h7Fopv-QQ4uBLYDS55Xd7m0pY/exec';
+const AUTH_REMEMBER_KEY = 'social_coletor_remember';
+const AUTH_SESSION_KEY = 'social_coletor_session';
 
 // ================================
 // VARIÁVEIS GLOBAIS
@@ -47,6 +52,7 @@ const OFFLINE_STORAGE_KEY = 'social_coletor_offline_data';
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Inicializando Social Coletor...');
     setupElements();
+    setupAuthFlow();
     initializeApp();
     setupPWA();
     loadOfflineData();
@@ -84,6 +90,18 @@ function setupElements() {
         rotateRight: document.getElementById('rotateRight'),
         imageZoomContainer: document.getElementById('imageZoomContainer'),
         imageWrapper: document.getElementById('imageWrapper'),
+
+        // Autenticação
+        loginContainer: document.getElementById('loginContainer'),
+        homeContainer: document.getElementById('homeContainer'),
+        appContainer: document.getElementById('appContainer'),
+        loginForm: document.getElementById('loginForm'),
+        loginUser: document.getElementById('loginUser'),
+        loginPass: document.getElementById('loginPass'),
+        loginRemember: document.getElementById('loginRemember'),
+        loginError: document.getElementById('loginError'),
+        btnGoCollect: document.getElementById('btnGoCollect'),
+        btnGoRecords: document.getElementById('btnGoRecords'),
         
         // PWA Install
         installBtn: document.getElementById('installBtn'),
@@ -117,6 +135,85 @@ function setupElements() {
         numeroDocumento: document.getElementById('numeroDocumento'),
         observacoes: document.getElementById('observacoes')
     };
+}
+
+// ================================
+// AUTENTICAÇÃO LOCAL
+// ================================
+function setupAuthFlow() {
+    const remembered = localStorage.getItem(AUTH_REMEMBER_KEY) === 'true';
+    const hasSession = sessionStorage.getItem(AUTH_SESSION_KEY) === 'true';
+    const isLoggedIn = remembered || hasSession;
+
+    if (elements.loginRemember) {
+        elements.loginRemember.checked = remembered;
+    }
+
+    if (elements.loginForm) {
+        elements.loginForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            handleLogin();
+        });
+    }
+
+    if (elements.btnGoCollect) {
+        elements.btnGoCollect.addEventListener('click', () => {
+            showAppView();
+        });
+    }
+
+    if (elements.btnGoRecords) {
+        elements.btnGoRecords.addEventListener('click', () => {
+            window.open(WEBAPP_URL, '_blank');
+        });
+    }
+
+    if (isLoggedIn) {
+        showHomeView();
+    } else {
+        showLoginView();
+    }
+}
+
+function handleLogin() {
+    const user = elements.loginUser?.value?.trim() || '';
+    const pass = elements.loginPass?.value || '';
+    const isValid = user === AUTH_USER && pass === AUTH_PASS;
+
+    if (!isValid) {
+        if (elements.loginError) {
+            elements.loginError.hidden = false;
+        }
+        return;
+    }
+
+    if (elements.loginError) {
+        elements.loginError.hidden = true;
+    }
+
+    const remember = Boolean(elements.loginRemember?.checked);
+    localStorage.setItem(AUTH_REMEMBER_KEY, String(remember));
+    sessionStorage.setItem(AUTH_SESSION_KEY, 'true');
+
+    showHomeView();
+}
+
+function showLoginView() {
+    if (elements.loginContainer) elements.loginContainer.hidden = false;
+    if (elements.homeContainer) elements.homeContainer.hidden = true;
+    if (elements.appContainer) elements.appContainer.hidden = true;
+}
+
+function showHomeView() {
+    if (elements.loginContainer) elements.loginContainer.hidden = true;
+    if (elements.homeContainer) elements.homeContainer.hidden = false;
+    if (elements.appContainer) elements.appContainer.hidden = true;
+}
+
+function showAppView() {
+    if (elements.loginContainer) elements.loginContainer.hidden = true;
+    if (elements.homeContainer) elements.homeContainer.hidden = true;
+    if (elements.appContainer) elements.appContainer.hidden = false;
 }
 
 function initializeApp() {
@@ -938,6 +1035,7 @@ async function processOCR(imageDataURL) {
         formData.append('isOverlayRequired', 'false');
         formData.append('detectOrientation', 'true');
         formData.append('scale', 'true');
+        formData.append('isTable', 'true');
         formData.append('OCREngine', '2'); // Engine 2 é mais precisa
 
         setProgress(70, 'Enviando para OCR...');
@@ -1001,6 +1099,7 @@ function extractAndFillData(text) {
         data: '',
         assinatura: '',
         numeroDocumento: '',
+        fornecedor: '',
         observacoes: ''
     };
 
@@ -1009,9 +1108,11 @@ function extractAndFillData(text) {
         cpf: /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b|\b\d{11}\b/,
         numeroDocumento: /\b\d{6,7}\/\d{4}\b/,
         data: /\b(0[1-9]|[12][0-9]|3[01])[\/\-](0[1-9]|1[0-2])[\/\-]\d{4}\b/,
-        quantidade: /\b(\d+(?:[.,]\d+)?)(?=\s*(?:un|kg|g|ml|l|cx|unidades?))/i,
+        quantidade: /\b(\d+(?:[.,]\d{1,2})?)(?=\s*(?:un|kg|g|ml|l|cx|unidades?))/i,
+        quantidadeRotulo: /\b(?:quantidade|qtd|qtde)\b[^\d]*(\d+(?:[.,]\d{1,2})?)/i,
         assinatura: /(assinado|assinatura|_+|\sX\s)/i
     };
+    const quantidadeSolta = /(\d{1,4}(?:[.,]\d{1,2})?)(?!\d)/;
 
     // Extrair CPF
     const cpfMatch = text.match(patterns.cpf);
@@ -1027,7 +1128,7 @@ function extractAndFillData(text) {
 
     // Extrair quantidade
     const qtdMatch = text.match(patterns.quantidade);
-    if (qtdMatch) data.quantidade = qtdMatch[1].replace(',', '.');
+    if (qtdMatch) data.quantidade = normalizeQuantityInput(qtdMatch[1]);
 
     // Verificar assinatura
     if (patterns.assinatura.test(text)) data.assinatura = 'OK';
@@ -1064,6 +1165,24 @@ function extractAndFillData(text) {
                 data.produto = nextLine;
             }
         }
+
+        // Quantidade (campo dedicado, ex: "Quantidade 2,00")
+        if (!data.quantidade && /quantidade|qtd|qtde/.test(lowerLine)) {
+            const match = line.match(patterns.quantidadeRotulo);
+            if (match) {
+                data.quantidade = normalizeQuantityInput(match[1]);
+            } else {
+                const nextLine = lines[index + 1];
+                const nextMatch = nextLine?.match(/(\d+(?:[.,]\d{1,2})?)/);
+                if (nextMatch) data.quantidade = normalizeQuantityInput(nextMatch[1]);
+            }
+        }
+
+        // Quantidade na mesma linha de "produto" (ex: "... Produto ... 2,00")
+        if (!data.quantidade && /produto|item|descrição/.test(lowerLine)) {
+            const match = line.match(quantidadeSolta);
+            if (match) data.quantidade = normalizeQuantityInput(match[1]);
+        }
         
         // Endereço
         if (!data.endereco && /rua|av\.|avenida|travessa|alameda|endereço/.test(lowerLine)) {
@@ -1076,6 +1195,19 @@ function extractAndFillData(text) {
                 }
             }
             data.endereco = address;
+        }
+
+        // Fornecedor
+        if (!data.fornecedor && /fornecedor/.test(lowerLine)) {
+            const match = line.match(/fornecedor\s*:\s*(.+)/i);
+            if (match) {
+                data.fornecedor = match[1];
+            } else {
+                const nextLine = lines[index + 1];
+                if (nextLine && nextLine.length > 2) {
+                    data.fornecedor = nextLine;
+                }
+            }
         }
     });
 
@@ -1092,6 +1224,13 @@ function extractAndFillData(text) {
         data.observacoes = textoParaObservacoes.join('; ');
     }
 
+    if (data.fornecedor) {
+        const fornecedorInfo = `Fornecedor: ${data.fornecedor}`;
+        data.observacoes = data.observacoes
+            ? `${fornecedorInfo}; ${data.observacoes}`
+            : fornecedorInfo;
+    }
+
     // Preencher formulário
     fillFormWithData(data);
 }
@@ -1103,6 +1242,7 @@ function isClassifiedLine(line, data) {
         data.atendente && lineLower.includes(data.atendente.toLowerCase()) ||
         data.produto && lineLower.includes(data.produto.toLowerCase()) ||
         data.endereco && lineLower.includes(data.endereco.toLowerCase()) ||
+        data.fornecedor && lineLower.includes(data.fornecedor.toLowerCase()) ||
         /cpf|documento|assinatura|data|quantidade|valor/i.test(lineLower)
     );
 }
@@ -1129,6 +1269,14 @@ function fillFormWithData(data) {
 // ================================
 // UTILITÁRIOS
 // ================================
+function normalizeQuantityInput(value) {
+    const cleaned = String(value).trim();
+    if (!cleaned) return '';
+    const numberPart = cleaned.split(/[.,]/)[0];
+    const integerValue = numberPart.replace(/\D/g, '');
+    return integerValue || cleaned;
+}
+
 function formatCPF(cpf) {
     const numbers = cpf.replace(/\D/g, '');
     if (numbers.length !== 11) return cpf;
@@ -1183,7 +1331,7 @@ function validateForm() {
     let valid = true;
     
     Object.entries(formFields).forEach(([key, field]) => {
-        if (!field || key === 'assinatura' || key === 'observacoes' || key === 'numeroDocumento') return;
+        if (!field || key === 'assinatura' || key === 'observacoes') return;
         
         const value = field.value.trim();
         if (!value) {
@@ -1205,30 +1353,22 @@ function validateForm() {
                 field.value = formatCPF(value);
             }
         }
-        
-       if (key === 'quantidade') {
-  // Aceita SOMENTE número inteiro positivo (ex: 1, 2, 10...)
-  const raw = String(value).trim();
 
-  // Apenas dígitos (sem vírgula, sem ponto, sem espaço, sem sinal)
-  const isInteger = /^\d+$/.test(raw);
-  const qtd = isInteger ? parseInt(raw, 10) : NaN;
-
-  // Regra: tem que ser inteiro e > 0
-  const qtdValid = isInteger && !isNaN(qtd) && qtd > 0;
-
-  field.style.borderColor = qtdValid ? '#4caf50' : '#f44336';
-  if (!qtdValid) valid = false;
-
-  // Não aplica formatação tipo 2,00. Mantém exatamente como o usuário digitou.
-  // (Opcional) Se quiser evitar "0002", descomente:
-  // if (qtdValid) field.value = String(qtd);
-}
-
-                }
+        if (key === 'quantidade') {
+            // Aceita número inteiro ou decimal positivo (com ponto ou vírgula)
+            const normalized = value.replace(',', '.');
+            const qtd = Number(normalized);
+            const qtdValid = Number.isFinite(qtd) && qtd > 0;
+            
+            field.style.borderColor = qtdValid ? '#4caf50' : '#f44336';
+            if (!qtdValid) {
+                valid = false;
+            } else {
+                // Normaliza para evitar caracteres inválidos mantendo até 2 casas decimais
+                field.value = normalizeQuantityInput(normalized);
             }
         }
-        
+
         if (key === 'data') {
             // Valida formato de data (YYYY-MM-DD ou DD/MM/YYYY)
             const dateValid = validateDate(value);
@@ -1249,6 +1389,12 @@ function validateForm() {
             const textValid = value.length >= 3;
             field.style.borderColor = textValid ? '#4caf50' : '#f44336';
             if (!textValid) valid = false;
+        }
+
+        if (key === 'numeroDocumento') {
+            const docValid = value.length >= 4;
+            field.style.borderColor = docValid ? '#4caf50' : '#f44336';
+            if (!docValid) valid = false;
         }
     });
     
@@ -1371,6 +1517,14 @@ async function handleFormSubmit(event) {
 // PWA - INSTALAÇÃO BÁSICA
 // ================================
 function setupPWA() {
+    // Recarregar automaticamente quando uma nova versão do Service Worker assumir controle
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('🔄 Atualização aplicada. Recarregando...');
+            window.location.reload();
+        });
+    }
+
     // Evento para instalação PWA
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
