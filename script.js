@@ -12,7 +12,7 @@ const OCR_API_URL = 'https://api.ocr.space/parse/image';
 const GOOGLE_SCRIPT_URL = ''; // Será configurada dinamicamente
 const AUTH_USER = 'Eduardo';
 const AUTH_PASS = 'decore';
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbydxaIV2iAcbjlDqYNf1FTt-nS0n2sMbxwu8UbFcUJ3lj2kfNFynQj2nNAjrfTIGfBY/exec';
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzMuBmUtPONL56aCeRHpT4RVacwc3cANT9OikC95e0OC5C1waqpx0eMrn1EsjqqyNzx/exec';
 const AUTH_REMEMBER_KEY = 'social_coletor_remember';
 const AUTH_SESSION_KEY = 'social_coletor_session';
 
