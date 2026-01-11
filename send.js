@@ -13,9 +13,9 @@
    ================================ */
 
 const CONFIG = {
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzMuBmUtPONL56aCeRHpT4RVacwc3cANT9OikC95e0OC5C1waqpx0eMrn1EsjqqyNzx/exec",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyT93z3wylZaNOBAhCPzkpqEpbPVJ68KflKvD28hJhFgqsJcM81TyLUbmWVCOD5xqG-/exec",
 
-  SYSTEM_URL: "https://script.google.com/macros/s/AKfycbzMuBmUtPONL56aCeRHpT4RVacwc3cANT9OikC95e0OC5C1waqpx0eMrn1EsjqqyNzx/exec",
+  SYSTEM_URL: "https://script.google.com/macros/s/AKfycbyT93z3wylZaNOBAhCPzkpqEpbPVJ68KflKvD28hJhFgqsJcM81TyLUbmWVCOD5xqG-/exec",
 
   GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/1zgpcoY7oh2Hm_mQyj5Ev6jyBtxQWYrh0ozad1w8-a2g/edit",
 
