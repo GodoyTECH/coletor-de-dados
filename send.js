@@ -17,7 +17,7 @@ const CONFIG = {
 
   SYSTEM_URL: "https://script.google.com/macros/s/AKfycbwT4pSm8IEDu8DGGt5DtGoxIAcExqueBrPzH1d0Zqqll429ZMpgPCyFjtQaq2I9gnk/exec",
 
-  GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/1zgpcoY7oh2Hm_mQyj5Ev6jyBtxQWYrh0ozad1w8-a2g/edit",
+  GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/1zgpcoY7oh2Hm_mQyj5Ev6jyBtxQWYrh0ozad1w8-a2g/edit?usp=sharing",
 
   DB_NAME: "SocialColetor_SendDB",
   STORE_NAME: "envios_pendentes",
