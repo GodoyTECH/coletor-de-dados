@@ -1775,7 +1775,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwuy1FrPsi1nlonnGNdYRaLO0fTAXwyQH4_imh0Bd-Qtt9l67sdWEb76y4GO8j3HMYd/exec';
+    const SHEET_URL = 'https://script.google.com/macros/s/AKfycbymmvmflkL22DYgFF5Uy1cLgotOGfKxN0lSmC8k86au8vZFtCM94764dVGoQaXqANhR/exec';
 
     viewSheetBtn.addEventListener('click', () => {
         try {
