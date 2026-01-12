@@ -13,11 +13,11 @@
    ================================ */
 
 const CONFIG = {
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwqmATfmdJz2RhVBik4gA_xFoGiVHtEhH5Gd8es4h4Z6PXTSlyeRWcjspWZPb24JOAw/exec",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbymmvmflkL22DYgFF5Uy1cLgotOGfKxN0lSmC8k86au8vZFtCM94764dVGoQaXqANhR/exec",
 
-  SYSTEM_URL: "https://script.google.com/macros/s/AKfycbwqmATfmdJz2RhVBik4gA_xFoGiVHtEhH5Gd8es4h4Z6PXTSlyeRWcjspWZPb24JOAw/exec",
+  SYSTEM_URL: "https://script.google.com/macros/s/AKfycbymmvmflkL22DYgFF5Uy1cLgotOGfKxN0lSmC8k86au8vZFtCM94764dVGoQaXqANhR/exec",
 
-  GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/1zgpcoY7oh2Hm_mQyj5Ev6jyBtxQWYrh0ozad1w8-a2g/edit?usp=sharing",
+  GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/1A2owUxg0e0RLWcUy38yYg1kbPltz37FZIumt2H6dssY/edit?gid=358906151#gid=358906151",
 
   DB_NAME: "SocialColetor_SendDB",
   STORE_NAME: "envios_pendentes",
