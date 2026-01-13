@@ -1,1425 +1,1001 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><?= webAppTitle ?></title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* VARIÁVEIS GLOBAIS */
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --primary: #3b82f6;
+      --primary-dark: #2563eb;
+      --secondary: #64748b;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --radius: 8px;
+      --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    }
 
-/**
- * SOCIAL COLETOR - BACKEND COMPLETO
- * Sistema integrado com Google Sheets
- * Versão: 3.0 - Estável e Completa
- */
+    /* RESET E BASE */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
 
-// ===== CONFIGURAÇÕES DO SISTEMA =====
-const CONFIG = {
-  SHEET_NAMES: {
-    REGISTROS: 'Registros',
-    INDEX: '_Index',
-    RELATORIOS: 'Relatorios',
-    LOGS: 'Logs',
-    CONFIG: '_Config'
-  },
-  
-  REGISTROS_HEADERS: [
-    'ID', 'DATA_REGISTRO', 'BENEFICIARIO', 'CPF', 'NUM_DOCUMENTO',
-    'ATENDENTE', 'PRODUTO', 'QUANTIDADE', 'DATA_FORM', 'ENDERECO',
-    'OBS', 'ORIGEM', 'IMG_URL', 'STATUS', 'DUP_REF_ID', 'DUP_REASON',
-    'UPDATED_AT', 'DELETADO'
-  ],
-  
-  INDEX_HEADERS: [
-    'NUM_DOCUMENTO', 'REG_ID', 'ROW_NUMBER', 'CREATED_AT', 'UPDATED_AT', 'DELETADO'
-  ],
-  
-  RELATORIOS_HEADERS: [
-    'ID', 'COMPETENCIA', 'TOTAL_REGISTROS', 'TOTAL_ATIVOS', 'TOTAL_DUPLICADOS',
-    'URL_PDF', 'RESUMO', 'CREATED_AT'
-  ],
-  
-  DEFAULTS: {
-    WEBAPP_TITLE: 'Social Coletor - Admin'
-  }
-};
+    /* HEADER */
+    header {
+      background: var(--card);
+      padding: 1rem 1.5rem;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid var(--border);
+    }
+    .header-left h1 { font-size: 1.25rem; margin-bottom: 0.25rem; color: var(--primary); }
+    .header-left span { color: var(--muted); font-size: 0.875rem; }
 
-// ===== DIAGNÓSTICO =====
-const DEBUG = false;
+    /* TABS */
+    .tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .tab-btn {
+      padding: 0.625rem 1.25rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 2rem;
+      font-weight: 500;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .tab-btn:hover { border-color: var(--primary); background: #eff6ff; }
+    .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 
-function logDebug(message, data) {
-  if (!DEBUG) return;
-  const payload = typeof data === 'undefined' ? '' : data;
-  try {
-    Logger.log(`${message} ${JSON.stringify(payload)}`);
-  } catch (err) {
-    Logger.log(`${message} ${String(payload)}`);
-  }
-  try {
-    console.log(message, payload);
-  } catch (err) {}
-}
+    /* MAIN CONTENT */
+    main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
 
-function logError(context, error) {
-  const detail = error && error.stack ? error.stack : String(error);
-  try {
-    Logger.log(`${context}: ${detail}`);
-  } catch (err) {}
-  try {
-    console.error(`${context}:`, error);
-  } catch (err) {}
-}
+    /* STATUS MESSAGE */
+    #status {
+      padding: 0.875rem 1rem;
+      border-radius: var(--radius);
+      margin-bottom: 1.5rem;
+      display: none;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.875rem;
+    }
+    #status.info { background: #dbeafe; border: 1px solid #bfdbfe; color: #1e40af; }
+    #status.success { background: #d1fae5; border: 1px solid #a7f3d0; color: #065f46; }
+    #status.error { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; }
+    #status.warning { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; }
 
-function errorResponse(error, details) {
-  const message = error && error.message ? error.message : String(error || 'Erro desconhecido');
-  const info = details || (error && error.stack ? error.stack : undefined);
-  return { success: false, error: message, details: info };
-}
+    /* CARDS */
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .card h2 {
+      font-size: 1.125rem;
+      margin-bottom: 1rem;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
 
-// ===== FUNÇÃO PRINCIPAL - WEBAPP ENTRY POINT =====
-function doGet() {
-  try {
-    ensureSystem();
-    
-    const template = HtmlService.createTemplateFromFile('WebApp');
-    template.webAppTitle = getConfigValue('WEBAPP_TITLE') || CONFIG.DEFAULTS.WEBAPP_TITLE;
-    
-    return template.evaluate()
-      .setTitle(template.webAppTitle)
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-      
-  } catch (error) {
-    console.error('Erro no doGet:', error);
-    return HtmlService.createHtmlOutput(`
-      <html>
-        <head><meta charset="UTF-8"><title>Erro</title></head>
-        <body style="font-family: Arial; padding: 20px;">
-          <h1 style="color: #dc2626;">⚠️ Erro no Sistema</h1>
-          <p>Ocorreu um erro ao carregar o sistema:</p>
-          <pre style="background: #f3f4f6; padding: 15px; border-radius: 5px; overflow: auto;">${escapeHtml(error.toString())}</pre>
-          <button onclick="window.location.reload()" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">
-            Tentar Novamente
+    /* DASHBOARD GRID */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 0.5rem 0;
+      color: var(--primary);
+    }
+    .stat-card .label { color: var(--muted); font-size: 0.875rem; }
+
+    /* TABLES */
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-top: 1rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 800px;
+    }
+    th {
+      background: #f8fafc;
+      padding: 0.875rem 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+    td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      font-size: 0.875rem;
+    }
+    tbody tr:hover { background: #f8fafc; }
+
+    /* EDITABLE CELLS */
+    .editable-cell {
+      padding: 0.5rem;
+      background: #f8fafc;
+      border-radius: 4px;
+      min-height: 2.5rem;
+      outline: none;
+      cursor: text;
+      transition: background 0.2s;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .editable-cell:focus {
+      background: white;
+      outline: 2px solid var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    .editable-cell.dirty {
+      background: #eff6ff;
+      outline: 2px solid rgba(59, 130, 246, 0.5);
+    }
+
+    /* BUTTONS */
+    .actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .btn {
+      padding: 0.625rem 1.25rem;
+      border: none;
+      border-radius: var(--radius);
+      font-weight: 500;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .btn:active { transform: translateY(0); }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-secondary { background: var(--secondary); color: white; }
+    .btn-success { background: var(--success); color: white; }
+    .btn-warning { background: var(--warning); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-small { padding: 0.375rem 0.75rem; font-size: 0.75rem; }
+
+    /* TABLE INFO */
+    .table-info {
+      color: var(--muted);
+      font-size: 0.875rem;
+      margin: 0.5rem 0;
+      padding: 0.5rem 0;
+    }
+
+    /* LOADING */
+    .loading { opacity: 0.6; pointer-events: none; }
+    .spinner {
+      display: inline-block;
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid rgba(0,0,0,0.1);
+      border-radius: 50%;
+      border-top-color: var(--primary);
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* UTILITIES */
+    .hidden { display: none !important; }
+    .text-center { text-align: center; }
+    .text-muted { color: var(--muted); }
+    .mb-1 { margin-bottom: 0.5rem; }
+    .mb-2 { margin-bottom: 1rem; }
+    .mt-1 { margin-top: 0.5rem; }
+    .mt-2 { margin-top: 1rem; }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      header { flex-direction: column; align-items: flex-start; }
+      .tabs { width: 100%; overflow-x: auto; padding-bottom: 0.5rem; }
+      .tab-btn { flex-shrink: 0; }
+      main { padding: 1rem; }
+      .dashboard-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- HEADER -->
+  <header>
+    <div class="header-left">
+      <h1><?= webAppTitle ?></h1>
+      <span>Painel Administrativo - Social Coletor</span>
+    </div>
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="dashboard">
+        <i class="fas fa-chart-bar"></i> Dashboard
+      </button>
+      <button class="tab-btn" data-tab="registros">
+        <i class="fas fa-database"></i> Registros
+      </button>
+      <button class="tab-btn" data-tab="duplicados">
+        <i class="fas fa-clone"></i> Duplicados
+      </button>
+      <button class="tab-btn" data-tab="relatorios">
+        <i class="fas fa-file-alt"></i> Relatórios
+      </button>
+    </nav>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main>
+    <!-- STATUS MESSAGE -->
+    <div id="status"></div>
+
+    <!-- DASHBOARD SECTION -->
+    <section id="dashboard" class="tab-content">
+      <div class="dashboard-grid">
+        <div class="card stat-card">
+          <h2><i class="fas fa-database"></i> Total de Registros</h2>
+          <div class="value" id="totalRegistros">0</div>
+          <div class="label">Registros no sistema</div>
+        </div>
+        <div class="card stat-card">
+          <h2><i class="fas fa-check-circle"></i> Registros Ativos</h2>
+          <div class="value" id="ativosRegistros">0</div>
+          <div class="label">Registros válidos</div>
+        </div>
+        <div class="card stat-card">
+          <h2><i class="fas fa-exclamation-triangle"></i> Duplicados</h2>
+          <div class="value" id="duplicadosRegistros">0</div>
+          <div class="label">Registros duplicados</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><i class="fas fa-chart-pie"></i> Distribuição por Produto</h2>
+        <div id="produtosChart">
+          <p class="text-muted text-center"><i class="fas fa-spinner spinner"></i> Carregando dados...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- REGISTROS SECTION -->
+    <section id="registros" class="tab-content hidden">
+      <div class="card">
+        <h2><i class="fas fa-table"></i> Gerenciamento de Registros</h2>
+
+        <div class="actions">
+          <button class="btn btn-secondary" onclick="resetRegistros()">
+            <i class="fas fa-sync-alt"></i> Recarregar
           </button>
-        </body>
-      </html>
-    `);
-  }
-}
+          <button class="btn btn-secondary" id="btnMaisRegistros" onclick="loadMoreRegistros()" style="display: none;">
+            <i class="fas fa-plus"></i> Carregar Mais +20
+          </button>
+          <button class="btn btn-primary" id="btnSalvarRegistros" onclick="saveRegistros()" style="display: none;">
+            <i class="fas fa-save"></i> Salvar Alterações
+          </button>
+        </div>
 
-// ===== ENDPOINT DE RECEBIMENTO (POST) =====
-// Compatível com send.js (payload { action:'submit', data:{...} })
-function doPost(e) {
-  try {
-    ensureSystem();
+        <div class="table-info" id="registrosInfo">
+          <i class="fas fa-spinner spinner"></i> Carregando registros...
+        </div>
 
-    const req = parseRequest(e);
+        <div class="table-container">
+          <table id="registrosTable">
+            <thead>
+              <tr id="registrosHeaders">
+                <!-- Headers serão preenchidos dinamicamente -->
+              </tr>
+            </thead>
+            <tbody id="registrosBody">
+              <tr>
+                <td colspan="10" class="text-center">
+                  <i class="fas fa-spinner spinner"></i> Carregando dados da planilha...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
 
-    // Permite chamada simples de saúde
-    if (req.action === 'ping') {
-      return jsonResponse({
-        success: true,
-        message: 'pong',
-        timestamp: new Date().toISOString()
-      });
+    <!-- DUPLICADOS SECTION -->
+    <section id="duplicados" class="tab-content hidden">
+      <div class="card">
+        <h2><i class="fas fa-exclamation-triangle"></i> Registros Duplicados</h2>
+
+        <div class="actions">
+          <button class="btn btn-secondary" onclick="loadDuplicados()">
+            <i class="fas fa-sync-alt"></i> Atualizar Lista
+          </button>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Beneficiário</th>
+                <th>Documento</th>
+                <th>Produto</th>
+                <th>Status</th>
+                <th>Motivo</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="duplicadosBody">
+              <tr>
+                <td colspan="7" class="text-center">
+                  <i class="fas fa-spinner spinner"></i> Buscando registros duplicados...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- RELATÓRIOS SECTION -->
+    <section id="relatorios" class="tab-content hidden">
+      <div class="card">
+        <h2><i class="fas fa-file-pdf"></i> Relatórios Gerados</h2>
+
+        <div class="actions">
+          <button class="btn btn-primary" onclick="gerarRelatorio()">
+            <i class="fas fa-plus-circle"></i> Gerar Novo Relatório
+          </button>
+          <button class="btn btn-secondary" onclick="loadRelatorios()">
+            <i class="fas fa-sync-alt"></i> Atualizar Lista
+          </button>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Competência</th>
+                <th>Total Registros</th>
+                <th>Ativos</th>
+                <th>Duplicados</th>
+                <th>Data Geração</th>
+                <th>PDF</th>
+                <th>Resumo</th>
+              </tr>
+            </thead>
+            <tbody id="relatoriosBody">
+              <tr>
+                <td colspan="7" class="text-center">
+                  <i class="fas fa-spinner spinner"></i> Carregando relatórios...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- JAVASCRIPT -->
+  <script>
+    // ===== GLOBAL STATE =====
+    const appState = {
+      registros: {
+        headers: [],
+        data: [],
+        pageSize: 20,
+        currentPage: 0,
+        totalCount: 0,
+        hasMore: false,
+        dirtyCells: new Map() // Map<rowId, Map<column, value>>
+      },
+      currentTab: 'dashboard'
+    };
+
+    // ===== UTILITY FUNCTIONS =====
+    function showStatus(message, type = 'info', duration = 3000) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = message;
+      statusEl.className = type;
+      statusEl.style.display = 'flex';
+
+      if (duration > 0) {
+        setTimeout(() => {
+          if (statusEl.textContent === message) {
+            statusEl.style.display = 'none';
+          }
+        }, duration);
+      }
     }
 
-    if (req.action === 'submit') {
-      const result = submitRegistro(req);
-      return jsonResponse(result);
+    function escapeHtml(text) {
+      if (text == null) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
 
-    // Ações futuras podem ser adicionadas aqui sem quebrar integrações
-    return jsonResponse({
-      success: false,
-      error: 'Ação inválida. Use action=submit.',
-      receivedAction: req.action || null
+    function formatDate(date) {
+      if (!date) return '';
+      try {
+        const d = new Date(date);
+        return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR').substring(0, 5);
+      } catch {
+        return date;
+      }
+    }
+
+    // ===== TAB NAVIGATION =====
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+      const tabElement = document.getElementById(tabId);
+      if (tabElement) tabElement.classList.remove('hidden');
+
+      const button = document.querySelector('[data-tab="' + tabId + '"]');
+      if (button) button.classList.add('active');
+
+      appState.currentTab = tabId;
+
+      if (tabId === 'dashboard') loadDashboard();
+      else if (tabId === 'registros') loadRegistros();
+      else if (tabId === 'duplicados') loadDuplicados();
+      else if (tabId === 'relatorios') loadRelatorios();
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(button => {
+      button.addEventListener('click', () => showTab(button.getAttribute('data-tab')));
     });
 
-  } catch (error) {
-    console.error('Erro no doPost:', error);
-    try { logEvent('ERROR', 'doPost: ' + error.toString()); } catch (_) {}
-    return jsonResponse({ success: false, error: String(error) });
-  }
-}
+    // ===== DASHBOARD FUNCTIONS =====
+    function loadDashboard() {
+      showStatus('Carregando dados do dashboard...', 'info');
+      google.script.run
+        .withSuccessHandler(updateDashboard)
+        .withFailureHandler(error => {
+          console.error('Erro no dashboard:', error);
+          showStatus('Erro ao carregar dashboard', 'error');
+        })
+        .getDashboardData();
+    }
 
-/**
- * parseRequest - Extrai action + data de:
- * - JSON (fetch com Content-Type: application/json)
- * - x-www-form-urlencoded / multipart (fallback)
- */
-function parseRequest(e) {
-  let body = {};
-  try {
-    if (e && e.postData && e.postData.contents) {
-      const raw = String(e.postData.contents || '').trim();
-      if (raw) {
-        // Tenta JSON primeiro
-        try {
-          body = JSON.parse(raw);
-        } catch (_) {
-          // Fallback: tenta parse de querystring (a=b&c=d)
-          body = parseQueryString(raw);
+    function updateDashboard(data) {
+      try {
+        document.getElementById('totalRegistros').textContent = data.total || 0;
+        document.getElementById('ativosRegistros').textContent = data.ativos || 0;
+        document.getElementById('duplicadosRegistros').textContent = data.duplicados || 0;
+
+        const produtosDiv = document.getElementById('produtosChart');
+        if (data.porProduto && Object.keys(data.porProduto).length > 0) {
+          let html = '<div style="max-width: 500px; margin: 0 auto;">';
+          Object.entries(data.porProduto).forEach(([produto, quantidade]) => {
+            const percent = data.total > 0 ? ((quantidade / data.total) * 100).toFixed(1) : 0;
+            html += `
+              <div style="margin-bottom: 0.75rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                  <span><strong>${escapeHtml(produto)}</strong></span>
+                  <span>${quantidade} (${percent}%)</span>
+                </div>
+                <div style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                  <div style="height: 100%; width: ${percent}%; background: var(--primary); border-radius: 4px;"></div>
+                </div>
+              </div>
+            `;
+          });
+          html += '</div>';
+          produtosDiv.innerHTML = html;
+        } else {
+          produtosDiv.innerHTML = '<p class="text-muted text-center">Nenhum produto registrado ainda.</p>';
         }
+
+        showStatus('Dashboard atualizado', 'success', 2000);
+      } catch (error) {
+        console.error('Erro ao atualizar dashboard:', error);
+        showStatus('Erro ao processar dados do dashboard', 'error');
       }
     }
-  } catch (err) {
-    console.warn('Falha ao parsear body:', err);
-  }
 
-  // Se vier como parâmetros, mescla
-  const params = (e && e.parameter) ? e.parameter : {};
-  // Prioridade: body.action > params.action
-  const action = (body && body.action) ? body.action : (params.action || '');
-
-  // send.js envia { action:'submit', data:{...} }
-  let data = (body && body.data) ? body.data : body;
-  // Se vier data como string, tenta parse
-  if (typeof data === 'string') {
-    try { data = JSON.parse(data); } catch (_) {}
-  }
-
-  // Normaliza
-  return {
-    action: String(action || '').trim(),
-    data: data || {},
-    raw: body || {},
-    parameter: params || {}
-  };
-}
-
-function parseQueryString(qs) {
-  const out = {};
-  String(qs || '').split('&').forEach(pair => {
-    const [k, v] = pair.split('=');
-    if (!k) return;
-    out[decodeURIComponent(k)] = decodeURIComponent(v || '');
-  });
-  return out;
-}
-
-function jsonResponse(obj) {
-  return ContentService
-    .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-/**
- * submitRegistro - Insere uma nova linha em "Registros"
- * Mapeamento esperado do send.js:
- * data: { beneficiario, cpf, atendente, produto, quantidade, endereco, data, assinatura, numeroDocumento, observacoes, imagemBase64, timestamp }
- */
-function submitRegistro(req) {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(15000);
-
-  try {
-    const payload = req && req.data ? req.data : {};
-    const sheet = getSheet(CONFIG.SHEET_NAMES.REGISTROS);
-    if (!sheet) {
-      return { success: false, error: 'Aba Registros não encontrada' };
+    // ===== REGISTROS FUNCTIONS =====
+    function resetRegistros() {
+      appState.registros.currentPage = 0;
+      appState.registros.data = [];
+      appState.registros.dirtyCells.clear();
+      loadRegistros();
     }
 
-    const headers = getSheetHeaders(sheet) || CONFIG.REGISTROS_HEADERS;
-    const now = new Date();
+    function loadRegistros() {
+      const registrosSection = document.getElementById('registros');
+      if (registrosSection) registrosSection.classList.add('loading');
 
-    const recordId = 'REG-' + Utilities.getUuid().substring(0, 8).toUpperCase();
+      showStatus('Carregando registros...', 'info');
 
-    const beneficiario = String(payload.beneficiario || '').trim();
-    const cpfRaw = String(payload.cpf || '').replace(/\D/g, '');
-    const cpf = cpfRaw; // Mantém apenas dígitos (send.js já envia assim)
-    const numDocumento = String(payload.numeroDocumento || '').trim();
-    const atendente = String(payload.atendente || '').trim();
-    const produto = String(payload.produto || '').trim();
-    const quantidade = coerceNumber(payload.quantidade);
-    const dataForm = normalizeDate(payload.data); // aceita YYYY-MM-DD ou dd/MM/yyyy
-    const endereco = String(payload.endereco || '').trim();
-    const obs = String(payload.observacoes || '').trim();
-
-    // Origem padrão (para rastreabilidade)
-    const origem = String((req.raw && req.raw.isOfflineSync) ? 'APP_OFFLINE_SYNC' : 'APP').trim() || 'APP';
-
-    // Imagem (opcional): salva no Drive e armazena URL
-    const imagemBase64 = String(payload.imagemBase64 || '').trim();
-    const imgUrl = saveImageIfPresent(imagemBase64, recordId);
-
-    // Deduplicação simples via _Index (NUM_DOCUMENTO)
-    const normalizedDoc = normalizeDoc(numDocumento);
-    const dupInfo = normalizedDoc ? findIndexByDoc(normalizedDoc) : null;
-
-    let status = 'NOVO';
-    let dupRefId = '';
-    let dupReason = '';
-
-    if (dupInfo && dupInfo.regId) {
-      status = 'DUPLICADO';
-      dupRefId = dupInfo.regId;
-      dupReason = 'NUM_DOCUMENTO duplicado';
+      google.script.run
+        .withSuccessHandler(handleRegistrosData)
+        .withFailureHandler(error => {
+          console.error('Erro ao carregar registros:', error);
+          showStatus('Erro ao carregar registros: ' + (error?.message || error), 'error');
+          if (registrosSection) registrosSection.classList.remove('loading');
+        })
+        .getRegistrosTable({
+          limit: appState.registros.pageSize,
+          offset: appState.registros.currentPage * appState.registros.pageSize
+        });
     }
 
-    const rowObject = {
-      ID: recordId,
-      DATA_REGISTRO: now,
-      BENEFICIARIO: beneficiario,
-      CPF: cpf,
-      NUM_DOCUMENTO: numDocumento,
-      ATENDENTE: atendente,
-      PRODUTO: produto,
-      QUANTIDADE: quantidade,
-      DATA_FORM: dataForm || '',
-      ENDERECO: endereco,
-      OBS: obs,
-      ORIGEM: origem,
-      IMG_URL: imgUrl,
-      STATUS: status,
-      DUP_REF_ID: dupRefId,
-      DUP_REASON: dupReason,
-      UPDATED_AT: now,
-      DELETADO: ''
-    };
+    // Normaliza a resposta do backend para evitar "Dados inválidos" por variações pequenas
+    function normalizeRegistrosResponse(resp) {
+      if (!resp) return { success: false, error: 'Resposta vazia do servidor' };
 
-    const rowValues = headers.map(h => (rowObject.hasOwnProperty(h) ? rowObject[h] : ''));
-    sheet.appendRow(rowValues);
-
-    const rowNumber = sheet.getLastRow();
-
-    // Atualiza índice (upsert)
-    if (normalizedDoc) {
-      upsertIndexEntry(normalizedDoc, recordId, rowNumber);
-    }
-
-    logEvent('SUBMIT', `Novo registro ${recordId} (linha ${rowNumber}) - status ${status}`);
-
-    return {
-      success: true,
-      recordId: recordId,
-      rowNumber: rowNumber,
-      status: status,
-      timestamp: now.toISOString(),
-      message: status === 'DUPLICADO'
-        ? `Registro salvo como DUPLICADO. Referência: ${dupRefId}`
-        : 'Registro salvo com sucesso'
-    };
-
-  } catch (error) {
-    console.error('Erro em submitRegistro:', error);
-    try { logEvent('ERROR', 'submitRegistro: ' + error.toString()); } catch (_) {}
-    return { success: false, error: String(error) };
-  } finally {
-    try { lock.releaseLock(); } catch (_) {}
-  }
-}
-
-function coerceNumber(value) {
-  if (value === null || value === undefined || value === '') return 0;
-  const normalized = String(value).replace(',', '.').trim();
-  const n = Number(normalized);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function normalizeDate(value) {
-  if (!value) return '';
-  const s = String(value).trim();
-  if (!s) return '';
-
-  // YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-
-  // dd/MM/yyyy ou dd-MM-yyyy
-  const m = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
-  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
-
-  // ISO completo
-  const d = new Date(s);
-  if (!isNaN(d.getTime())) return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-
-  return s;
-}
-
-function saveImageIfPresent(dataUri, recordId) {
-  try {
-    if (!dataUri) return '';
-    // Se já for uma URL, apenas retorna
-    if (/^https?:\/\//i.test(dataUri)) return dataUri;
-
-    // Aceita data:image/...;base64,...
-    if (!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(dataUri)) return '';
-
-    // Evita payloads enormes na prática (Apps Script tem limites de tamanho)
-    if (dataUri.length > 1500000) {
-      // Se for grande demais, não falha o envio; apenas ignora
-      return '';
-    }
-
-    const parts = dataUri.split(',');
-    if (parts.length < 2) return '';
-
-    const contentType = parts[0].match(/^data:(image\/[a-zA-Z0-9.+-]+);base64/);
-    const mime = contentType ? contentType[1] : 'image/png';
-
-    const bytes = Utilities.base64Decode(parts[1]);
-    const blob = Utilities.newBlob(bytes, mime, `${recordId}.${mime.split('/')[1] || 'png'}`);
-
-    const folder = getOrCreateFolder('SocialColetor_Imagens');
-    const file = folder.createFile(blob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-
-    return file.getUrl();
-  } catch (error) {
-    console.warn('Falha ao salvar imagem:', error);
-    return '';
-  }
-}
-
-function getOrCreateFolder(name) {
-  const folders = DriveApp.getFoldersByName(name);
-  if (folders.hasNext()) return folders.next();
-  return DriveApp.createFolder(name);
-}
-
-function findIndexByDoc(normalizedDoc) {
-  try {
-    const indexSheet = getSheet(CONFIG.SHEET_NAMES.INDEX);
-    if (!indexSheet) return null;
-
-    const data = indexSheet.getDataRange().getValues();
-    if (data.length <= 1) return null;
-
-    const headers = data[0];
-    const docIdx = headers.indexOf('NUM_DOCUMENTO');
-    const regIdIdx = headers.indexOf('REG_ID');
-    const deletadoIdx = headers.indexOf('DELETADO');
-
-    if (docIdx === -1 || regIdIdx === -1) return null;
-
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      const doc = String(row[docIdx] || '').trim().toUpperCase();
-      if (doc === normalizedDoc) {
-        const deletado = deletadoIdx !== -1 ? isDeleted(row[deletadoIdx]) : false;
-        if (!deletado) {
-          return { regId: row[regIdIdx] || '', rowNumber: i + 1 };
-        }
+      // Caso backend retorne diretamente {headers, rows, meta}
+      if (resp.success === undefined && resp.headers && resp.rows) {
+        return { ...resp, success: true };
       }
+
+      // Caso venha encapsulado
+      if (resp.result && (resp.result.headers || resp.result.rows)) {
+        const r = resp.result;
+        if (r.success === undefined && r.headers && r.rows) return { ...r, success: true };
+        return r;
+      }
+
+      return resp;
     }
-    return null;
-  } catch (error) {
-    console.warn('Erro em findIndexByDoc:', error);
-    return null;
-  }
-}
 
-function upsertIndexEntry(normalizedDoc, regId, rowNumber) {
-  try {
-    const indexSheet = getSheet(CONFIG.SHEET_NAMES.INDEX);
-    if (!indexSheet) return;
+    function handleRegistrosData(response) {
+      const registrosSection = document.getElementById('registros');
+      if (registrosSection) registrosSection.classList.remove('loading');
 
-    const data = indexSheet.getDataRange().getValues();
-    const headers = data[0] || CONFIG.INDEX_HEADERS;
+      const normalized = normalizeRegistrosResponse(response);
 
-    const docIdx = headers.indexOf('NUM_DOCUMENTO');
-    const regIdIdx = headers.indexOf('REG_ID');
-    const rowIdx = headers.indexOf('ROW_NUMBER');
-    const createdIdx = headers.indexOf('CREATED_AT');
-    const updatedIdx = headers.indexOf('UPDATED_AT');
-    const deletadoIdx = headers.indexOf('DELETADO');
-
-    // Procura existente
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      const doc = String(row[docIdx] || '').trim().toUpperCase();
-      if (doc === normalizedDoc) {
-        // Atualiza
-        if (regIdIdx !== -1) row[regIdIdx] = regId;
-        if (rowIdx !== -1) row[rowIdx] = rowNumber;
-        if (updatedIdx !== -1) row[updatedIdx] = new Date();
-        if (deletadoIdx !== -1) row[deletadoIdx] = '';
-        indexSheet.getRange(i + 1, 1, 1, headers.length).setValues([row]);
+      if (!normalized || !normalized.success) {
+        console.warn('Resposta inválida em Registros:', response);
+        showStatus('Erro: ' + (normalized?.error || 'Dados inválidos do servidor'), 'error');
         return;
       }
-    }
 
-    // Não existe: cria
-    const now = new Date();
-    const rowObj = {
-      NUM_DOCUMENTO: normalizedDoc,
-      REG_ID: regId,
-      ROW_NUMBER: rowNumber,
-      CREATED_AT: now,
-      UPDATED_AT: now,
-      DELETADO: ''
-    };
-    const values = headers.map(h => (rowObj.hasOwnProperty(h) ? rowObj[h] : ''));
-    indexSheet.appendRow(values);
-
-  } catch (error) {
-    console.warn('Erro em upsertIndexEntry:', error);
-  }
-}
-
-// ===== SISTEMA - INICIALIZAÇÃO E CONFIGURAÇÃO =====
-function ensureSystem() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  
-  // Garante que todas as abas existam com cabeçalhos corretos
-  ensureSheetWithHeaders(ss, CONFIG.SHEET_NAMES.REGISTROS, CONFIG.REGISTROS_HEADERS);
-  ensureSheetWithHeaders(ss, CONFIG.SHEET_NAMES.INDEX, CONFIG.INDEX_HEADERS);
-  ensureSheetWithHeaders(ss, CONFIG.SHEET_NAMES.RELATORIOS, CONFIG.RELATORIOS_HEADERS);
-  ensureSheetWithHeaders(ss, CONFIG.SHEET_NAMES.LOGS, ['TIMESTAMP', 'ACTION', 'DETAILS']);
-  ensureSheetWithHeaders(ss, CONFIG.SHEET_NAMES.CONFIG, ['CHAVE', 'VALOR']);
-  
-  // Garante configurações padrão
-  ensureDefaultConfig();
-}
-
-function ensureSheetWithHeaders(ss, sheetName, headers) {
-  let sheet = ss.getSheetByName(sheetName);
-  
-  if (!sheet) {
-    sheet = ss.insertSheet(sheetName);
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    sheet.setFrozenRows(1);
-    return sheet;
-  }
-  
-  // Verifica se os cabeçalhos estão corretos
-  const lastColumn = sheet.getLastColumn();
-  if (lastColumn === 0) {
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    sheet.setFrozenRows(1);
-    return sheet;
-  }
-  
-  const existingHeaders = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
-  
-  // Adiciona cabeçalhos faltantes
-  headers.forEach((header, index) => {
-    if (!existingHeaders.includes(header)) {
-      const nextColumn = existingHeaders.length + 1;
-      sheet.getRange(1, nextColumn).setValue(header);
-    }
-  });
-  
-  sheet.setFrozenRows(1);
-  return sheet;
-}
-
-function ensureDefaultConfig() {
-  const sheet = getSheet(CONFIG.SHEET_NAMES.CONFIG);
-  if (!sheet) return;
-  
-  const data = sheet.getDataRange().getValues();
-  const existingKeys = new Set(data.slice(1).map(row => row[0]));
-  
-  Object.keys(CONFIG.DEFAULTS).forEach(key => {
-    if (!existingKeys.has(key)) {
-      sheet.appendRow([key, CONFIG.DEFAULTS[key]]);
-    }
-  });
-}
-
-// ===== FUNÇÕES DA API =====
-
-/**
- * getDashboardData - Retorna dados para o dashboard
- */
-function getDashboardData() {
-  try {
-    logDebug('getDashboardData: inicio');
-    const registros = getRegistros();
-    
-    const total = registros.length;
-    const ativos = registros.filter(r => !isDeleted(r.DELETADO)).length;
-    const duplicados = registros.filter(r => 
-      isDuplicado(r.STATUS) && !isDeleted(r.DELETADO)
-    ).length;
-    
-    // Agrupa por produto
-    const porProduto = {};
-    registros.forEach(r => {
-      if (isDeleted(r.DELETADO)) return;
-      
-      const produto = r.PRODUTO || 'Não informado';
-      const quantidade = Number(r.QUANTIDADE || 0);
-      
-      if (!isNaN(quantidade)) {
-        porProduto[produto] = (porProduto[produto] || 0) + quantidade;
+      if (appState.registros.currentPage === 0) {
+        appState.registros.headers = normalized.headers || [];
+        renderRegistrosHeaders();
       }
-    });
-    
-    return {
-      success: true,
-      total: total,
-      ativos: ativos,
-      duplicados: duplicados,
-      porProduto: porProduto
-    };
-    
-  } catch (error) {
-    logError('Erro em getDashboardData', error);
-    logEvent('ERROR', 'getDashboardData: ' + error.toString());
-    return {
-      success: false,
-      error: error.toString(),
-      details: error && error.stack ? error.stack : undefined,
-      total: 0,
-      ativos: 0,
-      duplicados: 0,
-      porProduto: {}
-    };
-  }
-}
 
-/**
- * getRegistrosTable - PAGINAÇÃO OTIMIZADA (20 registros por página)
- * Filtra apenas registros preenchidos, ignora linhas vazias
- */
-function getRegistrosTable(options) {
-  try {
-    logDebug('getRegistrosTable: inicio', options);
-    
-    // Configura parâmetros
-    const safeOptions = options || {};
-    const limit = Math.min(Math.max(Number(safeOptions.limit || 20), 1), 100); // 20 padrão, máximo 100
-    const offset = Math.max(Number(safeOptions.offset || 0), 0);
-    
-    logDebug('getRegistrosTable: parametros', { limit, offset });
-    
-    const sheet = getSheet(CONFIG.SHEET_NAMES.REGISTROS);
-    if (!sheet) {
-      logDebug('getRegistrosTable: aba Registros não encontrada');
-      return {
-        success: false,
-        error: 'Aba Registros não encontrada',
-        headers: CONFIG.REGISTROS_HEADERS,
-        rows: [],
-        meta: { total: 0, offset: 0, hasMore: false }
-      };
-    }
-    
-    // Obtém todos os dados da planilha
-    const dataRange = sheet.getDataRange();
-    const allData = dataRange.getValues();
-    
-    logDebug('getRegistrosTable: total linhas', allData.length);
-    
-    // Verifica se há dados além do cabeçalho
-    if (allData.length <= 1) {
-      logDebug('getRegistrosTable: planilha vazia');
-      return {
-        success: true,
-        headers: allData[0] || CONFIG.REGISTROS_HEADERS,
-        rows: [],
-        meta: { total: 0, offset: 0, hasMore: false }
-      };
-    }
-    
-    const headers = allData[0];
-    logDebug('getRegistrosTable: cabecalhos', headers);
-    
-    // FILTRA APENAS REGISTROS PREENCHIDOS (ignora linhas vazias)
-    const registrosPreenchidos = [];
-    
-    for (let i = 1; i < allData.length; i++) {
-      const row = allData[i];
-      
-      // Verifica se a linha tem conteúdo válido
-      let hasContent = false;
-      for (let j = 0; j < row.length; j++) {
-        const cellValue = row[j];
-        if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
-          // Verifica se não é apenas espaços em branco
-          if (typeof cellValue === 'string' && cellValue.trim() !== '') {
-            hasContent = true;
-            break;
-          } else if (typeof cellValue !== 'string') {
-            hasContent = true;
-            break;
-          }
-        }
-      }
-      
-      if (hasContent) {
-        registrosPreenchidos.push({
-          rowNumber: i + 1, // +1 porque getValues() é base 0, mas rowNumber é base 1
-          values: row
-        });
-      }
-    }
-    
-    logDebug('getRegistrosTable: registros preenchidos', registrosPreenchidos.length);
-    
-    // APLICA PAGINAÇÃO sobre os registros preenchidos
-    const totalPreenchidos = registrosPreenchidos.length;
-    const startIndex = offset;
-    const endIndex = Math.min(startIndex + limit, totalPreenchidos);
-    const hasMore = endIndex < totalPreenchidos;
-    
-    const pageData = registrosPreenchidos.slice(startIndex, endIndex);
-    
-    logDebug('getRegistrosTable: paginacao', {
-      startIndex,
-      endIndex,
-      pageSize: pageData.length,
-      total: totalPreenchidos,
-      hasMore
-    });
-    
-    return {
-      success: true,
-      headers: headers,
-      rows: pageData,
-      meta: {
-        total: totalPreenchidos,
-        offset: endIndex, // Novo offset para próxima página
-        hasMore: hasMore
-      }
-    };
-    
-  } catch (error) {
-    logError('ERRO CRÍTICO em getRegistrosTable', error);
-    logEvent('ERROR', 'getRegistrosTable: ' + error.toString());
-    
-    // Retorna estrutura válida mesmo em caso de erro
-    return {
-      success: false,
-      error: error.toString(),
-      details: error && error.stack ? error.stack : undefined,
-      headers: CONFIG.REGISTROS_HEADERS,
-      rows: [],
-      meta: { total: 0, offset: 0, hasMore: false }
-    };
-  }
-}
+      const newData = normalized.rows || [];
+      if (appState.registros.currentPage === 0) appState.registros.data = newData;
+      else appState.registros.data = [...appState.registros.data, ...newData];
 
-/**
- * updateRegistroRow - Atualiza uma linha de registro
- */
-function updateRegistroRow(payload) {
-  try {
-    logDebug('updateRegistroRow: payload', payload);
-    const result = updateRegistroRowsBatch({ updates: [payload] });
-    if (result && result.success) {
-      return { success: true, updated: result.updated || 0 };
-    }
-    if (result) {
-      return {
-        success: false,
-        error: result.error || 'Falha ao atualizar registro',
-        details: result.details,
-        errors: result.errors,
-        updated: result.updated || 0
-      };
-    }
-    return { success: false, error: 'Resposta inválida do batch' };
-  } catch (error) {
-    logError('Erro em updateRegistroRow', error);
-    logEvent('ERROR', 'updateRegistroRow: ' + error.toString());
-    return { success: false, error: error.toString(), details: error && error.stack ? error.stack : undefined };
-  }
-}
+      appState.registros.totalCount = normalized.meta?.total || 0;
+      appState.registros.hasMore = normalized.meta?.hasMore || false;
 
-/**
- * Atualiza várias linhas de uma vez (evita múltiplas chamadas e reduz risco de timeout/quota).
- * payload: { updates: [{ rowNumber: number, values: {HEADER: value,...}}, ...] }
- */
-function updateRegistroRowsBatch(payload) {
-  const lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(30000);
+      renderRegistrosBody();
+      updateRegistrosControls();
 
-    logDebug('updateRegistroRowsBatch: payload', payload);
-
-    if (!payload || !Array.isArray(payload.updates) || payload.updates.length === 0) {
-      return { success: false, error: 'Nenhuma atualização recebida' };
+      showStatus('Carregados ' + appState.registros.data.length + ' de ' + appState.registros.totalCount + ' registros', 'success', 2000);
     }
 
-    const sheet = getSheet(CONFIG.SHEET_NAMES.REGISTROS);
-    if (!sheet) return { success: false, error: 'Planilha de registros não encontrada' };
+    function renderRegistrosHeaders() {
+      const headersRow = document.getElementById('registrosHeaders');
+      if (!headersRow || !appState.registros.headers.length) return;
 
-    const dataRange = sheet.getDataRange();
-    const allData = dataRange.getValues();
-    const headers = allData[0] || [];
-    if (!headers.length) return { success: false, error: 'Cabeçalhos não encontrados na planilha' };
-
-    const lastRow = allData.length;
-    if (lastRow < 2) return { success: false, error: 'Planilha não possui registros para atualizar' };
-
-    const updatedAtIndex = headers.indexOf('UPDATED_AT');
-    let updated = 0;
-    const errors = [];
-
-    payload.updates.forEach((u) => {
-      try {
-        const rowNumber = Number(u && u.rowNumber);
-        const values = (u && u.values) ? u.values : {};
-        if (!rowNumber || rowNumber < 2) {
-          errors.push({ rowNumber, error: 'Número de linha inválido (deve ser >= 2)' });
-          return;
-        }
-        if (rowNumber > lastRow) {
-          errors.push({ rowNumber, error: 'Número de linha inválido (fora do intervalo)' });
-          return;
-        }
-
-        const currentValues = allData[rowNumber - 1];
-
-        headers.forEach((header, idx) => {
-          if (Object.prototype.hasOwnProperty.call(values, header)) {
-            currentValues[idx] = values[header];
-          }
-        });
-
-        if (updatedAtIndex !== -1) currentValues[updatedAtIndex] = new Date();
-        updated += 1;
-      } catch (e) {
-        errors.push({ rowNumber: u?.rowNumber, error: String(e) });
-      }
-    });
-
-    if (updated > 0) {
-      dataRange.setValues(allData);
-    }
-
-    // Reconstrói o índice uma única vez ao final
-    if (updated > 0) {
-      try { rebuildIndex(); } catch (e) {}
-    }
-
-    if (errors.length) {
-      logEvent('WARN', `Batch update: ${updated} ok, ${errors.length} erros`);
-      return { success: false, updated, errors };
-    }
-
-    logEvent('UPDATE', `Batch update: ${updated} linhas`);
-    return { success: true, updated };
-
-  } catch (error) {
-    logError('Erro em updateRegistroRowsBatch', error);
-    logEvent('ERROR', 'updateRegistroRowsBatch: ' + String(error));
-    return { success: false, error: String(error), details: error && error.stack ? error.stack : undefined };
-  } finally {
-    try { lock.releaseLock(); } catch (e) {}
-  }
-}
-
-/**
- * getDuplicados - Retorna lista de registros duplicados
- */
-function getDuplicados() {
-  try {
-    logDebug('getDuplicados: inicio');
-    const registros = getRegistros();
-    
-    // Filtra registros duplicados ativos
-    const duplicados = registros.filter(r => 
-      isDuplicado(r.STATUS) && !isDeleted(r.DELETADO)
-    );
-    
-    logDebug('getDuplicados: total', duplicados.length);
-    return { success: true, rows: duplicados, duplicados: duplicados };
-    
-  } catch (error) {
-    logError('Erro em getDuplicados', error);
-    logEvent('ERROR', 'getDuplicados: ' + error.toString());
-    return { success: false, error: error.toString(), details: error && error.stack ? error.stack : undefined, rows: [], duplicados: [] };
-  }
-}
-
-/**
- * resolveDuplicado - Resolve um registro duplicado
- */
-function resolveDuplicado(payload) {
-  try {
-    logDebug('resolveDuplicado: payload', payload);
-    if (!payload || !payload.id || !payload.action) {
-      return { success: false, error: 'Dados incompletos para resolução' };
-    }
-    
-    const sheet = getSheet(CONFIG.SHEET_NAMES.REGISTROS);
-    if (!sheet) {
-      return { success: false, error: 'Planilha de registros não encontrada' };
-    }
-    
-    const data = sheet.getDataRange().getValues();
-    const headers = data[0];
-    
-    // Encontra índices das colunas importantes
-    const idIndex = headers.indexOf('ID');
-    const statusIndex = headers.indexOf('STATUS');
-    const updatedAtIndex = headers.indexOf('UPDATED_AT');
-    const deletadoIndex = headers.indexOf('DELETADO');
-    
-    if (idIndex === -1 || statusIndex === -1) {
-      return { success: false, error: 'Estrutura da planilha inválida' };
-    }
-    
-    // Procura o registro pelo ID
-    for (let i = 1; i < data.length; i++) {
-      if (String(data[i][idIndex]) === String(payload.id)) {
-        
-        // Aplica a ação
-        switch (payload.action) {
-          case 'validar':
-            data[i][statusIndex] = 'VALIDO';
-            break;
-          case 'manter':
-            data[i][statusIndex] = 'DUPLICADO_MANTIDO';
-            break;
-          case 'mesclar':
-            data[i][statusIndex] = 'MESCLADO';
-            break;
-          case 'excluir':
-            if (deletadoIndex !== -1) {
-              data[i][deletadoIndex] = 'TRUE';
-            }
-            data[i][statusIndex] = 'EXCLUIDO';
-            break;
-          default:
-            return { success: false, error: 'Ação inválida. Use: validar, manter, mesclar ou excluir.' };
-        }
-        
-        // Atualiza timestamp
-        if (updatedAtIndex !== -1) {
-          data[i][updatedAtIndex] = new Date();
-        }
-        
-        // Salva as alterações
-        sheet.getRange(i + 1, 1, 1, headers.length).setValues([data[i]]);
-        
-        // Reconstroi índice
-        rebuildIndex();
-        
-        logEvent('DUPLICADO', `Registro ${payload.id} resolvido com ação: ${payload.action}`);
-        
-        return { success: true };
-      }
-    }
-    
-    return { success: false, error: 'Registro não encontrado com o ID fornecido' };
-    
-  } catch (error) {
-    logError('Erro em resolveDuplicado', error);
-    logEvent('ERROR', 'resolveDuplicado: ' + error.toString());
-    return { success: false, error: error.toString(), details: error && error.stack ? error.stack : undefined };
-  }
-}
-
-/**
- * getRelatorios - Retorna lista de relatórios gerados
- */
-function getRelatorios() {
-  try {
-    logDebug('getRelatorios: inicio');
-    const sheet = getSheet(CONFIG.SHEET_NAMES.RELATORIOS);
-    if (!sheet) return { success: false, error: 'Planilha de relatórios não encontrada', rows: [], relatorios: [] };
-    
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) return { success: true, rows: [], relatorios: [] };
-    
-    const headers = data[0];
-    const relatorios = [];
-    
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      const relatorio = {};
-      
-      headers.forEach((header, index) => {
-        relatorio[header] = row[index];
+      let html = '';
+      appState.registros.headers.forEach(header => {
+        html += '<th>' + escapeHtml(header) + '</th>';
       });
-      
-      // Adiciona apenas relatórios com conteúdo
-      if (relatorio.COMPETENCIA || relatorio.TOTAL_REGISTROS) {
-        relatorios.push(relatorio);
+      headersRow.innerHTML = html;
+    }
+
+    function renderRegistrosBody() {
+      const tbody = document.getElementById('registrosBody');
+      if (!tbody) return;
+
+      if (!appState.registros.data.length) {
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center">Nenhum registro encontrado</td></tr>';
+        return;
+      }
+
+      let html = '';
+      appState.registros.data.forEach((row, rowIndex) => {
+        const sheetRowNumber = Number(row.rowNumber) || (2 + rowIndex + (appState.registros.currentPage * appState.registros.pageSize));
+        const rowId = 'row-' + sheetRowNumber;
+
+        html += '<tr data-row-id="' + rowId + '" data-row-number="' + sheetRowNumber + '">';
+
+        appState.registros.headers.forEach((header, colIndex) => {
+          const originalValue = row.values?.[colIndex] ?? '';
+          const dirtyValue = appState.registros.dirtyCells.get(rowId)?.get(header);
+          const displayValue = dirtyValue !== undefined ? dirtyValue : originalValue;
+          const isDirty = dirtyValue !== undefined;
+
+          // Tratamento especial para IMG_URL: exibe botão/link sem quebrar edição
+          if (header === 'IMG_URL') {
+            const url = String(displayValue || '').trim();
+            html += '<td>';
+            html += '<div class="editable-cell ' + (isDirty ? 'dirty' : '') + '" ';
+            html += 'contenteditable="true" data-header="' + escapeHtml(header) + '" ';
+            html += 'data-original="' + escapeHtml(originalValue) + '" ';
+            html += 'data-row-id="' + rowId + '" ';
+            html += 'oninput="markCellDirty(\'' + rowId + '\', \'' + header + '\', this.textContent)" ';
+            html += 'onfocus="this.dataset.focused = \'true\'" ';
+            html += 'onblur="this.dataset.focused = \'\'">';
+            html += escapeHtml(url) + '</div>';
+            if (url) {
+              html += '<div class="mt-1">';
+              html += '<a href="' + escapeHtml(url) + '" target="_blank" class="btn btn-secondary btn-small">';
+              html += '<i class="fas fa-image"></i> Abrir imagem';
+              html += '</a></div>';
+            } else {
+              html += '<div class="mt-1 text-muted">Sem imagem</div>';
+            }
+            html += '</td>';
+            return;
+          }
+
+          html += '<td>';
+          html += '<div class="editable-cell ' + (isDirty ? 'dirty' : '') + '" ';
+          html += 'contenteditable="true" data-header="' + escapeHtml(header) + '" ';
+          html += 'data-original="' + escapeHtml(originalValue) + '" ';
+          html += 'data-row-id="' + rowId + '" ';
+          html += 'oninput="markCellDirty(\'' + rowId + '\', \'' + header + '\', this.textContent)" ';
+          html += 'onfocus="this.dataset.focused = \'true\'" ';
+          html += 'onblur="this.dataset.focused = \'\'">';
+          html += escapeHtml(displayValue) + '</div>';
+          html += '</td>';
+        });
+
+        html += '</tr>';
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    function markCellDirty(rowId, header, newValue) {
+      if (!rowId || !header) return;
+
+      const rowData = appState.registros.dirtyCells.get(rowId) || new Map();
+      const cell = document.querySelector('[data-row-id="' + rowId + '"][data-header="' + header + '"]');
+      const originalValue = cell?.getAttribute('data-original') || '';
+
+      if (String(newValue).trim() === String(originalValue).trim()) {
+        rowData.delete(header);
+        if (rowData.size === 0) appState.registros.dirtyCells.delete(rowId);
+        if (cell) cell.classList.remove('dirty');
+      } else {
+        rowData.set(header, newValue);
+        appState.registros.dirtyCells.set(rowId, rowData);
+        if (cell) cell.classList.add('dirty');
+      }
+
+      updateRegistrosControls();
+    }
+
+    function updateRegistrosControls() {
+      const btnMais = document.getElementById('btnMaisRegistros');
+      const btnSalvar = document.getElementById('btnSalvarRegistros');
+      const info = document.getElementById('registrosInfo');
+
+      if (btnMais) btnMais.style.display = appState.registros.hasMore ? 'inline-flex' : 'none';
+
+      const hasChanges = appState.registros.dirtyCells.size > 0;
+      if (btnSalvar) btnSalvar.style.display = hasChanges ? 'inline-flex' : 'none';
+
+      if (info) {
+        const loaded = appState.registros.data.length;
+        const total = appState.registros.totalCount;
+        const changes = appState.registros.dirtyCells.size;
+
+        let infoText = 'Mostrando ' + loaded + ' de ' + total + ' registros';
+        if (changes > 0) {
+          infoText += ' | <span style="color: var(--warning);"><i class="fas fa-edit"></i> ' + changes + ' alteração(ões) pendente(s)</span>';
+        }
+        info.innerHTML = infoText;
       }
     }
-    
-    return { success: true, rows: relatorios, relatorios: relatorios };
-    
-  } catch (error) {
-    logError('Erro em getRelatorios', error);
-    logEvent('ERROR', 'getRelatorios: ' + error.toString());
-    return { success: false, error: error.toString(), details: error && error.stack ? error.stack : undefined, rows: [], relatorios: [] };
-  }
-}
 
-/**
- * gerarRelatorio - Gera um novo relatório
- */
-function gerarRelatorio() {
-  try {
-    logDebug('gerarRelatorio: inicio');
-    
-    const registros = getRegistros();
-    const totals = calculateTotals(registros);
-    const competencia = formatCompetencia(new Date());
-    
-    logDebug('gerarRelatorio: competencia', competencia);
-    logDebug('gerarRelatorio: totais', totals);
-    
-    // Gera resumo
-    const resumo = generateResumo(totals, competencia);
-    
-    // Gera PDF (simulado - implemente conforme necessário)
-    const pdfUrl = generatePdf(competencia, totals, resumo);
-    
-    // Salva metadados do relatório
-    const sheet = getSheet(CONFIG.SHEET_NAMES.RELATORIOS);
-    const headers = getSheetHeaders(sheet) || CONFIG.RELATORIOS_HEADERS;
-    
-    const relatorioData = {
-      ID: Utilities.getUuid(),
-      COMPETENCIA: competencia,
-      TOTAL_REGISTROS: totals.total,
-      TOTAL_ATIVOS: totals.ativos,
-      TOTAL_DUPLICADOS: totals.duplicados,
-      URL_PDF: pdfUrl,
-      RESUMO: resumo,
-      CREATED_AT: new Date()
-    };
-    
-    // Prepara valores para inserção
-    const rowValues = headers.map(header => relatorioData[header] || '');
-    sheet.appendRow(rowValues);
-    
-    logEvent('RELATORIO', `Relatório ${competencia} gerado: ${totals.total} registros`);
-    
-    return {
-      success: true,
-      message: `Relatório ${competencia} gerado com sucesso`,
-      url: pdfUrl
-    };
-    
-  } catch (error) {
-    logError('Erro em gerarRelatorio', error);
-    logEvent('ERROR', 'gerarRelatorio: ' + error.toString());
-    return {
-      success: false,
-      error: error.toString(),
-      details: error && error.stack ? error.stack : undefined
-    };
-  }
-}
-
-// ===== FUNÇÕES AUXILIARES =====
-
-function getSheet(sheetName) {
-  try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    return ss.getSheetByName(sheetName);
-  } catch (error) {
-    console.error(`Erro ao obter aba ${sheetName}:`, error);
-    return null;
-  }
-}
-
-function getSheetHeaders(sheet) {
-  if (!sheet) return [];
-  const lastColumn = sheet.getLastColumn();
-  if (lastColumn === 0) return [];
-  return sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
-}
-
-function getConfigValue(key) {
-  try {
-    const sheet = getSheet(CONFIG.SHEET_NAMES.CONFIG);
-    if (!sheet) return CONFIG.DEFAULTS[key] || '';
-    
-    const data = sheet.getDataRange().getValues();
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === key) {
-        return data[i][1] || CONFIG.DEFAULTS[key] || '';
-      }
+    function loadMoreRegistros() {
+      if (!appState.registros.hasMore) return;
+      appState.registros.currentPage++;
+      loadRegistros();
     }
-  } catch (error) {
-    console.error('Erro ao obter configuração:', error);
-  }
-  return CONFIG.DEFAULTS[key] || '';
-}
 
-function getRegistros() {
-  try {
-    const sheet = getSheet(CONFIG.SHEET_NAMES.REGISTROS);
-    if (!sheet) return [];
-    
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) return [];
-    
-    const headers = data[0];
-    const registros = [];
-    
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      
-      // Verifica se a linha tem conteúdo
-      let hasContent = false;
-      for (let j = 0; j < row.length; j++) {
-        const val = row[j];
-        if (val !== null && val !== undefined && val !== '') {
-          if (typeof val === 'string' && val.trim() !== '') {
-            hasContent = true;
-            break;
-          } else if (typeof val !== 'string') {
-            hasContent = true;
-            break;
+    function saveRegistros() {
+      if (appState.registros.dirtyCells.size === 0) {
+        showStatus('Nenhuma alteração para salvar', 'info');
+        return;
+      }
+
+      showStatus('Salvando alterações...', 'info', 0);
+
+      // Prepara updates (garante rowNumber válido)
+      const updates = [];
+      appState.registros.dirtyCells.forEach((cellMap, rowId) => {
+        const rowNumber = parseInt(String(rowId).replace('row-', ''), 10) || 0;
+        if (rowNumber > 1) {
+          const values = {};
+          cellMap.forEach((value, header) => { values[header] = value; });
+          updates.push({ rowNumber, values });
+        }
+      });
+
+      if (updates.length === 0) {
+        showStatus('Nenhuma alteração válida para salvar', 'warning');
+        return;
+      }
+
+      // Uma única chamada ao backend (evita travar/quota)
+      google.script.run
+        .withSuccessHandler(result => {
+          if (!result) {
+            console.error('Resposta inválida ao salvar (null)');
+            showStatus('Erro: resposta inválida do servidor ao salvar', 'error');
+            return;
+          }
+
+          if (result.success) {
+            showStatus('Alterações salvas com sucesso (' + (result.updated || updates.length) + ')', 'success');
+            appState.registros.dirtyCells.clear();
+            updateRegistrosControls();
+            // Recarrega registros e dashboard para refletir mudanças
+            resetRegistros();
+            loadDashboard();
+            return;
+          }
+
+          // Caso parcial/erro com detalhes
+          const updated = result.updated || 0;
+          const errs = Array.isArray(result.errors) ? result.errors : [];
+          console.error('Erros no batch update:', errs);
+          showStatus('Salvou ' + updated + ' linha(s), ' + errs.length + ' falhou(aram). Veja o console.', 'warning', 6000);
+
+          // Ainda assim, recarrega para não ficar "travado"
+          appState.registros.dirtyCells.clear();
+          updateRegistrosControls();
+          resetRegistros();
+          loadDashboard();
+        })
+        .withFailureHandler(error => {
+          console.error('Erro ao salvar (backend):', error);
+          showStatus('Erro ao salvar alterações: ' + (error?.message || error), 'error', 6000);
+        })
+        .updateRegistroRowsBatch({ updates });
+    }
+
+    // ===== DUPLICADOS FUNCTIONS =====
+    function loadDuplicados() {
+      showStatus('Buscando registros duplicados...', 'info');
+      google.script.run
+        .withSuccessHandler(renderDuplicados)
+        .withFailureHandler(error => {
+          console.error('Erro ao carregar duplicados:', error);
+          showStatus('Erro ao carregar duplicados', 'error');
+        })
+        .getDuplicados();
+    }
+
+    function renderDuplicados(duplicados) {
+      const tbody = document.getElementById('duplicadosBody');
+      if (!tbody) return;
+
+      if (!duplicados || duplicados.length === 0) {
+        tbody.innerHTML = '<tr>' +
+          '<td colspan="7" class="text-center">' +
+          '<i class="fas fa-check-circle" style="color: var(--success);"></i>' +
+          ' Nenhum registro duplicado encontrado!' +
+          '</td>' +
+          '</tr>';
+        showStatus('Nenhum duplicado encontrado', 'success');
+        return;
+      }
+
+      let html = '';
+      duplicados.forEach(registro => {
+        const id = registro.ID || '';
+        html += '<tr>' +
+          '<td><code title="' + escapeHtml(id) + '">' + escapeHtml(id.substring(0, 8)) + '...</code></td>' +
+          '<td>' + escapeHtml(registro.BENEFICIARIO || '') + '</td>' +
+          '<td><strong>' + escapeHtml(registro.NUM_DOCUMENTO || '') + '</strong></td>' +
+          '<td>' + escapeHtml(registro.PRODUTO || '') + '</td>' +
+          '<td><span class="badge" style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:12px;">' + escapeHtml(registro.STATUS || '') + '</span></td>' +
+          '<td>' + escapeHtml(registro.DUP_REASON || 'Documento duplicado') + '</td>' +
+          '<td>' +
+          '<div style="display: flex; gap: 4px; flex-wrap: wrap;">' +
+          '<button class="btn btn-success btn-small" onclick="resolverDuplicado(\'' + escapeHtml(id) + '\', \'validar\')" title="Validar registro">' +
+          '<i class="fas fa-check"></i>' +
+          '</button>' +
+          '<button class="btn btn-warning btn-small" onclick="resolverDuplicado(\'' + escapeHtml(id) + '\', \'manter\')" title="Manter como duplicado">' +
+          '<i class="fas fa-pause"></i>' +
+          '</button>' +
+          '<button class="btn btn-danger btn-small" onclick="resolverDuplicado(\'' + escapeHtml(id) + '\', \'excluir\')" title="Excluir registro">' +
+          '<i class="fas fa-trash"></i>' +
+          '</button>' +
+          '</div>' +
+          '</td>' +
+          '</tr>';
+      });
+
+      tbody.innerHTML = html;
+      showStatus('Encontrados ' + duplicados.length + ' registros duplicados', 'success');
+    }
+
+    function resolverDuplicado(id, acao) {
+      if (!confirm('Confirmar ação "' + acao + '" no registro ' + id.substring(0, 8) + '...?')) return;
+
+      showStatus('Processando ' + acao + '...', 'info');
+
+      google.script.run
+        .withSuccessHandler(result => {
+          if (result.success) {
+            showStatus('Registro ' + acao + ' com sucesso!', 'success');
+            loadDuplicados();
+            if (appState.currentTab === 'dashboard') loadDashboard();
+          } else {
+            showStatus('Erro: ' + (result.error || 'Falha na ação'), 'error');
+          }
+        })
+        .withFailureHandler(error => {
+          console.error('Erro ao resolver duplicado:', error);
+          showStatus('Erro ao processar ação', 'error');
+        })
+        .resolveDuplicado({ id, action: acao });
+    }
+
+    // ===== RELATÓRIOS FUNCTIONS =====
+    function loadRelatorios() {
+      showStatus('Carregando relatórios...', 'info');
+      google.script.run
+        .withSuccessHandler(renderRelatorios)
+        .withFailureHandler(error => {
+          console.error('Erro ao carregar relatórios:', error);
+          showStatus('Erro ao carregar relatórios', 'error');
+        })
+        .getRelatorios();
+    }
+
+    function renderRelatorios(relatorios) {
+      const tbody = document.getElementById('relatoriosBody');
+      if (!tbody) return;
+
+      if (!relatorios || relatorios.length === 0) {
+        tbody.innerHTML = '<tr>' +
+          '<td colspan="7" class="text-center">' +
+          '<i class="fas fa-file"></i> Nenhum relatório gerado ainda' +
+          '</td>' +
+          '</tr>';
+        showStatus('Nenhum relatório encontrado', 'info');
+        return;
+      }
+
+      let html = '';
+      relatorios.forEach(rel => {
+        const resumo = String(rel.RESUMO || '');
+        html += '<tr>' +
+          '<td><strong>' + escapeHtml(rel.COMPETENCIA || '') + '</strong></td>' +
+          '<td>' + (rel.TOTAL_REGISTROS || rel.TOTAL || 0) + '</td>' +
+          '<td>' + (rel.TOTAL_ATIVOS || rel.ATIVOS || 0) + '</td>' +
+          '<td>' + (rel.TOTAL_DUPLICADOS || rel.DUPLICADOS || 0) + '</td>' +
+          '<td>' + formatDate(rel.CREATED_AT) + '</td>' +
+          '<td>';
+        if (rel.URL_PDF) {
+          html += '<a href="' + escapeHtml(rel.URL_PDF) + '" target="_blank" class="btn btn-secondary btn-small">' +
+            '<i class="fas fa-external-link-alt"></i> Abrir PDF' +
+            '</a>';
+        } else {
+          html += '<span class="text-muted">Não disponível</span>';
+        }
+        html += '</td>' +
+          '<td title="' + escapeHtml(resumo) + '">' +
+          escapeHtml(resumo.substring(0, 60)) + (resumo.length > 60 ? '...' : '') +
+          '</td>' +
+          '</tr>';
+      });
+
+      tbody.innerHTML = html;
+      showStatus('Carregados ' + relatorios.length + ' relatórios', 'success');
+    }
+
+    function gerarRelatorio() {
+      if (!confirm('Deseja gerar um novo relatório da competência atual?')) return;
+
+      showStatus('Gerando relatório... Isso pode levar alguns segundos.', 'info', 0);
+
+      google.script.run
+        .withSuccessHandler(result => {
+          if (result.success) {
+            showStatus('Relatório gerado com sucesso!', 'success');
+            loadRelatorios();
+          } else {
+            showStatus('Erro: ' + (result.error || 'Falha ao gerar relatório'), 'error');
+          }
+        })
+        .withFailureHandler(error => {
+          console.error('Erro ao gerar relatório:', error);
+          showStatus('Erro ao gerar relatório', 'error');
+        })
+        .gerarRelatorio();
+    }
+
+    // ===== INITIALIZATION =====
+    function initializeApp() {
+      console.log('Social Coletor Admin inicializando...');
+      showTab('dashboard');
+
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          const focusedCell = document.querySelector('.editable-cell[data-focused="true"]');
+          if (focusedCell) {
+            const original = focusedCell.getAttribute('data-original') || '';
+            focusedCell.textContent = original;
+            focusedCell.classList.remove('dirty');
+
+            const rowId = focusedCell.getAttribute('data-row-id');
+            const header = focusedCell.getAttribute('data-header');
+            if (rowId && header) {
+              const rowData = appState.registros.dirtyCells.get(rowId);
+              if (rowData) {
+                rowData.delete(header);
+                if (rowData.size === 0) appState.registros.dirtyCells.delete(rowId);
+                updateRegistrosControls();
+              }
+            }
+
+            event.preventDefault();
           }
         }
-      }
-      
-      if (hasContent) {
-        const registro = {};
-        headers.forEach((header, index) => {
-          registro[header] = row[index];
-        });
-        registros.push(registro);
-      }
+
+        if (event.ctrlKey && event.key === 's') {
+          event.preventDefault();
+          if (appState.currentTab === 'registros' && appState.registros.dirtyCells.size > 0) {
+            saveRegistros();
+          }
+        }
+      });
+
+      console.log('Aplicativo inicializado com sucesso');
     }
-    
-    return registros;
-    
-  } catch (error) {
-    console.error('Erro em getRegistros:', error);
-    return [];
-  }
-}
 
-function calculateTotals(registros) {
-  const totals = {
-    total: registros.length,
-    ativos: 0,
-    duplicados: 0,
-    porProduto: {}
-  };
-  
-  registros.forEach(r => {
-    const deletado = isDeleted(r.DELETADO);
-    
-    if (!deletado) {
-      totals.ativos++;
-      
-      if (isDuplicado(r.STATUS)) {
-        totals.duplicados++;
-      }
-      
-      const produto = r.PRODUTO || 'Não informado';
-      const quantidade = Number(r.QUANTIDADE || 0);
-      
-      if (!isNaN(quantidade)) {
-        totals.porProduto[produto] = (totals.porProduto[produto] || 0) + quantidade;
-      }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeApp);
+    } else {
+      initializeApp();
     }
-  });
-  
-  return totals;
-}
-
-function isDuplicado(status) {
-  if (!status) return false;
-  const statusStr = String(status).trim().toUpperCase();
-  return statusStr.includes('DUPLICADO') || statusStr.includes('DUPLICATE') || statusStr === 'DUP';
-}
-
-function isDeleted(value) {
-  if (value === true) return true;
-  if (value === false) return false;
-  
-  const str = String(value || '').trim().toUpperCase();
-  return str === 'TRUE' || str === 'SIM' || str === '1' || str === 'S';
-}
-
-function formatCompetencia(date) {
-  try {
-    return Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM');
-  } catch (error) {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  }
-}
-
-function generateResumo(totals, competencia) {
-  const base = `Relatório ${competencia}: ${totals.total} registros totais, ${totals.ativos} ativos, ${totals.duplicados} duplicados.`;
-  
-  // Adiciona detalhes por produto se houver
-  const produtos = Object.keys(totals.porProduto);
-  if (produtos.length > 0) {
-    const produtosText = produtos.map(p => `${p}: ${totals.porProduto[p]}`).join(', ');
-    return `${base} Distribuição por produto: ${produtosText}.`;
-  }
-  
-  return base;
-}
-
-function generatePdf(competencia, totals, resumo) {
-  // Esta função é um placeholder
-  // Implemente a geração real de PDF conforme necessário
-  // Pode usar HtmlService.createHtmlOutput().getAs('application/pdf')
-  
-  console.log(`PDF gerado para ${competencia}: ${resumo.substring(0, 50)}...`);
-  return ''; // Retorna URL vazia por enquanto
-}
-
-function rebuildIndex() {
-  try {
-    const sheet = getSheet(CONFIG.SHEET_NAMES.REGISTROS);
-    const indexSheet = getSheet(CONFIG.SHEET_NAMES.INDEX);
-    
-    if (!sheet || !indexSheet) return;
-    
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      indexSheet.clear();
-      indexSheet.getRange(1, 1, 1, CONFIG.INDEX_HEADERS.length).setValues([CONFIG.INDEX_HEADERS]);
-      return;
-    }
-    
-    const headers = data[0];
-    const docIndex = headers.indexOf('NUM_DOCUMENTO');
-    const idIndex = headers.indexOf('ID');
-    const deletadoIndex = headers.indexOf('DELETADO');
-    
-    if (docIndex === -1 || idIndex === -1) return;
-    
-    const indexData = [];
-    const seenDocs = new Set();
-    
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      const doc = normalizeDoc(row[docIndex]);
-      const id = row[idIndex];
-      const deletado = isDeleted(row[deletadoIndex]);
-      
-      if (doc && !seenDocs.has(doc) && !deletado) {
-        seenDocs.add(doc);
-        indexData.push([
-          doc,
-          id,
-          i + 1,
-          new Date(),
-          new Date(),
-          ''
-        ]);
-      }
-    }
-    
-    // Limpa e recria o índice
-    indexSheet.clear();
-    indexSheet.getRange(1, 1, 1, CONFIG.INDEX_HEADERS.length).setValues([CONFIG.INDEX_HEADERS]);
-    
-    if (indexData.length > 0) {
-      indexSheet.getRange(2, 1, indexData.length, CONFIG.INDEX_HEADERS.length).setValues(indexData);
-    }
-    
-  } catch (error) {
-    console.error('Erro ao reconstruir índice:', error);
-  }
-}
-
-function normalizeDoc(doc) {
-  if (!doc) return '';
-  return String(doc).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-}
-
-function logEvent(action, details) {
-  try {
-    const sheet = getSheet(CONFIG.SHEET_NAMES.LOGS);
-    if (!sheet) return;
-    
-    sheet.appendRow([
-      new Date(),
-      action,
-      String(details).substring(0, 490) // Limita tamanho
-    ]);
-    
-    // Mantém logs razoáveis (últimas 1000 entradas)
-    if (sheet.getLastRow() > 1000) {
-      sheet.deleteRows(2, sheet.getLastRow() - 1000);
-    }
-    
-  } catch (error) {
-    console.error('Erro ao registrar log:', error);
-  }
-}
-
-function escapeHtml(text) {
-  if (text == null) return '';
-  return String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-// ===== FUNÇÕES DE DIAGNÓSTICO E MANUTENÇÃO =====
-
-function testSystem() {
-  console.log('=== TESTE DO SISTEMA SOCIAL COLETOR ===');
-  
-  try {
-    // 1. Garante sistema
-    ensureSystem();
-    console.log('✅ Sistema configurado');
-    
-    // 2. Testa dashboard
-    const dashboard = getDashboardData();
-    console.log('✅ Dashboard:', dashboard.success ? 'OK' : 'ERRO');
-    
-    // 3. Testa paginação
-    const registros = getRegistrosTable({ limit: 5, offset: 0 });
-    console.log('✅ Paginação:', registros.success ? 'OK' : 'ERRO', '(', (registros.rows ? registros.rows.length : 0), 'registros)');
-    
-    // 4. Testa duplicados
-    const duplicados = getDuplicados();
-    console.log('✅ Duplicados:', duplicados.length, 'encontrados');
-    
-    // 5. Testa relatórios
-    const relatorios = getRelatorios();
-    console.log('✅ Relatórios:', relatorios.length, 'encontrados');
-    
-    console.log('=== TESTE CONCLUÍDO COM SUCESSO ===');
-    return {
-      success: true,
-      message: 'Sistema funcionando corretamente',
-      dashboard: dashboard.success,
-      pagination: registros.success,
-      duplicates: duplicados.length,
-      reports: relatorios.length
-    };
-    
-  } catch (error) {
-    console.error('❌ ERRO NO TESTE:', error);
-    return {
-      success: false,
-      error: error.toString()
-    };
-  }
-}
-
-function fixSystem() {
-  console.log('=== CORRIGINDO SISTEMA ===');
-  
-  try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    
-    // 1. Recria aba Registros
-    let registrosSheet = ss.getSheetByName(CONFIG.SHEET_NAMES.REGISTROS);
-    if (registrosSheet) {
-      ss.deleteSheet(registrosSheet);
-    }
-    
-    registrosSheet = ensureSheetWithHeaders(ss, CONFIG.SHEET_NAMES.REGISTROS, CONFIG.REGISTROS_HEADERS);
-    
-    // 2. Adiciona dados de exemplo
-    const exemploData = [
-      [
-        'REG-' + Utilities.getUuid().substring(0, 8),
-        new Date(),
-        'João da Silva',
-        '123.456.789-00',
-        'DOC2024001',
-        'Maria',
-        'Cesta Básica',
-        2,
-        '2024-01-15',
-        'Rua das Flores, 123',
-        'Primeiro registro de exemplo',
-        'SISTEMA',
-        '',
-        'NOVO',
-        '',
-        '',
-        new Date(),
-        ''
-      ],
-      [
-        'REG-' + Utilities.getUuid().substring(0, 8),
-        new Date(),
-        'Ana Santos',
-        '987.654.321-00',
-        'DOC2024002',
-        'Carlos',
-        'Kit Higiene',
-        1,
-        '2024-01-16',
-        'Av. Principal, 456',
-        '',
-        'SISTEMA',
-        '',
-        'NOVO',
-        '',
-        '',
-        new Date(),
-        ''
-      ]
-    ];
-    
-    registrosSheet.getRange(2, 1, exemploData.length, CONFIG.REGISTROS_HEADERS.length).setValues(exemploData);
-    
-    // 3. Recria índice
-    rebuildIndex();
-    
-    console.log('=== SISTEMA CORRIGIDO ===');
-    return {
-      success: true,
-      message: 'Sistema corrigido com sucesso! 2 registros de exemplo adicionados.'
-    };
-    
-  } catch (error) {
-    console.error('❌ ERRO AO CORRIGIR SISTEMA:', error);
-    return {
-      success: false,
-      error: error.toString()
-    };
-  }
-}
-
-function onOpen() {
-  const ui = SpreadsheetApp.getUi();
-  
-  ui.createMenu('🚀 Social Coletor')
-    .addItem('📊 Abrir Painel Admin', 'showSidebar')
-    .addSeparator()
-    .addItem('🔍 Testar Sistema', 'testSystem')
-    .addItem('🛠️ Corrigir Sistema', 'fixSystem')
-    .addItem('📄 Gerar Relatório', 'gerarRelatorio')
-    .addSeparator()
-    .addItem('ℹ️ Sobre', 'showAbout')
-    .addToUi();
-}
-
-function showSidebar() {
-  const html = HtmlService.createHtmlOutput(`
-    <div style="padding: 20px; font-family: Arial, sans-serif;">
-      <h2 style="color: #3b82f6; margin-bottom: 10px;">🚀 Social Coletor</h2>
-      <p style="color: #64748b; margin-bottom: 20px;">Painel administrativo completo</p>
-      
-      <button onclick="window.open('${ScriptApp.getService().getUrl()}', '_blank')" 
-              style="width: 100%; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-bottom: 10px;">
-        📊 Abrir Painel Completo
-      </button>
-      
-      <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-        <h4 style="margin-bottom: 10px;">🔧 Ferramentas</h4>
-        <button onclick="google.script.run.testSystem()" style="width: 100%; padding: 8px; margin-bottom: 5px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer;">
-          Testar Sistema
-        </button>
-        <button onclick="google.script.run.fixSystem()" style="width: 100%; padding: 8px; margin-bottom: 5px; background: #fef3c7; border: 1px solid #fde68a; border-radius: 4px; cursor: pointer;">
-          Corrigir Sistema
-        </button>
-      </div>
-    </div>
-  `)
-  .setTitle('Social Coletor')
-  .setWidth(300);
-  
-  SpreadsheetApp.getUi().showSidebar(html);
-}
-
-function showAbout() {
-  const ui = SpreadsheetApp.getUi();
-  ui.alert(
-    'Sobre o Social Coletor',
-    'Sistema de gestão de registros sociais\n\n' +
-    'Versão: 3.0\n' +
-    'Desenvolvido com Google Apps Script\n\n' +
-    'Funcionalidades:\n' +
-    '• Dashboard com estatísticas\n' +
-    '• Gerenciamento de registros com paginação\n' +
-    '• Detecção e resolução de duplicados\n' +
-    '• Geração de relatórios\n\n' +
-    '✅ Sistema 100% integrado com Google Sheets',
-    ui.ButtonSet.OK
-  );
-}
+  </script>
+</body>
+</html>
