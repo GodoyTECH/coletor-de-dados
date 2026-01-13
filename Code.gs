@@ -11,27 +11,30 @@ const SHEETS = {
   CONFIG: '_Config'
 };
 
+// Cabeçalhos da aba REGISTROS
+// MODIFIQUE: Para adicionar/remover colunas, atualize esta lista
 const REGISTROS_HEADERS = [
-  'ID',
-  'DATA_REGISTRO',
-  'BENEFICIARIO',
-  'CPF',
-  'NUM_DOCUMENTO',
-  'ATENDENTE',
-  'PRODUTO',
-  'QUANTIDADE',
-  'DATA_FORM',
-  'ENDERECO',
-  'OBS',
-  'ORIGEM',
-  'IMG_URL',
-  'STATUS',
-  'DUP_REF_ID',
-  'DUP_REASON',
-  'UPDATED_AT',
-  'DELETADO'
+  'ID',              // Identificador único
+  'DATA_REGISTRO',   // Data de criação
+  'BENEFICIARIO',    // Nome do beneficiário
+  'CPF',             // CPF
+  'NUM_DOCUMENTO',   // Número do documento
+  'ATENDENTE',       // Nome do atendente
+  'PRODUTO',         // Produto entregue
+  'QUANTIDADE',      // Quantidade
+  'DATA_FORM',       // Data do formulário
+  'ENDERECO',        // Endereço
+  'OBS',             // Observações
+  'ORIGEM',          // Origem do registro
+  'IMG_URL',         // URL da imagem
+  'STATUS',          // Status (NOVO, DUPLICADO, etc.)
+  'DUP_REF_ID',      // ID do registro duplicado referência
+  'DUP_REASON',      // Motivo da duplicação
+  'UPDATED_AT',      // Data da última atualização
+  'DELETADO'         // Registro deletado (TRUE/FALSE)
 ];
 
+// Cabeçalhos da aba INDEX (índice para busca rápida)
 const INDEX_HEADERS = [
   'NUM_DOCUMENTO',
   'REG_ID',
@@ -55,6 +58,8 @@ const RELATORIOS_HEADERS = [
 const LOG_HEADERS = ['TIMESTAMP', 'ACTION', 'DETAILS'];
 const CONFIG_HEADERS = ['CHAVE', 'VALOR'];
 
+// Configurações padrão do sistema
+// MODIFIQUE: Para alterar valores padrão
 const CONFIG_DEFAULTS = {
   WEBAPP_TITLE: 'Social Coletor - Admin',
   DRIVE_FOLDER_NAME_IMAGES: 'SocialColetor_Imagens',
@@ -70,23 +75,43 @@ function doGet() {
   return template.evaluate().setTitle(template.webAppTitle);
 }
 
+/**
+ * doPost() - Processa requisições POST (formulários)
+ * 
+ * @param {Object} e - Evento POST com dados
+ * @returns {ContentService.TextOutput} Resposta JSON
+ */
 function doPost(e) {
   ensureSystem_();
   try {
+    // Garante sistema configurado
+    ensureSystem_();
+    
+    // Parse dos dados recebidos
     const payload = parsePayload_(e);
     if (!payload) {
       return jsonOutput_({ success: false, error: 'Payload vazio.' });
     }
 
     if (payload.action === 'submit') {
+      // Submissão de novo registro
       const result = handleSubmit_(payload.data || {});
       return jsonOutput_(Object.assign({ success: true }, result));
     }
-
-    return jsonOutput_({ success: false, error: 'Ação inválida.' });
+    
+    // Ação não reconhecida
+    return jsonOutput_({ 
+      success: false, 
+      error: 'Ação inválida ou não implementada.' 
+    });
+    
   } catch (error) {
-    logEvent_('ERROR', String(error));
-    return jsonOutput_({ success: false, error: String(error) });
+    // Log do erro e retorna mensagem
+    logEvent_('ERROR', 'doPost: ' + String(error));
+    return jsonOutput_({ 
+      success: false, 
+      error: 'Erro interno: ' + String(error) 
+    });
   }
 }
 
@@ -304,11 +329,11 @@ function getDuplicados() {
   }, []);
 }
 
-function resolveDuplicado(payload) {
-  ensureSystem_();
-  if (!payload || !payload.id || !payload.action) {
-    return { success: false, error: 'Dados incompletos.' };
-  }
+/**
+ * ============================================
+ * FUNÇÕES DE PROCESSAMENTO DE FORMULÁRIOS
+ * ============================================
+ */
 
   const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.REGISTROS);
   const data = sheet.getDataRange().getValues();
@@ -351,8 +376,16 @@ function resolveDuplicado(payload) {
       return { success: true };
     }
   }
-
-  return { success: false, error: 'Registro não encontrado.' };
+  
+  logEvent_('SUBMIT', `Registro ${recordId} inserido. Status=${status}.`);
+  
+  return {
+    id: recordId,
+    status,
+    dupRefId,
+    dupReason,
+    imgUrl: imageUrl
+  };
 }
 
 function getRelatorios() {
@@ -536,6 +569,51 @@ function ensureSystem_() {
   ensureDefaults_();
 }
 
+/**
+ * ensureSheetWithHeaders_() - Cria/valida aba com cabeçalhos
+ * 
+ * @param {Spreadsheet} ss - Planilha
+ * @param {string} name - Nome da aba
+ * @param {Array} headers - Cabeçalhos
+ * @returns {Sheet} Aba configurada
+ */
+function ensureSheetWithHeaders_(ss, name, headers) {
+  let sheet = ss.getSheetByName(name);
+  
+  // Cria aba se não existir
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
+    return sheet;
+  }
+  
+  const lastColumn = Math.max(sheet.getLastColumn(), headers.length);
+  
+  // Configura cabeçalhos se aba estiver vazia
+  if (lastColumn === 0) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
+    return sheet;
+  }
+  
+  // Verifica e adiciona cabeçalhos faltantes
+  const headerRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const existingHeaders = headerRow.filter((value) => value !== '' && value !== null);
+  
+  const missing = headers.filter((header) => !existingHeaders.includes(header));
+  if (missing.length > 0) {
+    const startCol = headerRow.length + 1;
+    sheet.getRange(1, startCol, 1, missing.length).setValues([missing]);
+  }
+  
+  sheet.setFrozenRows(1);
+  return sheet;
+}
+
+/**
+ * ensureDefaults_() - Garante configurações padrão
+ */
 function ensureDefaults_() {
   const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.CONFIG);
   const data = sheet.getDataRange().getValues();
@@ -591,7 +669,9 @@ function getConfigValue_(key) {
   const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.CONFIG);
   const values = sheet.getDataRange().getValues();
   for (let i = 1; i < values.length; i += 1) {
-    if (values[i][0] === key) return values[i][1];
+    if (values[i][0] === key) {
+      return values[i][1] || '';
+    }
   }
   return '';
 }
@@ -613,6 +693,12 @@ function parsePayload_(e) {
   return JSON.parse(e.postData.contents);
 }
 
+/**
+ * jsonOutput_() - Cria resposta JSON
+ * 
+ * @param {Object} obj - Objeto para converter em JSON
+ * @returns {TextOutput} Resposta JSON
+ */
 function jsonOutput_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
@@ -801,6 +887,12 @@ function getNumberParam_(payload, key, defaultValue, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+/**
+ * logEvent_() - Registra evento no log
+ * 
+ * @param {string} action - Ação realizada
+ * @param {string} details - Detalhes do evento
+ */
 function logEvent_(action, details) {
   const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.LOGS);
   if (!sheet) return;

@@ -12,7 +12,7 @@ const OCR_API_URL = 'https://api.ocr.space/parse/image';
 const GOOGLE_SCRIPT_URL = ''; // Será configurada dinamicamente
 const AUTH_USER = 'Eduardo';
 const AUTH_PASS = 'decore';
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwqmATfmdJz2RhVBik4gA_xFoGiVHtEhH5Gd8es4h4Z6PXTSlyeRWcjspWZPb24JOAw/exec';
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbymmvmflkL22DYgFF5Uy1cLgotOGfKxN0lSmC8k86au8vZFtCM94764dVGoQaXqANhR/exec';
 const AUTH_REMEMBER_KEY = 'social_coletor_remember';
 const AUTH_SESSION_KEY = 'social_coletor_session';
 
@@ -1775,7 +1775,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwuy1FrPsi1nlonnGNdYRaLO0fTAXwyQH4_imh0Bd-Qtt9l67sdWEb76y4GO8j3HMYd/exec';
+    const SHEET_URL = 'https://script.google.com/macros/s/AKfycbymmvmflkL22DYgFF5Uy1cLgotOGfKxN0lSmC8k86au8vZFtCM94764dVGoQaXqANhR/exec';
 
     viewSheetBtn.addEventListener('click', () => {
         try {

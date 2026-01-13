@@ -2,9 +2,20 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- VIEWPORT OTIMIZADA PARA MOBILE -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
   <title><?= webAppTitle ?></title>
+  
+  <!-- FONT AWESOME PARA ÍCONES -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
   <style>
+    /* 
+    ============================================
+    VARIÁVEIS CSS - FACILITA PERSONALIZAÇÃO
+    ============================================
+    Para alterar cores, tamanhos, etc., modifique aqui
+    */
     :root {
       --bg: #f3f4f6;
       --card: #ffffff;
@@ -19,15 +30,35 @@
       --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
     }
 
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      font-family: 'Inter', 'Segoe UI', sans-serif;
-      background: var(--bg);
-      color: var(--text);
+    /* RESET BÁSICO */
+    * { 
+      box-sizing: border-box;           /* Padding e border contam no width/height */
+      margin: 0; 
+      padding: 0; 
     }
 
+    /* AJUSTE DE TAMANHO DE FONTE PARA MOBILE */
+    html {
+      font-size: 16px;
+      -webkit-text-size-adjust: 100%;   /* Evita zoom automático no iOS */
+    }
+
+    /* ESTILOS DO BODY */
+    body {
+      margin: 0;
+      /* Font stack com fallbacks para melhor compatibilidade */
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Roboto', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;                 /* Melhor legibilidade */
+      min-height: 100vh;                /* Ocupa altura total da tela */
+    }
+
+    /* 
+    ============================================
+    HEADER - CABEÇALHO FIXO
+    ============================================
+    */
     header {
       background: var(--card);
       padding: 20px 28px;
@@ -39,25 +70,40 @@
       gap: 16px;
       position: sticky;
       top: 0;
-      z-index: 10;
+      z-index: 1000;                    /* Garante que fique acima de tudo */
+      min-height: var(--header-height);
+      border-bottom: 1px solid var(--border);
     }
 
+    /* TÍTULO DO PAINEL */
     header h1 {
-      font-size: 20px;
+      font-size: clamp(18px, 4vw, 22px); /* Tamanho responsivo */
       margin: 0;
+      font-weight: 700;
+      white-space: nowrap;              /* Não quebra linha */
     }
 
+    /* SUBTÍTULO */
     header span {
       color: var(--muted);
       font-size: 13px;
     }
 
+    /* 
+    ============================================
+    TABS - NAVEGAÇÃO ENTRE ABASTECIMENTOS
+    ============================================
+    */
     .tabs {
       display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
+      gap: 6px;                         /* Menor gap em mobile */
+      flex-wrap: wrap;                  /* Quebra linha se necessário */
+      overflow-x: auto;                 /* Scroll horizontal em telas pequenas */
+      padding-bottom: 4px;              /* Espaço para scroll */
+      -webkit-overflow-scrolling: touch; /* Scroll suave no iOS */
     }
 
+    /* BOTÕES DAS TABS */
     .tabs button {
       border: 1px solid var(--border);
       background: var(--card);
@@ -68,6 +114,13 @@
       transition: 0.2s ease;
     }
 
+    /* EFEITO HOVER */
+    .tabs button:hover {
+      border-color: var(--primary);
+      background: #f0f7ff;
+    }
+
+    /* TAB ATIVA */
     .tabs button.active {
       background: var(--primary);
       border-color: var(--primary);
@@ -80,6 +133,11 @@
       gap: 24px;
     }
 
+    /* 
+    ============================================
+    CARDS - CONTÊINERES DE CONTEÚDO
+    ============================================
+    */
     .card {
       background: var(--card);
       border-radius: 16px;
@@ -102,13 +160,32 @@
     .value {
       font-size: 26px;
       font-weight: 700;
+      color: var(--primary);
+      line-height: 1.2;
     }
 
+    /* 
+    ============================================
+    TABELAS
+    ============================================
+    */
+    .table-wrapper {
+      overflow: auto;                   /* Scroll horizontal se necessário */
+      max-height: 520px;                /* Altura máxima com scroll vertical */
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      margin-top: 12px;
+      -webkit-overflow-scrolling: touch; /* Scroll suave no iOS */
+    }
+
+    /* TABELA PRINCIPAL */
     table {
       width: 100%;
       border-collapse: collapse;
+      min-width: 600px;                 /* Largura mínima para manter legibilidade */
     }
 
+    /* CÉLULAS DA TABELA */
     th, td {
       border-bottom: 1px solid var(--border);
       padding: 10px 8px;
@@ -116,6 +193,7 @@
       text-align: left;
     }
 
+    /* CABEÇALHO DA TABELA */
     th {
       font-size: 11px;
       text-transform: uppercase;
@@ -125,9 +203,10 @@
     .actions {
       display: flex;
       gap: 8px;
-      flex-wrap: wrap;
+      flex-wrap: wrap;                  /* Quebra linha se necessário */
     }
 
+    /* CLASSE BASE PARA BOTÕES */
     .btn {
       border: none;
       padding: 8px 12px;
@@ -143,8 +222,71 @@
     .btn.warning { background: var(--warning); color: #fff; }
     .btn.danger { background: var(--danger); color: #fff; }
 
-    .hidden { display: none; }
+    /* EFEITO CLICK (ACTIVE) */
+    .btn:active {
+      transform: translateY(0);
+      box-shadow: none;
+    }
 
+    /* VARIAÇÕES DE CORES DOS BOTÕES */
+    .btn.primary { 
+      background: var(--primary); 
+      color: #fff; 
+    }
+    .btn.primary:hover { 
+      background: var(--primary-dark); 
+    }
+    
+    .btn.secondary { 
+      background: var(--secondary); 
+      color: #fff; 
+    }
+    .btn.success { 
+      background: var(--success); 
+      color: #fff; 
+    }
+    .btn.warning { 
+      background: var(--warning); 
+      color: #fff; 
+    }
+    .btn.danger { 
+      background: var(--danger); 
+      color: #fff; 
+    }
+
+    /* 
+    ============================================
+    CAMPOS EDITÁVEIS (REGISTROS)
+    ============================================
+    */
+    .editable {
+      background: #f8fafc;
+      border-radius: 6px;
+      padding: 8px;
+      min-width: 120px;
+      min-height: 36px;
+      outline: none;
+      transition: background 0.2s, outline 0.2s;
+      cursor: text;
+    }
+
+    /* FOCO NO CAMPO EDITÁVEL */
+    .editable:focus {
+      outline: 2px solid rgba(37, 99, 235, 0.5);
+      background: #eff6ff;
+    }
+
+    /* CAMPO MODIFICADO (DIRTY) */
+    .editable.dirty {
+      outline: 2px solid rgba(37, 99, 235, 0.35);
+      background: #eff6ff;
+    }
+
+    /* 
+    ============================================
+    STATUS/MENSAGENS
+    ============================================
+    */
     .status {
       display: none;
       padding: 10px 12px;
@@ -174,30 +316,73 @@
   </style>
 </head>
 <body>
+  <!-- 
+  ============================================
+  HEADER FIXO
+  ============================================
+  -->
   <header>
     <div>
       <h1><?= webAppTitle ?></h1>
       <span>Painel administrativo · Social Coletor</span>
     </div>
+    
+    <!-- 
+    TABS DE NAVEGAÇÃO
+    data-tab: atributo que identifica qual seção mostrar
+    -->
     <div class="tabs" id="tabs">
-      <button data-tab="dashboard" class="active">Dashboard</button>
-      <button data-tab="registros">Registros</button>
-      <button data-tab="duplicados">Duplicados</button>
-      <button data-tab="relatorios">Relatórios</button>
+      <button data-tab="dashboard" class="active">
+        <i class="fas fa-chart-line"></i> Dashboard
+      </button>
+      <button data-tab="registros">
+        <i class="fas fa-table"></i> Registros
+      </button>
+      <button data-tab="duplicados">
+        <i class="fas fa-copy"></i> Duplicados
+      </button>
+      <button data-tab="relatorios">
+        <i class="fas fa-file-pdf"></i> Relatórios
+      </button>
     </div>
   </header>
 
   <main>
     <div id="status" class="status"></div>
 
+    <!-- 
+    ============================================
+    ABA 1: DASHBOARD
+    ============================================
+    -->
     <section id="dashboard" class="tab-content">
-      <div class="grid" id="dashboardCards"></div>
+      <!-- 
+      CARDS COM ESTATÍSTICAS
+      São gerados dinamicamente pelo JavaScript
+      -->
+      <div class="grid" id="dashboardCards">
+        <!-- Placeholder enquanto carrega -->
+        <div class="card">
+          <h2><i class="fas fa-spinner spinner"></i> Carregando...</h2>
+          <div class="value">-</div>
+        </div>
+      </div>
+      
+      <!-- 
+      RESUMO POR PRODUTO
+      -->
       <div class="card">
         <h2>Indicadores por produto</h2>
         <div id="produtosResumo"></div>
       </div>
     </section>
 
+    <!-- 
+    ============================================
+    ABA 2: REGISTROS (PLANILHA COMPLETA)
+    ============================================
+    hidden: classe que oculta a aba inicialmente
+    -->
     <section id="registros" class="tab-content hidden">
       <div class="card">
         <h2>Registros (planilha completa)</h2>
@@ -213,6 +398,11 @@
       </div>
     </section>
 
+    <!-- 
+    ============================================
+    ABA 3: DUPLICADOS
+    ============================================
+    -->
     <section id="duplicados" class="tab-content hidden">
       <div class="card">
         <h2>Duplicados</h2>
@@ -231,12 +421,19 @@
                 <th>Ações</th>
               </tr>
             </thead>
-            <tbody id="duplicadosBody"></tbody>
+            <tbody id="duplicadosBody">
+              <tr><td colspan="6" class="text-center">Carregando duplicados...</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
     </section>
 
+    <!-- 
+    ============================================
+    ABA 4: RELATÓRIOS
+    ============================================
+    -->
     <section id="relatorios" class="tab-content hidden">
       <div class="card">
         <h2>Relatórios</h2>
@@ -256,14 +453,27 @@
                 <th>Resumo</th>
               </tr>
             </thead>
-            <tbody id="relatoriosBody"></tbody>
+            <tbody id="relatoriosBody">
+              <tr><td colspan="6" class="text-center">Carregando relatórios...</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
     </section>
   </main>
 
+  <!-- 
+  ============================================
+  JAVASCRIPT - LÓGICA DO PAINEL
+  ============================================
+  Todas as funções estão comentadas para facilitar entendimento
+  -->
   <script>
+    // ============================================
+    // VARIÁVEIS GLOBAIS DO SISTEMA
+    // ============================================
+    
+    // Elemento da caixa de status
     const statusBox = document.getElementById('status');
     const registrosState = {
       headers: [],
@@ -282,8 +492,44 @@
         statusBox.textContent = '';
         return;
       }
+      
+      // Define ícone e cor baseado no tipo
+      let icon = 'ℹ️';
+      let bgColor = '#fff7ed';
+      let borderColor = '#fed7aa';
+      let textColor = '#9a3412';
+      
+      if (type === 'success') {
+        icon = '✅';
+        bgColor = '#f0fdf4';
+        borderColor = '#bbf7d0';
+        textColor = '#166534';
+      } else if (type === 'error') {
+        icon = '❌';
+        bgColor = '#fef2f2';
+        borderColor = '#fecaca';
+        textColor = '#991b1b';
+      } else if (type === 'warning') {
+        icon = '⚠️';
+        bgColor = '#fffbeb';
+        borderColor = '#fde68a';
+        textColor = '#92400e';
+      }
+      
+      statusBox.innerHTML = `${icon} ${message}`;
       statusBox.style.display = 'block';
-      statusBox.textContent = message;
+      statusBox.style.background = bgColor;
+      statusBox.style.borderColor = borderColor;
+      statusBox.style.color = textColor;
+      
+      // Auto-esconde mensagens de sucesso após 3 segundos
+      if (type === 'success') {
+        setTimeout(() => {
+          if (statusBox.textContent.includes(message)) {
+            setStatus('');
+          }
+        }, 3000);
+      }
     }
 
     function handleFailure(error) {
@@ -303,20 +549,55 @@
     }
 
     function showTab(tabId) {
+      // Oculta todas as seções
       document.querySelectorAll('.tab-content').forEach((section) => {
         section.classList.toggle('hidden', section.id !== tabId);
       });
+      
+      // Atualiza botões ativos
       document.querySelectorAll('#tabs button').forEach((button) => {
         button.classList.toggle('active', button.dataset.tab === tabId);
       });
+      
+      // Rolagem para o topo
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-
+    
+    /**
+     * EVENT LISTENER: Clicks nas tabs
+     * Quando clica em uma tab, mostra a aba correspondente
+     * e carrega os dados sob demanda
+     */
     document.getElementById('tabs').addEventListener('click', (event) => {
       const button = event.target.closest('button');
       if (!button) return;
-      showTab(button.dataset.tab);
+      
+      const tab = button.dataset.tab;
+      showTab(tab);
+      
+      // Carrega dados da aba apenas quando ela é aberta
+      // Isso melhora performance (não carrega tudo de uma vez)
+      if (tab === 'dashboard') {
+        loadDashboard();
+      } else if (tab === 'registros') {
+        resetRegistros(); // Reinicia paginação
+      } else if (tab === 'duplicados') {
+        loadDuplicados();
+      } else if (tab === 'relatorios') {
+        loadRelatorios();
+      }
     });
-
+    
+    // ============================================
+    // FUNÇÕES DO DASHBOARD
+    // ============================================
+    
+    /**
+     * Carrega dados do Dashboard (estatísticas)
+     * Chama a função Google Apps Script getDashboardData()
+     * 
+     * USO: loadDashboard() - chamado automaticamente ao abrir aba
+     */
     function loadDashboard() {
       runScript('getDashboardData', undefined, (data) => {
         const cards = [
@@ -339,7 +620,34 @@
           : '<p>Sem registros ativos.</p>';
       });
     }
-
+    
+    // ============================================
+    // FUNÇÕES DOS REGISTROS
+    // ============================================
+    
+    /**
+     * Reinicia o estado dos registros (página inicial)
+     * USO: Chamado ao abrir aba ou clicar em "Recarregar"
+     */
+    function resetRegistros() {
+      registrosState.rows = [];
+      registrosState.headers = [];
+      registrosState.dirtyRows.clear();
+      registrosState.offset = 0;
+      
+      // Mostra loading
+      document.getElementById('registrosTable').innerHTML = `
+        <tbody><tr><td colspan="10" class="text-center">
+          <i class="fas fa-spinner spinner"></i> Carregando...
+        </td></tr></tbody>
+      `;
+      
+      loadRegistrosPage(false); // false = não anexar, substituir
+    }
+    
+    /**
+     * Função de compatibilidade (mantém link com botão antigo)
+     */
     function loadRegistros() {
       setStatus('Carregando registros...');
       registrosState.offset = 0;
@@ -509,7 +817,79 @@
         setStatus('');
       });
     }
-
+    
+    // ============================================
+    // FUNÇÕES DOS RELATÓRIOS
+    // ============================================
+    
+    /**
+     * Carrega lista de relatórios gerados
+     * USO: Chamado ao abrir aba ou clicar em "Atualizar"
+     */
+    function loadRelatorios() {
+      setStatus('Carregando relatórios...', 'info');
+      
+      google.script.run
+        .withSuccessHandler((relatorios) => {
+          const body = document.getElementById('relatoriosBody');
+          const list = relatorios || [];
+          
+          if (!list.length) {
+            body.innerHTML = `
+              <tr>
+                <td colspan="6" class="text-center">
+                  <i class="fas fa-file"></i> Nenhum relatório encontrado.
+                </td>
+              </tr>
+            `;
+            setStatus('');
+            return;
+          }
+          
+          // Preenche tabela com relatórios
+          body.innerHTML = list.map((r) => {
+            const competencia = escapeHtml(r.COMPETENCIA || '-');
+            const total = formatNumber(r.TOTAL || 0);
+            const ativos = formatNumber(r.ATIVOS || r.TOTAL_ATIVOS || 0);
+            const duplicados = formatNumber(r.DUPLICADOS || r.TOTAL_DUPLICADOS || 0);
+            const pdfUrl = r.PDF_URL || r.URL_PDF || '';
+            const resumo = (r.RESUMO || '').substring(0, 100) + '...';
+            
+            return `
+              <tr>
+                <td><strong>${competencia}</strong></td>
+                <td>${total}</td>
+                <td>${ativos}</td>
+                <td>${duplicados}</td>
+                <td>
+                  ${pdfUrl ? `
+                    <a href="${pdfUrl}" target="_blank" class="btn secondary" style="padding: 6px 10px; font-size: 12px;">
+                      <i class="fas fa-external-link-alt"></i> Abrir PDF
+                    </a>
+                  ` : '-'}
+                </td>
+                <td>
+                  <span title="${escapeHtml(r.RESUMO || '')}">
+                    ${escapeHtml(resumo)}
+                  </span>
+                </td>
+              </tr>
+            `;
+          }).join('');
+          
+          setStatus('');
+        })
+        .withFailureHandler((err) => {
+          console.error('Erro em getRelatorios:', err);
+          setStatus('❌ Erro ao carregar Relatórios', 'error');
+        })
+        .getRelatorios();
+    }
+    
+    /**
+     * Gera um novo relatório (PDF)
+     * USO: Chamado pelo botão "Gerar relatório"
+     */
     function gerarRelatorio() {
       setStatus('Gerando relatório...');
       runScript('gerarRelatorio', {}, (result) => {
@@ -526,11 +906,53 @@
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
     }
-
-    loadDashboard();
-    loadRegistros();
-    loadDuplicados();
-    loadRelatorios();
+    
+    // ============================================
+    // INICIALIZAÇÃO DO SISTEMA
+    // ============================================
+    
+    /**
+     * Inicializa o painel quando a página carrega
+     * Carrega apenas o dashboard inicial (performance)
+     */
+    function initializeApp() {
+      console.log('Inicializando Social Coletor Admin...');
+      
+      // Mostra dashboard inicial
+      showTab('dashboard');
+      loadDashboard();
+      
+      // Configura estado inicial das outras abas
+      resetRegistros();
+      
+      // Adiciona event listener para tecla ESC
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          const activeEditable = document.querySelector('.editable:focus');
+          if (activeEditable) {
+            const original = activeEditable.dataset.original || '';
+            activeEditable.textContent = original;
+            activeEditable.classList.remove('dirty');
+            activeEditable.blur();
+          }
+        }
+      });
+      
+      // Força redimensionamento em mobile ao girar tela
+      window.addEventListener('orientationchange', () => {
+        setTimeout(() => {
+          window.dispatchEvent(new Event('resize'));
+        }, 100);
+      });
+    }
+    
+    // Inicia o app quando o DOM estiver pronto
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeApp);
+    } else {
+      initializeApp();
+    }
+    
   </script>
 </body>
 </html>
