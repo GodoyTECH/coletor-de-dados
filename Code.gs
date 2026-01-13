@@ -71,30 +71,14 @@ function errorResponse(error, details) {
 function doGet() {
   try {
     ensureSystem();
-    
-    const template = HtmlService.createTemplateFromFile('WebApp');
-    template.webAppTitle = getConfigValue('WEBAPP_TITLE') || CONFIG.DEFAULTS.WEBAPP_TITLE;
-    
-    return template.evaluate()
-      .setTitle(template.webAppTitle)
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-      
+    return jsonResponse({
+      success: true,
+      message: 'Social Coletor API online',
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
-    console.error('Erro no doGet:', error);
-    return HtmlService.createHtmlOutput(`
-      <html>
-        <head><meta charset="UTF-8"><title>Erro</title></head>
-        <body style="font-family: Arial; padding: 20px;">
-          <h1 style="color: #dc2626;">⚠️ Erro no Sistema</h1>
-          <p>Ocorreu um erro ao carregar o sistema:</p>
-          <pre style="background: #f3f4f6; padding: 15px; border-radius: 5px; overflow: auto;">${escapeHtml(error.toString())}</pre>
-          <button onclick="window.location.reload()" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">
-            Tentar Novamente
-          </button>
-        </body>
-      </html>
-    `);
+    logError('Erro no doGet', error);
+    return jsonResponse(errorResponse(error));
   }
 }
 
@@ -120,17 +104,39 @@ function doPost(e) {
       return jsonResponse(result);
     }
 
-    // Ações futuras podem ser adicionadas aqui sem quebrar integrações
-    return jsonResponse({
-      success: false,
-      error: 'Ação inválida. Use action=submit.',
-      receivedAction: req.action || null
-    });
+    const tokenCheck = validatePanelToken(req);
+    if (!tokenCheck.success) {
+      return jsonResponse(tokenCheck);
+    }
 
+    switch (req.action) {
+      case 'getDashboardData':
+        return jsonResponse(getDashboardData());
+      case 'listRegistros':
+        return jsonResponse(getRegistrosTable(req.data || {}));
+      case 'updateRegistrosBatch':
+        return jsonResponse(updateRegistroRowsBatch(req.data || {}));
+      case 'deleteRegistro':
+        return jsonResponse(deleteRegistroByRow(req.data || {}));
+      case 'listDuplicados':
+        return jsonResponse(listDuplicados());
+      case 'resolveDuplicado':
+        return jsonResponse(resolveDuplicadoByRow(req.data || {}));
+      case 'listRelatorios':
+        return jsonResponse(listRelatorios());
+      case 'gerarRelatorio':
+        return jsonResponse(gerarRelatorio());
+      default:
+        return jsonResponse({
+          success: false,
+          error: 'Ação inválida.',
+          receivedAction: req.action || null
+        });
+    }
   } catch (error) {
-    console.error('Erro no doPost:', error);
+    logError('Erro no doPost', error);
     try { logEvent('ERROR', 'doPost: ' + error.toString()); } catch (_) {}
-    return jsonResponse({ success: false, error: String(error) });
+    return jsonResponse(errorResponse(error));
   }
 }
 
@@ -177,6 +183,29 @@ function parseRequest(e) {
     raw: body || {},
     parameter: params || {}
   };
+}
+
+function validatePanelToken(req) {
+  const expected = PropertiesService.getScriptProperties().getProperty('API_TOKEN');
+  if (!expected) {
+    return { success: false, error: 'Token do painel não configurado' };
+  }
+
+  const provided = extractToken(req);
+  if (!provided || String(provided) !== String(expected)) {
+    return { success: false, error: 'Token inválido' };
+  }
+
+  return { success: true };
+}
+
+function extractToken(req) {
+  if (!req) return '';
+  if (req.token) return req.token;
+  if (req.raw && req.raw.token) return req.raw.token;
+  if (req.data && req.data.token) return req.data.token;
+  if (req.parameter && req.parameter.token) return req.parameter.token;
+  return '';
 }
 
 function parseQueryString(qs) {
@@ -351,7 +380,7 @@ function saveImageIfPresent(dataUri, recordId) {
     const bytes = Utilities.base64Decode(parts[1]);
     const blob = Utilities.newBlob(bytes, mime, `${recordId}.${mime.split('/')[1] || 'png'}`);
 
-    const folder = getOrCreateFolder('SocialColetor_Imagens');
+    const folder = getOrCreateFolderPath('Social Coletor/Imagens');
     const file = folder.createFile(blob);
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
@@ -366,6 +395,20 @@ function getOrCreateFolder(name) {
   const folders = DriveApp.getFoldersByName(name);
   if (folders.hasNext()) return folders.next();
   return DriveApp.createFolder(name);
+}
+
+function getOrCreateFolderPath(path) {
+  const parts = Array.isArray(path) ? path : String(path || '').split('/').filter(Boolean);
+  let current = DriveApp.getRootFolder();
+  parts.forEach((part) => {
+    const existing = current.getFoldersByName(part);
+    if (existing.hasNext()) {
+      current = existing.next();
+    } else {
+      current = current.createFolder(part);
+    }
+  });
+  return current;
 }
 
 function findIndexByDoc(normalizedDoc) {
@@ -794,6 +837,41 @@ function updateRegistroRowsBatch(payload) {
   }
 }
 
+function deleteRegistroByRow(payload) {
+  try {
+    const rowNumber = Number(payload && payload.rowNumber);
+    if (!rowNumber || rowNumber < 2) {
+      return { success: false, error: 'Número de linha inválido (deve ser >= 2)' };
+    }
+
+    const sheet = getSheet(CONFIG.SHEET_NAMES.REGISTROS);
+    if (!sheet) return { success: false, error: 'Planilha de registros não encontrada' };
+
+    const data = sheet.getDataRange().getValues();
+    if (rowNumber > data.length) {
+      return { success: false, error: 'Número de linha inválido (fora do intervalo)' };
+    }
+
+    const headers = data[0] || [];
+    const statusIndex = headers.indexOf('STATUS');
+    const deletadoIndex = headers.indexOf('DELETADO');
+    const updatedAtIndex = headers.indexOf('UPDATED_AT');
+
+    const row = data[rowNumber - 1];
+    if (deletadoIndex !== -1) row[deletadoIndex] = 'TRUE';
+    if (statusIndex !== -1) row[statusIndex] = 'EXCLUIDO';
+    if (updatedAtIndex !== -1) row[updatedAtIndex] = new Date();
+
+    sheet.getRange(rowNumber, 1, 1, headers.length).setValues([row]);
+    try { rebuildIndex(); } catch (error) {}
+
+    return { success: true, rowNumber };
+  } catch (error) {
+    logError('Erro em deleteRegistroByRow', error);
+    return { success: false, error: String(error), details: error && error.stack ? error.stack : undefined };
+  }
+}
+
 /**
  * getDuplicados - Retorna lista de registros duplicados
  */
@@ -814,6 +892,40 @@ function getDuplicados() {
     logError('Erro em getDuplicados', error);
     logEvent('ERROR', 'getDuplicados: ' + error.toString());
     return { success: false, error: error.toString(), details: error && error.stack ? error.stack : undefined, rows: [], duplicados: [] };
+  }
+}
+
+function listDuplicados() {
+  try {
+    const sheet = getSheet(CONFIG.SHEET_NAMES.REGISTROS);
+    if (!sheet) return { success: false, error: 'Planilha de registros não encontrada', duplicados: [] };
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return { success: true, duplicados: [] };
+
+    const headers = data[0];
+    const statusIndex = headers.indexOf('STATUS');
+    const deletadoIndex = headers.indexOf('DELETADO');
+
+    const duplicados = [];
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      const status = statusIndex !== -1 ? row[statusIndex] : '';
+      const deletado = deletadoIndex !== -1 ? isDeleted(row[deletadoIndex]) : false;
+
+      if (!deletado && isDuplicado(status)) {
+        const registro = { rowNumber: i + 1 };
+        headers.forEach((header, index) => {
+          registro[header] = row[index];
+        });
+        duplicados.push(registro);
+      }
+    }
+
+    return { success: true, duplicados };
+  } catch (error) {
+    logError('Erro em listDuplicados', error);
+    return { success: false, error: String(error), details: error && error.stack ? error.stack : undefined, duplicados: [] };
   }
 }
 
@@ -896,6 +1008,69 @@ function resolveDuplicado(payload) {
   }
 }
 
+function resolveDuplicadoByRow(payload) {
+  try {
+    const rowNumber = Number(payload && payload.rowNumber);
+    const action = payload && payload.action;
+    if (!rowNumber || rowNumber < 2 || !action) {
+      return { success: false, error: 'Dados incompletos para resolução' };
+    }
+
+    const sheet = getSheet(CONFIG.SHEET_NAMES.REGISTROS);
+    if (!sheet) return { success: false, error: 'Planilha de registros não encontrada' };
+
+    const data = sheet.getDataRange().getValues();
+    if (rowNumber > data.length) return { success: false, error: 'Número de linha inválido (fora do intervalo)' };
+
+    const headers = data[0];
+    const statusIndex = headers.indexOf('STATUS');
+    const updatedAtIndex = headers.indexOf('UPDATED_AT');
+    const deletadoIndex = headers.indexOf('DELETADO');
+
+    if (statusIndex === -1) {
+      return { success: false, error: 'Coluna STATUS não encontrada' };
+    }
+
+    const row = data[rowNumber - 1];
+
+    switch (action) {
+      case 'validar':
+        row[statusIndex] = 'VALIDO';
+        break;
+      case 'manter':
+        row[statusIndex] = 'DUPLICADO_MANTIDO';
+        break;
+      case 'excluir':
+        row[statusIndex] = 'EXCLUIDO';
+        if (deletadoIndex !== -1) row[deletadoIndex] = 'TRUE';
+        break;
+      default:
+        return { success: false, error: 'Ação inválida. Use: validar, manter ou excluir.' };
+    }
+
+    if (updatedAtIndex !== -1) row[updatedAtIndex] = new Date();
+    sheet.getRange(rowNumber, 1, 1, headers.length).setValues([row]);
+    try { rebuildIndex(); } catch (error) {}
+
+    return { success: true, rowNumber, action };
+  } catch (error) {
+    logError('Erro em resolveDuplicadoByRow', error);
+    return { success: false, error: String(error), details: error && error.stack ? error.stack : undefined };
+  }
+}
+
+function listRelatorios() {
+  const result = getRelatorios();
+  if (result && result.success) {
+    return { success: true, relatorios: result.relatorios || [] };
+  }
+  return {
+    success: false,
+    error: result && result.error ? result.error : 'Falha ao obter relatórios',
+    relatorios: (result && result.relatorios) || []
+  };
+}
+
 /**
  * getRelatorios - Retorna lista de relatórios gerados
  */
@@ -948,10 +1123,10 @@ function gerarRelatorio() {
     logDebug('gerarRelatorio: competencia', competencia);
     logDebug('gerarRelatorio: totais', totals);
     
-    // Gera resumo
-    const resumo = generateResumo(totals, competencia);
+    // Gera resumo (Gemini com fallback)
+    const resumo = generateResumoWithGemini(totals, competencia);
     
-    // Gera PDF (simulado - implemente conforme necessário)
+    // Gera PDF real no Drive
     const pdfUrl = generatePdf(competencia, totals, resumo);
     
     // Salva metadados do relatório
@@ -978,7 +1153,9 @@ function gerarRelatorio() {
     return {
       success: true,
       message: `Relatório ${competencia} gerado com sucesso`,
-      url: pdfUrl
+      urlPdf: pdfUrl,
+      resumo: resumo,
+      competencia: competencia
     };
     
   } catch (error) {
@@ -1140,13 +1317,96 @@ function generateResumo(totals, competencia) {
   return base;
 }
 
+function generateResumoWithGemini(totals, competencia) {
+  const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!apiKey) {
+    return generateResumo(totals, competencia);
+  }
+
+  const produtosResumo = Object.entries(totals.porProduto || {})
+    .map(([produto, quantidade]) => `${produto}: ${quantidade}`)
+    .join(', ') || 'nenhum produto informado';
+
+  const prompt = [
+    `Crie um resumo curto e objetivo em português para o relatório ${competencia}.`,
+    `Total de registros: ${totals.total}.`,
+    `Ativos: ${totals.ativos}.`,
+    `Duplicados: ${totals.duplicados}.`,
+    `Distribuição por produto: ${produtosResumo}.`
+  ].join(' ');
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const response = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 256
+        }
+      }),
+      muteHttpExceptions: true
+    });
+
+    const payload = JSON.parse(response.getContentText() || '{}');
+    const text = payload?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (text) return String(text).trim();
+  } catch (error) {
+    logError('Erro ao gerar resumo com Gemini', error);
+  }
+
+  return generateResumo(totals, competencia);
+}
+
 function generatePdf(competencia, totals, resumo) {
-  // Esta função é um placeholder
-  // Implemente a geração real de PDF conforme necessário
-  // Pode usar HtmlService.createHtmlOutput().getAs('application/pdf')
-  
-  console.log(`PDF gerado para ${competencia}: ${resumo.substring(0, 50)}...`);
-  return ''; // Retorna URL vazia por enquanto
+  const folder = getOrCreateFolderPath('Social Coletor/Relatorios');
+  const html = buildRelatorioHtml(competencia, totals, resumo);
+  const blob = HtmlService.createHtmlOutput(html).getAs(MimeType.PDF);
+  const file = folder.createFile(blob).setName(`Relatorio_${competencia}.pdf`);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return file.getUrl();
+}
+
+function buildRelatorioHtml(competencia, totals, resumo) {
+  const produtos = Object.entries(totals.porProduto || {});
+  const produtosList = produtos.length
+    ? produtos.map(([produto, quantidade]) => `<li>${escapeHtml(produto)}: ${quantidade}</li>`).join('')
+    : '<li>Sem dados de produto.</li>';
+
+  return `
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Arial, sans-serif; color: #111827; }
+          h1 { color: #1d4ed8; }
+          .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+          ul { padding-left: 20px; }
+          .footer { margin-top: 32px; font-size: 12px; color: #6b7280; }
+        </style>
+      </head>
+      <body>
+        <h1>Relatório Social Coletor</h1>
+        <div class="card">
+          <p><strong>Competência:</strong> ${escapeHtml(competencia)}</p>
+          <p><strong>Total de registros:</strong> ${totals.total}</p>
+          <p><strong>Ativos:</strong> ${totals.ativos}</p>
+          <p><strong>Duplicados:</strong> ${totals.duplicados}</p>
+        </div>
+        <div class="card">
+          <h2>Distribuição por produto</h2>
+          <ul>${produtosList}</ul>
+        </div>
+        <div class="card">
+          <h2>Resumo</h2>
+          <p>${escapeHtml(resumo)}</p>
+        </div>
+        <div class="footer">Autenticação: Eduardo Pereira da Silva</div>
+      </body>
+    </html>
+  `;
 }
 
 function rebuildIndex() {
