@@ -6,17 +6,17 @@
   <title><?= webAppTitle ?></title>
   <style>
     :root {
-      --bg: #f5f7fb;
+      --bg: #f3f4f6;
       --card: #ffffff;
-      --primary: #4f46e5;
-      --secondary: #64748b;
+      --primary: #2563eb;
+      --secondary: #475569;
       --success: #10b981;
       --warning: #f59e0b;
       --danger: #ef4444;
-      --text: #0f172a;
-      --muted: #94a3b8;
       --border: #e2e8f0;
-      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --text: #0f172a;
+      --muted: #64748b;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
     }
 
     * { box-sizing: border-box; }
@@ -30,11 +30,12 @@
 
     header {
       background: var(--card);
+      padding: 20px 28px;
       box-shadow: var(--shadow);
-      padding: 20px 32px;
       display: flex;
-      justify-content: space-between;
+      flex-wrap: wrap;
       align-items: center;
+      justify-content: space-between;
       gap: 16px;
       position: sticky;
       top: 0;
@@ -48,13 +49,7 @@
 
     header span {
       color: var(--muted);
-      font-size: 14px;
-    }
-
-    .container {
-      padding: 24px 32px 40px;
-      display: grid;
-      gap: 24px;
+      font-size: 13px;
     }
 
     .tabs {
@@ -66,40 +61,46 @@
     .tabs button {
       border: 1px solid var(--border);
       background: var(--card);
-      padding: 10px 16px;
+      padding: 8px 14px;
       border-radius: 999px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: 0.2s ease;
     }
 
     .tabs button.active {
       background: var(--primary);
-      color: #fff;
       border-color: var(--primary);
+      color: #fff;
     }
 
-    .grid {
+    main {
+      padding: 24px 28px 40px;
       display: grid;
-      gap: 20px;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 24px;
     }
 
     .card {
       background: var(--card);
       border-radius: 16px;
-      padding: 20px;
-      box-shadow: var(--shadow);
       border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      padding: 20px;
     }
 
-    .card h3 {
-      margin: 0 0 8px;
+    .grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
       font-size: 16px;
     }
 
-    .card .value {
-      font-size: 28px;
+    .value {
+      font-size: 26px;
       font-weight: 700;
     }
 
@@ -109,31 +110,17 @@
     }
 
     th, td {
-      padding: 12px;
       border-bottom: 1px solid var(--border);
+      padding: 10px 8px;
+      font-size: 12px;
       text-align: left;
-      font-size: 13px;
     }
 
     th {
-      color: var(--secondary);
-      font-weight: 600;
-      text-transform: uppercase;
       font-size: 11px;
-    }
-
-    .badge {
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 600;
       text-transform: uppercase;
-      display: inline-block;
+      color: var(--muted);
     }
-
-    .badge.dup { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
-    .badge.ok { background: rgba(16, 185, 129, 0.15); color: var(--success); }
-    .badge.del { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
 
     .actions {
       display: flex;
@@ -145,26 +132,44 @@
       border: none;
       padding: 8px 12px;
       border-radius: 8px;
-      cursor: pointer;
       font-size: 12px;
       font-weight: 600;
+      cursor: pointer;
     }
 
     .btn.primary { background: var(--primary); color: #fff; }
     .btn.secondary { background: var(--secondary); color: #fff; }
+    .btn.success { background: var(--success); color: #fff; }
     .btn.warning { background: var(--warning); color: #fff; }
     .btn.danger { background: var(--danger); color: #fff; }
 
     .hidden { display: none; }
 
     .status {
+      display: none;
       padding: 10px 12px;
       border-radius: 10px;
       background: #fff7ed;
-      color: #9a3412;
       border: 1px solid #fed7aa;
+      color: #9a3412;
       font-size: 13px;
-      display: none;
+    }
+
+    .table-wrapper {
+      overflow: auto;
+      max-height: 520px;
+    }
+
+    .editable {
+      background: #f8fafc;
+      border-radius: 6px;
+      padding: 6px;
+      min-width: 120px;
+    }
+
+    .dirty {
+      outline: 2px solid rgba(37, 99, 235, 0.35);
+      background: #eff6ff;
     }
   </style>
 </head>
@@ -182,53 +187,45 @@
     </div>
   </header>
 
-  <main class="container">
+  <main>
     <div id="status" class="status"></div>
 
     <section id="dashboard" class="tab-content">
       <div class="grid" id="dashboardCards"></div>
       <div class="card">
-        <h3>Total por produto</h3>
+        <h2>Indicadores por produto</h2>
         <div id="produtosResumo"></div>
       </div>
     </section>
 
     <section id="registros" class="tab-content hidden">
       <div class="card">
-        <h3>Registros recentes</h3>
+        <h2>Registros (planilha completa)</h2>
         <div class="actions" style="margin-bottom:12px;">
-          <button class="btn secondary" onclick="loadRegistros()">Atualizar</button>
+          <button class="btn secondary" onclick="loadRegistros()">Recarregar</button>
+          <button class="btn primary" onclick="saveRegistros()">Salvar alterações</button>
+          <button class="btn secondary" id="loadMoreBtn" onclick="loadMoreRegistros()">Mais +50</button>
         </div>
-        <div style="overflow:auto; max-height: 520px;">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Beneficiário</th>
-                <th>Produto</th>
-                <th>Status</th>
-                <th>Imagem</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="registrosBody"></tbody>
-          </table>
+        <div id="registrosInfo" style="font-size:12px; color: var(--muted); margin-bottom:12px;"></div>
+        <div class="table-wrapper">
+          <table id="registrosTable"></table>
         </div>
       </div>
     </section>
 
     <section id="duplicados" class="tab-content hidden">
       <div class="card">
-        <h3>Duplicados para analisar</h3>
+        <h2>Duplicados</h2>
         <div class="actions" style="margin-bottom:12px;">
           <button class="btn secondary" onclick="loadDuplicados()">Atualizar</button>
         </div>
-        <div style="overflow:auto; max-height: 520px;">
+        <div class="table-wrapper">
           <table>
             <thead>
               <tr>
                 <th>ID</th>
                 <th>Beneficiário</th>
+                <th>Documento</th>
                 <th>Produto</th>
                 <th>Motivo</th>
                 <th>Ações</th>
@@ -242,17 +239,19 @@
 
     <section id="relatorios" class="tab-content hidden">
       <div class="card">
-        <h3>Relatórios mensais</h3>
+        <h2>Relatórios</h2>
         <div class="actions" style="margin-bottom:12px;">
           <button class="btn primary" onclick="gerarRelatorio()">Gerar relatório</button>
           <button class="btn secondary" onclick="loadRelatorios()">Atualizar</button>
         </div>
-        <div style="overflow:auto; max-height: 520px;">
+        <div class="table-wrapper">
           <table>
             <thead>
               <tr>
                 <th>Competência</th>
-                <th>Status</th>
+                <th>Total</th>
+                <th>Ativos</th>
+                <th>Duplicados</th>
                 <th>PDF</th>
                 <th>Resumo</th>
               </tr>
@@ -266,6 +265,16 @@
 
   <script>
     const statusBox = document.getElementById('status');
+    const registrosState = {
+      headers: [],
+      rows: [],
+      dirtyRows: new Set(),
+      offset: 0,
+      limit: 50,
+      total: 0
+    };
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    const registrosInfo = document.getElementById('registrosInfo');
 
     function setStatus(message) {
       if (!message) {
@@ -275,6 +284,22 @@
       }
       statusBox.style.display = 'block';
       statusBox.textContent = message;
+    }
+
+    function handleFailure(error) {
+      const message = (error && error.message) ? error.message : String(error || 'Erro inesperado.');
+      setStatus(`Erro: ${message}`);
+    }
+
+    function runScript(methodName, args, onSuccess) {
+      const runner = google.script.run
+        .withSuccessHandler(onSuccess)
+        .withFailureHandler(handleFailure);
+      if (typeof args === 'undefined') {
+        runner[methodName]();
+        return;
+      }
+      runner[methodName](args);
     }
 
     function showTab(tabId) {
@@ -293,115 +318,213 @@
     });
 
     function loadDashboard() {
-      google.script.run.withSuccessHandler((data) => {
+      runScript('getDashboardData', undefined, (data) => {
         const cards = [
-          { label: 'Registros', value: data.total },
-          { label: 'Duplicados', value: data.duplicados },
-          { label: 'Ativos', value: data.ativos }
+          { label: 'Total de registros', value: data.total },
+          { label: 'Registros ativos', value: data.ativos },
+          { label: 'Registros duplicados', value: data.duplicados }
         ];
         const container = document.getElementById('dashboardCards');
         container.innerHTML = cards.map(card => `
           <div class="card">
-            <h3>${card.label}</h3>
+            <h2>${card.label}</h2>
             <div class="value">${card.value}</div>
           </div>
         `).join('');
 
         const produtosDiv = document.getElementById('produtosResumo');
-        produtosDiv.innerHTML = Object.entries(data.porProduto || {}).map(([produto, total]) => `
-          <p><strong>${produto}</strong>: ${total}</p>
-        `).join('') || '<p>Nenhum dado disponível.</p>';
-      }).getDashboardData();
+        const entries = Object.entries(data.porProduto || {});
+        produtosDiv.innerHTML = entries.length
+          ? entries.map(([produto, total]) => `<p><strong>${produto}</strong>: ${total}</p>`).join('')
+          : '<p>Sem registros ativos.</p>';
+      });
     }
 
     function loadRegistros() {
       setStatus('Carregando registros...');
-      google.script.run.withSuccessHandler((registros) => {
-        const body = document.getElementById('registrosBody');
-        body.innerHTML = registros.map((registro) => {
-          const statusBadge = registro.DELETADO ? '<span class="badge del">Excluído</span>' : '<span class="badge ok">' + (registro.STATUS || 'OK') + '</span>';
-          const imgLink = registro.IMG_URL ? `<a href="${registro.IMG_URL}" target="_blank">Abrir</a>` : '-';
-          return `
-            <tr>
-              <td>${registro.ID}</td>
-              <td>${registro.BENEFICIARIO || '-'}</td>
-              <td>${registro.PRODUTO || '-'}</td>
-              <td>${statusBadge}</td>
-              <td>${imgLink}</td>
-              <td>
-                <div class="actions">
-                  <button class="btn warning" onclick="marcarExcluido('${registro.ID}')">Excluir</button>
-                </div>
-              </td>
-            </tr>
-          `;
-        }).join('');
+      registrosState.offset = 0;
+      registrosState.rows = [];
+      registrosState.dirtyRows.clear();
+      runScript('getRegistrosTable', { limit: registrosState.limit, offset: registrosState.offset }, (data) => {
+        registrosState.headers = data.headers || [];
+        registrosState.rows = data.rows || [];
+        registrosState.total = data.meta ? data.meta.total : registrosState.rows.length;
+        registrosState.offset = data.meta && data.meta.nextOffset !== null ? data.meta.nextOffset : registrosState.rows.length;
+        renderRegistros();
+        updateRegistrosInfo();
         setStatus('');
-      }).getRegistros();
+      });
+    }
+
+    function loadMoreRegistros() {
+      if (registrosState.offset === null || registrosState.rows.length >= registrosState.total) {
+        return;
+      }
+      setStatus('Carregando mais registros...');
+      runScript('getRegistrosTable', { limit: registrosState.limit, offset: registrosState.rows.length }, (data) => {
+        const newRows = data.rows || [];
+        registrosState.rows = registrosState.rows.concat(newRows);
+        registrosState.total = data.meta ? data.meta.total : registrosState.total;
+        registrosState.offset = data.meta && data.meta.nextOffset !== null ? data.meta.nextOffset : null;
+        renderRegistros();
+        updateRegistrosInfo();
+        setStatus('');
+      });
+    }
+
+    function renderRegistros() {
+      const table = document.getElementById('registrosTable');
+      if (!registrosState.headers.length) {
+        table.innerHTML = '<tr><td>Sem dados.</td></tr>';
+        return;
+      }
+
+      const headerHtml = registrosState.headers.map((header) => `<th>${header}</th>`).join('');
+      const rowsHtml = registrosState.rows.map((row) => {
+        const cells = registrosState.headers.map((header, index) => {
+          const value = row.values[index] ?? '';
+          return `<td><div class="editable" contenteditable="true" data-header="${header}">${escapeHtml(value)}</div></td>`;
+        }).join('');
+        return `<tr data-row="${row.rowNumber}">${cells}</tr>`;
+      }).join('');
+
+      table.innerHTML = `<thead><tr>${headerHtml}</tr></thead><tbody>${rowsHtml}</tbody>`;
+
+      table.querySelectorAll('.editable').forEach((cell) => {
+        cell.addEventListener('input', () => markDirty(cell));
+        cell.addEventListener('blur', () => markDirty(cell));
+      });
+    }
+
+    function updateRegistrosInfo() {
+      const total = registrosState.total || 0;
+      const loaded = registrosState.rows.length;
+      registrosInfo.textContent = total
+        ? `Mostrando ${loaded} de ${total} registros.`
+        : 'Nenhum registro encontrado.';
+      if (loadMoreBtn) {
+        loadMoreBtn.disabled = loaded >= total;
+        loadMoreBtn.style.opacity = loaded >= total ? '0.6' : '1';
+        loadMoreBtn.style.cursor = loaded >= total ? 'not-allowed' : 'pointer';
+      }
+    }
+
+    function markDirty(cell) {
+      const row = cell.closest('tr');
+      if (!row) return;
+      const rowNumber = row.dataset.row;
+      if (!rowNumber) return;
+      registrosState.dirtyRows.add(Number(rowNumber));
+      row.querySelectorAll('.editable').forEach((editable) => {
+        editable.classList.add('dirty');
+      });
+    }
+
+    function saveRegistros() {
+      if (!registrosState.dirtyRows.size) {
+        setStatus('Nenhuma alteração para salvar.');
+        return;
+      }
+      setStatus('Salvando alterações...');
+
+      const updates = Array.from(registrosState.dirtyRows).map((rowNumber) => {
+        const row = document.querySelector(`tr[data-row="${rowNumber}"]`);
+        const values = {};
+        if (!row) return null;
+        row.querySelectorAll('.editable').forEach((cell) => {
+          values[cell.dataset.header] = cell.textContent.trim();
+        });
+        return { rowNumber, values };
+      }).filter(Boolean);
+
+      let remaining = updates.length;
+      if (remaining === 0) {
+        setStatus('Nenhuma alteração para salvar.');
+        return;
+      }
+
+      updates.forEach((update) => {
+        runScript('updateRegistroRow', update, (result) => {
+          if (!result.success) {
+            setStatus('Erro ao salvar alterações.');
+          }
+          remaining -= 1;
+          if (remaining === 0) {
+            registrosState.dirtyRows.clear();
+            setStatus('Alterações salvas.');
+            loadDashboard();
+          }
+        });
+      });
     }
 
     function loadDuplicados() {
       setStatus('Carregando duplicados...');
-      google.script.run.withSuccessHandler((duplicados) => {
+      runScript('getDuplicados', undefined, (duplicados) => {
         const body = document.getElementById('duplicadosBody');
-        body.innerHTML = duplicados.map((registro) => `
+        body.innerHTML = (duplicados || []).map((registro) => `
           <tr>
             <td>${registro.ID}</td>
             <td>${registro.BENEFICIARIO || '-'}</td>
+            <td>${registro.NUM_DOCUMENTO || '-'}</td>
             <td>${registro.PRODUTO || '-'}</td>
             <td>${registro.DUP_REASON || '-'}</td>
             <td>
               <div class="actions">
-                <button class="btn primary" onclick="resolverDuplicado('${registro.ID}', 'validar')">Validar</button>
+                <button class="btn success" onclick="resolverDuplicado('${registro.ID}', 'validar')">Validar</button>
                 <button class="btn warning" onclick="resolverDuplicado('${registro.ID}', 'manter')">Manter</button>
+                <button class="btn secondary" onclick="resolverDuplicado('${registro.ID}', 'mesclar')">Mesclar</button>
                 <button class="btn danger" onclick="resolverDuplicado('${registro.ID}', 'excluir')">Excluir</button>
               </div>
             </td>
           </tr>
         `).join('');
         setStatus('');
-      }).getDuplicados();
+      });
+    }
+
+    function resolverDuplicado(id, action) {
+      setStatus('Atualizando duplicado...');
+      runScript('resolveDuplicado', { id, action }, (result) => {
+        setStatus(result.success ? 'Duplicado atualizado.' : 'Erro ao atualizar duplicado.');
+        loadDuplicados();
+        loadDashboard();
+      });
     }
 
     function loadRelatorios() {
       setStatus('Carregando relatórios...');
-      google.script.run.withSuccessHandler((relatorios) => {
+      runScript('getRelatorios', undefined, (relatorios) => {
         const body = document.getElementById('relatoriosBody');
-        body.innerHTML = relatorios.map((relatorio) => `
+        body.innerHTML = (relatorios || []).map((relatorio) => `
           <tr>
-            <td>${relatorio.COMPETENCIA}</td>
-            <td>${relatorio.STATUS}</td>
+            <td>${relatorio.COMPETENCIA || '-'}</td>
+            <td>${relatorio.TOTAL_REGISTROS || '-'}</td>
+            <td>${relatorio.TOTAL_ATIVOS || '-'}</td>
+            <td>${relatorio.TOTAL_DUPLICADOS || '-'}</td>
             <td>${relatorio.URL_PDF ? `<a href="${relatorio.URL_PDF}" target="_blank">PDF</a>` : '-'}</td>
             <td>${relatorio.RESUMO || '-'}</td>
           </tr>
         `).join('');
         setStatus('');
-      }).getRelatorios();
-    }
-
-    function marcarExcluido(id) {
-      setStatus('Atualizando...');
-      google.script.run.withSuccessHandler((result) => {
-        setStatus(result.success ? 'Registro atualizado.' : 'Erro ao atualizar.');
-        loadRegistros();
-      }).softDeleteRegistro(id);
-    }
-
-    function resolverDuplicado(id, action) {
-      setStatus('Atualizando duplicado...');
-      google.script.run.withSuccessHandler((result) => {
-        setStatus(result.success ? 'Duplicado atualizado.' : 'Erro ao atualizar.');
-        loadDuplicados();
-        loadDashboard();
-      }).resolveDuplicado({ id, action });
+      });
     }
 
     function gerarRelatorio() {
       setStatus('Gerando relatório...');
-      google.script.run.withSuccessHandler((result) => {
+      runScript('gerarRelatorio', {}, (result) => {
         setStatus(result.success ? 'Relatório gerado.' : 'Erro ao gerar relatório.');
         loadRelatorios();
-      }).gerarRelatorioMensal({});
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     loadDashboard();

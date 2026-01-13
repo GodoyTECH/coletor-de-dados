@@ -1,27 +1,14 @@
 /**
- * Social Coletor - Apps Script (Backend + DB + Storage + WebApp)
- * -------------------------------------------------------------
- * Este arquivo mantém o payload atual do frontend.
- * Payload esperado (send.js):
- * {
- *   action: 'submit',
- *   data: {
- *     beneficiario, cpf, atendente, produto, quantidade,
- *     endereco, data, assinatura, numeroDocumento, observacoes,
- *     imagemBase64, timestamp
- *   }
- * }
+ * Social Coletor - Apps Script (Backend + WebApp)
+ * Compatível com send.js
  */
 
-// ================================
-// CONFIGURAÇÕES
-// ================================
 const SHEETS = {
   REGISTROS: 'Registros',
-  CONFIG: '_Config',
   INDEX: '_Index',
+  RELATORIOS: 'Relatorios',
   LOGS: 'Logs',
-  RELATORIOS: 'Relatorios'
+  CONFIG: '_Config'
 };
 
 const REGISTROS_HEADERS = [
@@ -46,29 +33,37 @@ const REGISTROS_HEADERS = [
 ];
 
 const INDEX_HEADERS = [
-  'KEY',
+  'NUM_DOCUMENTO',
   'REG_ID',
   'ROW_NUMBER',
-  'CPF',
-  'DOC',
+  'CREATED_AT',
   'UPDATED_AT',
   'DELETADO'
 ];
 
+const RELATORIOS_HEADERS = [
+  'ID',
+  'COMPETENCIA',
+  'TOTAL_REGISTROS',
+  'TOTAL_ATIVOS',
+  'TOTAL_DUPLICADOS',
+  'URL_PDF',
+  'RESUMO',
+  'CREATED_AT'
+];
+
 const LOG_HEADERS = ['TIMESTAMP', 'ACTION', 'DETAILS'];
-const RELATORIOS_HEADERS = ['ID', 'COMPETENCIA', 'STATUS', 'URL_PDF', 'RESUMO', 'CREATED_AT'];
+const CONFIG_HEADERS = ['CHAVE', 'VALOR'];
 
 const CONFIG_DEFAULTS = {
-  API_KEY: '',
-  DRIVE_FOLDER_ID: '',
-  DRIVE_FOLDER_NAME: 'SocialColetor_Imagens',
-  WEBAPP_TITLE: 'Social Coletor - Admin'
+  WEBAPP_TITLE: 'Social Coletor - Admin',
+  DRIVE_FOLDER_NAME_IMAGES: 'SocialColetor_Imagens',
+  DRIVE_FOLDER_ID_IMAGES: '',
+  DRIVE_FOLDER_NAME_REPORTS: 'SocialColetor_Relatorios',
+  DRIVE_FOLDER_ID_REPORTS: ''
 };
 
-// ================================
-// ENTRYPOINTS
-// ================================
-function doGet(e) {
+function doGet() {
   ensureSystem_();
   const template = HtmlService.createTemplateFromFile('WebApp');
   template.webAppTitle = getConfigValue_('WEBAPP_TITLE') || CONFIG_DEFAULTS.WEBAPP_TITLE;
@@ -77,22 +72,15 @@ function doGet(e) {
 
 function doPost(e) {
   ensureSystem_();
-
   try {
     const payload = parsePayload_(e);
     if (!payload) {
       return jsonOutput_({ success: false, error: 'Payload vazio.' });
     }
 
-    const apiKey = getConfigValue_('API_KEY');
-    if (apiKey && payload.apiKey !== apiKey) {
-      logEvent_('AUTH_FAIL', 'API key inválida ou ausente.');
-      return jsonOutput_({ success: false, error: 'API key inválida.' });
-    }
-
     if (payload.action === 'submit') {
       const result = handleSubmit_(payload.data || {});
-      return jsonOutput_({ success: true, ...result });
+      return jsonOutput_(Object.assign({ success: true }, result));
     }
 
     return jsonOutput_({ success: false, error: 'Ação inválida.' });
@@ -102,58 +90,57 @@ function doPost(e) {
   }
 }
 
-// ================================
-// PROCESSAMENTO DE SUBMIT
-// ================================
 function handleSubmit_(data) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const registrosSheet = getSheet_(ss, SHEETS.REGISTROS);
-  const indexSheet = getSheet_(ss, SHEETS.INDEX);
-
-  const cpfRaw = String(data.cpf || '').trim();
-  const docRaw = String(data.numeroDocumento || '').trim();
-  const cpfNormalized = normalizeDigits_(cpfRaw);
-  const docNormalized = normalizeDigits_(docRaw);
-
-  const indexMap = getIndexMap_(indexSheet);
-  const duplicate = findDuplicate_(indexMap, cpfNormalized, docNormalized);
 
   const now = new Date();
   const recordId = Utilities.getUuid();
-  const imageUrl = data.imagemBase64 ? saveImageToDrive_(data.imagemBase64, recordId, cpfNormalized) : '';
+  const numeroDocumentoRaw = String(data.numeroDocumento || '').trim();
+  const numeroDocumentoNormalized = normalizeDoc_(numeroDocumentoRaw);
 
-  const status = duplicate ? 'DUPLICADO' : 'NOVO';
-  const dupRefId = duplicate ? duplicate.regId : '';
-  const dupReason = duplicate ? duplicate.reason : '';
+  const duplicateInfo = numeroDocumentoNormalized
+    ? findDuplicateByDoc_(numeroDocumentoNormalized)
+    : null;
 
-  const row = buildRegistroRow_({
-    id: recordId,
-    dataRegistro: now,
-    beneficiario: String(data.beneficiario || '').trim(),
-    cpf: cpfRaw,
-    numeroDocumento: docRaw,
-    atendente: String(data.atendente || '').trim(),
-    produto: String(data.produto || '').trim(),
-    quantidade: Number(data.quantidade || 0),
-    dataForm: String(data.data || '').trim(),
-    endereco: String(data.endereco || '').trim(),
-    observacoes: String(data.observacoes || '').trim(),
-    origem: 'SOCIAL_COLETOR',
-    imgUrl: imageUrl,
-    status,
-    dupRefId,
-    dupReason,
-    updatedAt: now,
-    deletado: ''
-  });
+  const status = duplicateInfo ? 'DUPLICADO' : 'NOVO';
+  const dupRefId = duplicateInfo ? duplicateInfo.id : '';
+  const dupReason = duplicateInfo ? 'NUM_DOCUMENTO' : '';
 
-  const newRowNumber = registrosSheet.appendRow(row).getRow();
+  const imageUrl = data.imagemBase64
+    ? saveImageToDrive_(data.imagemBase64, recordId, numeroDocumentoNormalized)
+    : '';
 
-  if (!duplicate) {
-    upsertIndex_(indexSheet, indexMap, cpfNormalized, docNormalized, recordId, newRowNumber);
+  const rowData = {
+    ID: recordId,
+    DATA_REGISTRO: now,
+    BENEFICIARIO: String(data.beneficiario || '').trim(),
+    CPF: String(data.cpf || '').trim(),
+    NUM_DOCUMENTO: numeroDocumentoRaw,
+    ATENDENTE: String(data.atendente || '').trim(),
+    PRODUTO: String(data.produto || '').trim(),
+    QUANTIDADE: Number(data.quantidade || 0),
+    DATA_FORM: String(data.data || '').trim(),
+    ENDERECO: String(data.endereco || '').trim(),
+    OBS: String(data.observacoes || '').trim(),
+    ORIGEM: 'SOCIAL_COLETOR',
+    IMG_URL: imageUrl,
+    STATUS: status,
+    DUP_REF_ID: dupRefId,
+    DUP_REASON: dupReason,
+    UPDATED_AT: now,
+    DELETADO: ''
+  };
+
+  const headers = getHeaders_(registrosSheet);
+  const rowValues = headers.map((header) => (Object.prototype.hasOwnProperty.call(rowData, header) ? rowData[header] : ''));
+  registrosSheet.getRange(registrosSheet.getLastRow() + 1, 1, 1, headers.length).setValues([rowValues]);
+
+  if (!duplicateInfo && numeroDocumentoNormalized) {
+    addIndexEntry_(numeroDocumentoNormalized, recordId, registrosSheet.getLastRow());
   }
 
-  logEvent_('SUBMIT', `Registro ${recordId} inserido. Status=${status}`);
+  logEvent_('SUBMIT', `Registro ${recordId} inserido. Status=${status}.`);
 
   return {
     id: recordId,
@@ -164,167 +151,157 @@ function handleSubmit_(data) {
   };
 }
 
-function buildRegistroRow_(data) {
-  return [
-    data.id,
-    data.dataRegistro,
-    data.beneficiario,
-    data.cpf,
-    data.numeroDocumento,
-    data.atendente,
-    data.produto,
-    data.quantidade,
-    data.dataForm,
-    data.endereco,
-    data.observacoes,
-    data.origem,
-    data.imgUrl,
-    data.status,
-    data.dupRefId,
-    data.dupReason,
-    data.updatedAt,
-    data.deletado
-  ];
-}
-
-// ================================
-// DUPLICIDADES
-// ================================
-function getIndexMap_(indexSheet) {
-  const values = indexSheet.getDataRange().getValues();
-  const map = {};
-
-  for (let i = 1; i < values.length; i += 1) {
-    const [key, regId, rowNumber, cpf, doc, updatedAt, deletado] = values[i];
-    if (!key) continue;
-    map[String(key)] = {
-      regId,
-      rowNumber: Number(rowNumber),
-      cpf: String(cpf || ''),
-      doc: String(doc || ''),
-      updatedAt,
-      deletado: String(deletado || '')
-    };
-  }
-
-  return map;
-}
-
-function findDuplicate_(indexMap, cpf, doc) {
-  const keys = buildIndexKeys_(cpf, doc);
-  for (const { key, reason } of keys) {
-    if (indexMap[key]) {
-      return { regId: indexMap[key].regId, reason };
-    }
-  }
-  return null;
-}
-
-function buildIndexKeys_(cpf, doc) {
-  const keys = [];
-  if (cpf && doc) {
-    keys.push({ key: `BOTH:${cpf}|${doc}`, reason: 'CPF+DOC' });
-  }
-  if (cpf) {
-    keys.push({ key: `CPF:${cpf}`, reason: 'CPF' });
-  }
-  if (doc) {
-    keys.push({ key: `DOC:${doc}`, reason: 'DOC' });
-  }
-  return keys;
-}
-
-function upsertIndex_(indexSheet, indexMap, cpf, doc, regId, rowNumber) {
-  const now = new Date();
-  const keys = buildIndexKeys_(cpf, doc);
-  const rowsToAppend = [];
-
-  keys.forEach(({ key }) => {
-    if (indexMap[key]) return;
-    indexMap[key] = { regId, rowNumber, cpf, doc, updatedAt: now, deletado: '' };
-    rowsToAppend.push([key, regId, rowNumber, cpf, doc, now, '']);
-  });
-
-  if (rowsToAppend.length > 0) {
-    indexSheet.getRange(indexSheet.getLastRow() + 1, 1, rowsToAppend.length, INDEX_HEADERS.length)
-      .setValues(rowsToAppend);
-  }
-}
-
-// ================================
-// WEBAPP - DADOS
-// ================================
 function getDashboardData() {
   ensureSystem_();
-  const registros = getRegistros_();
-  const total = registros.length;
-  const duplicados = registros.filter((r) => r.STATUS === 'DUPLICADO').length;
-  const ativos = registros.filter((r) => !r.DELETADO).length;
+  const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.REGISTROS);
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow < 2 || lastColumn === 0) {
+    return { total: 0, ativos: 0, duplicados: 0, porProduto: {} };
+  }
 
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const indexes = getHeaderIndexes_(headers, ['STATUS', 'DELETADO', 'PRODUTO', 'QUANTIDADE']);
+  const data = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
+
+  let ativos = 0;
+  let duplicados = 0;
   const porProduto = {};
-  registros.forEach((registro) => {
-    const produto = registro.PRODUTO || 'Não informado';
-    porProduto[produto] = (porProduto[produto] || 0) + 1;
+
+  data.forEach((row) => {
+    const deletado = isDeleted_(row[indexes.DELETADO]);
+    if (!deletado) {
+      ativos += 1;
+    }
+    const status = normalizeText_(row[indexes.STATUS]);
+    if (!deletado && status === 'DUPLICADO') {
+      duplicados += 1;
+    }
+    if (deletado) return;
+    const produto = row[indexes.PRODUTO] || 'Não informado';
+    const quantidade = Number(row[indexes.QUANTIDADE] || 0);
+    porProduto[produto] = (porProduto[produto] || 0) + (Number.isFinite(quantidade) ? quantidade : 0);
   });
 
-  return { total, duplicados, ativos, porProduto };
+  return { total: data.length, ativos, duplicados, porProduto };
 }
 
-function getRegistros() {
+function getRegistrosTable(payload) {
   ensureSystem_();
-  return getRegistros_();
+  const limit = getNumberParam_(payload, 'limit', 50, 1, 200);
+  const offset = getNumberParam_(payload, 'offset', 0, 0, Number.MAX_SAFE_INTEGER);
+
+  const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.REGISTROS);
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+
+  const headers = lastColumn === 0
+    ? REGISTROS_HEADERS
+    : sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+
+  const totalRows = Math.max(lastRow - 1, 0);
+  if (totalRows === 0) {
+    return { headers, rows: [], meta: { total: 0, offset, limit, returned: 0, nextOffset: null } };
+  }
+
+  const endRow = lastRow - offset;
+  if (endRow < 2) {
+    return { headers, rows: [], meta: { total: totalRows, offset, limit, returned: 0, nextOffset: null } };
+  }
+
+  const startRow = Math.max(2, endRow - limit + 1);
+  const rowCount = Math.max(endRow - startRow + 1, 0);
+  if (rowCount === 0) {
+    return { headers, rows: [], meta: { total: totalRows, offset, limit, returned: 0, nextOffset: null } };
+  }
+
+  const values = sheet.getRange(startRow, 1, rowCount, lastColumn).getValues();
+  const rows = [];
+  for (let i = values.length - 1; i >= 0; i -= 1) {
+    rows.push({
+      rowNumber: startRow + i,
+      values: values[i]
+    });
+  }
+
+  const returned = rows.length;
+  const nextOffset = offset + returned < totalRows ? offset + returned : null;
+
+  return {
+    headers,
+    rows,
+    meta: {
+      total: totalRows,
+      offset,
+      limit,
+      returned,
+      nextOffset
+    }
+  };
+}
+
+function updateRegistroRow(payload) {
+  ensureSystem_();
+  if (!payload || !payload.rowNumber || !payload.values) {
+    return { success: false, error: 'Dados incompletos.' };
+  }
+
+  const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.REGISTROS);
+  const headers = getHeaders_(sheet);
+  const rowNumber = Number(payload.rowNumber);
+  if (rowNumber < 2 || rowNumber > sheet.getLastRow()) {
+    return { success: false, error: 'Linha inválida.' };
+  }
+
+  const rowRange = sheet.getRange(rowNumber, 1, 1, headers.length);
+  const current = rowRange.getValues()[0];
+  const incoming = payload.values;
+
+  headers.forEach((header, index) => {
+    if (Object.prototype.hasOwnProperty.call(incoming, header)) {
+      current[index] = incoming[header];
+    }
+  });
+
+  const updatedIndex = headers.indexOf('UPDATED_AT');
+  if (updatedIndex !== -1) {
+    current[updatedIndex] = new Date();
+  }
+
+  rowRange.setValues([current]);
+  logEvent_('UPDATE', `Registro linha ${rowNumber} atualizado.`);
+  rebuildIndex_();
+
+  return { success: true };
 }
 
 function getDuplicados() {
   ensureSystem_();
-  return getRegistros_().filter((registro) => registro.STATUS === 'DUPLICADO');
-}
+  const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.REGISTROS);
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow < 2 || lastColumn === 0) return [];
 
-function updateRegistro(payload) {
-  ensureSystem_();
-  if (!payload || !payload.id) return { success: false, error: 'ID ausente.' };
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const indexes = getHeaderIndexes_(headers, ['ID', 'BENEFICIARIO', 'NUM_DOCUMENTO', 'PRODUTO', 'DUP_REASON', 'STATUS', 'DELETADO']);
+  const data = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
 
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = getSheet_(ss, SHEETS.REGISTROS);
-  const dataRange = sheet.getDataRange().getValues();
-
-  for (let i = 1; i < dataRange.length; i += 1) {
-    if (String(dataRange[i][0]) === String(payload.id)) {
-      const row = dataRange[i];
-      REGISTROS_HEADERS.forEach((header, index) => {
-        if (Object.prototype.hasOwnProperty.call(payload, header)) {
-          row[index] = payload[header];
-        }
+  return data.reduce((acc, row) => {
+    const status = normalizeText_(row[indexes.STATUS]);
+    const deletado = isDeleted_(row[indexes.DELETADO]);
+    if (!deletado && status === 'DUPLICADO') {
+      acc.push({
+        ID: row[indexes.ID],
+        BENEFICIARIO: row[indexes.BENEFICIARIO],
+        NUM_DOCUMENTO: row[indexes.NUM_DOCUMENTO],
+        PRODUTO: row[indexes.PRODUTO],
+        DUP_REASON: row[indexes.DUP_REASON],
+        STATUS: row[indexes.STATUS],
+        DELETADO: row[indexes.DELETADO]
       });
-      row[REGISTROS_HEADERS.indexOf('UPDATED_AT')] = new Date();
-      sheet.getRange(i + 1, 1, 1, REGISTROS_HEADERS.length).setValues([row]);
-      logEvent_('UPDATE', `Registro ${payload.id} atualizado.`);
-      return { success: true };
     }
-  }
-
-  return { success: false, error: 'Registro não encontrado.' };
-}
-
-function softDeleteRegistro(id) {
-  ensureSystem_();
-  if (!id) return { success: false, error: 'ID ausente.' };
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = getSheet_(ss, SHEETS.REGISTROS);
-  const dataRange = sheet.getDataRange().getValues();
-
-  for (let i = 1; i < dataRange.length; i += 1) {
-    if (String(dataRange[i][0]) === String(id)) {
-      dataRange[i][REGISTROS_HEADERS.indexOf('DELETADO')] = 'TRUE';
-      dataRange[i][REGISTROS_HEADERS.indexOf('UPDATED_AT')] = new Date();
-      sheet.getRange(i + 1, 1, 1, REGISTROS_HEADERS.length).setValues([dataRange[i]]);
-      logEvent_('DELETE', `Registro ${id} marcado como deletado.`);
-      return { success: true };
-    }
-  }
-
-  return { success: false, error: 'Registro não encontrado.' };
+    return acc;
+  }, []);
 }
 
 function resolveDuplicado(payload) {
@@ -333,37 +310,44 @@ function resolveDuplicado(payload) {
     return { success: false, error: 'Dados incompletos.' };
   }
 
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = getSheet_(ss, SHEETS.REGISTROS);
-  const rows = sheet.getDataRange().getValues();
+  const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.REGISTROS);
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0] || [];
 
-  for (let i = 1; i < rows.length; i += 1) {
-    if (String(rows[i][0]) === String(payload.id)) {
-      const statusIndex = REGISTROS_HEADERS.indexOf('STATUS');
-      const updatedIndex = REGISTROS_HEADERS.indexOf('UPDATED_AT');
-      const deletadoIndex = REGISTROS_HEADERS.indexOf('DELETADO');
+  const idIndex = headers.indexOf('ID');
+  const statusIndex = headers.indexOf('STATUS');
+  const updatedIndex = headers.indexOf('UPDATED_AT');
+  const deletadoIndex = headers.indexOf('DELETADO');
 
+  for (let i = 1; i < data.length; i += 1) {
+    if (String(data[i][idIndex]) === String(payload.id)) {
       switch (payload.action) {
         case 'manter':
-          rows[i][statusIndex] = 'DUPLICADO_MANTIDO';
+          data[i][statusIndex] = 'DUPLICADO_MANTIDO';
           break;
         case 'validar':
-          rows[i][statusIndex] = 'VALIDO';
+          data[i][statusIndex] = 'VALIDO';
           break;
         case 'mesclar':
-          rows[i][statusIndex] = 'MESCLADO';
+          data[i][statusIndex] = 'MESCLADO';
           break;
         case 'excluir':
-          rows[i][deletadoIndex] = 'TRUE';
-          rows[i][statusIndex] = 'EXCLUIDO';
+          if (deletadoIndex !== -1) {
+            data[i][deletadoIndex] = 'TRUE';
+          }
+          data[i][statusIndex] = 'EXCLUIDO';
           break;
         default:
           return { success: false, error: 'Ação inválida.' };
       }
 
-      rows[i][updatedIndex] = new Date();
-      sheet.getRange(i + 1, 1, 1, REGISTROS_HEADERS.length).setValues([rows[i]]);
+      if (updatedIndex !== -1) {
+        data[i][updatedIndex] = new Date();
+      }
+
+      sheet.getRange(i + 1, 1, 1, headers.length).setValues([data[i]]);
       logEvent_('DUPLICADO', `Registro ${payload.id} => ${payload.action}`);
+      rebuildIndex_();
       return { success: true };
     }
   }
@@ -371,61 +355,191 @@ function resolveDuplicado(payload) {
   return { success: false, error: 'Registro não encontrado.' };
 }
 
-// ================================
-// RELATÓRIOS
-// ================================
 function getRelatorios() {
   ensureSystem_();
   const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.RELATORIOS);
-  const values = sheet.getDataRange().getValues();
-  return values.slice(1).map((row) => ({
-    ID: row[0],
-    COMPETENCIA: row[1],
-    STATUS: row[2],
-    URL_PDF: row[3],
-    RESUMO: row[4],
-    CREATED_AT: row[5]
-  }));
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  const headers = data[0];
+
+  return data.slice(1).map((row) => {
+    const item = {};
+    headers.forEach((header, index) => {
+      item[header] = row[index];
+    });
+    return item;
+  });
 }
 
-function gerarRelatorioMensal(payload) {
+function gerarRelatorio() {
   ensureSystem_();
-  const competencia = payload && payload.competencia ? payload.competencia : formatCompetencia_(new Date());
   const registros = getRegistros_();
-  const resumo = buildResumoMensal_(registros, competencia);
-  const pdfUrl = gerarPdfSimples_(competencia, resumo);
+  const totals = buildTotals_(registros);
+  const competencia = formatCompetencia_(new Date());
+  const resumo = gerarResumoAnalitico_(totals);
+  const pdfUrl = gerarPdfRelatorio_(competencia, totals, resumo);
 
   const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.RELATORIOS);
-  sheet.appendRow([
-    Utilities.getUuid(),
-    competencia,
-    'GERADO',
-    pdfUrl,
-    resumo,
-    new Date()
-  ]);
+  const headers = getHeaders_(sheet);
+  const rowData = {
+    ID: Utilities.getUuid(),
+    COMPETENCIA: competencia,
+    TOTAL_REGISTROS: totals.total,
+    TOTAL_ATIVOS: totals.ativos,
+    TOTAL_DUPLICADOS: totals.duplicados,
+    URL_PDF: pdfUrl,
+    RESUMO: resumo,
+    CREATED_AT: new Date()
+  };
+
+  const rowValues = headers.map((header) => (Object.prototype.hasOwnProperty.call(rowData, header) ? rowData[header] : ''));
+  sheet.getRange(sheet.getLastRow() + 1, 1, 1, headers.length).setValues([rowValues]);
 
   logEvent_('RELATORIO', `Relatório ${competencia} gerado.`);
   return { success: true, url: pdfUrl };
 }
 
-// ================================
-// UTILITÁRIOS
-// ================================
+function buildTotals_(registros) {
+  const totals = {
+    total: registros.length,
+    ativos: 0,
+    duplicados: 0,
+    porProduto: {}
+  };
+
+  registros.forEach((registro) => {
+    const deletado = isDeleted_(registro.DELETADO);
+    if (!deletado) {
+      totals.ativos += 1;
+    }
+    if (!deletado && registro.STATUS === 'DUPLICADO') {
+      totals.duplicados += 1;
+    }
+    if (deletado) return;
+
+    const produto = registro.PRODUTO || 'Não informado';
+    const quantidade = Number(registro.QUANTIDADE || 0);
+    totals.porProduto[produto] = (totals.porProduto[produto] || 0) + (Number.isFinite(quantidade) ? quantidade : 0);
+  });
+
+  return totals;
+}
+
+function gerarResumoAnalitico_(totals) {
+  const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  const resumoBase = gerarResumoBase_(totals);
+
+  if (!apiKey) {
+    return `${resumoBase} Resumo analítico indisponível.`;
+  }
+
+  const prompt = [
+    'Gere um texto analítico e objetivo em português sobre os dados abaixo.',
+    'Não mencione nenhuma tecnologia utilizada.',
+    `Total de registros: ${totals.total}.`,
+    `Registros ativos: ${totals.ativos}.`,
+    `Registros duplicados: ${totals.duplicados}.`,
+    `Totais por produto: ${formatProdutos_(totals.porProduto)}.`,
+    'Traga observações úteis para gestão, com 2 a 4 parágrafos curtos.'
+  ].join(' ');
+
+  try {
+    const response = UrlFetchApp.fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 300 }
+        })
+      }
+    );
+
+    const data = JSON.parse(response.getContentText() || '{}');
+    const text = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts
+      ? data.candidates[0].content.parts.map((part) => part.text).join('')
+      : '';
+
+    return text ? `${resumoBase} ${text.trim()}` : `${resumoBase} Resumo analítico indisponível.`;
+  } catch (error) {
+    logEvent_('GEMINI_ERROR', String(error));
+    return `${resumoBase} Resumo analítico indisponível.`;
+  }
+}
+
+function gerarPdfRelatorio_(competencia, totals, resumo) {
+  const linhasProdutos = Object.keys(totals.porProduto).map((produto) => {
+    return `<tr><td>${escapeHtml_(produto)}</td><td>${formatNumber_(totals.porProduto[produto])}</td></tr>`;
+  }).join('');
+
+  const html = `
+    <html>
+      <head>
+        <meta charset="UTF-8" />
+        <style>
+          body { font-family: Arial, sans-serif; color: #111827; }
+          h1 { margin-bottom: 8px; }
+          .meta { color: #6b7280; margin-bottom: 16px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+          th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-size: 12px; }
+          th { background: #f3f4f6; }
+          .section { margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <h1>Relatório ${escapeHtml_(competencia)}</h1>
+        <div class="meta">Gerado em ${Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm')}</div>
+
+        <div class="section">
+          <h2>Totais gerais</h2>
+          <p>Total de registros: <strong>${totals.total}</strong></p>
+          <p>Registros ativos: <strong>${totals.ativos}</strong></p>
+          <p>Registros duplicados: <strong>${totals.duplicados}</strong></p>
+        </div>
+
+        <div class="section">
+          <h2>Totais por produto</h2>
+          <table>
+            <thead>
+              <tr><th>Produto</th><th>Quantidade</th></tr>
+            </thead>
+            <tbody>
+              ${linhasProdutos || '<tr><td colspan="2">Sem dados</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <h2>Análise</h2>
+          <p>${escapeHtml_(resumo)}</p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const blob = HtmlService.createHtmlOutput(html).getBlob().getAs(MimeType.PDF)
+    .setName(`Relatorio_${competencia}_${Date.now()}.pdf`);
+
+  const folder = getDriveFolder_('reports');
+  const file = folder.createFile(blob);
+  return file.getUrl();
+}
+
 function ensureSystem_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  ensureSheet_(ss, SHEETS.REGISTROS, REGISTROS_HEADERS);
-  ensureSheet_(ss, SHEETS.CONFIG, ['CHAVE', 'VALOR']);
-  ensureSheet_(ss, SHEETS.INDEX, INDEX_HEADERS);
-  ensureSheet_(ss, SHEETS.LOGS, LOG_HEADERS);
-  ensureSheet_(ss, SHEETS.RELATORIOS, RELATORIOS_HEADERS);
+  ensureSheetWithHeaders_(ss, SHEETS.REGISTROS, REGISTROS_HEADERS);
+  ensureSheetWithHeaders_(ss, SHEETS.INDEX, INDEX_HEADERS);
+  ensureSheetWithHeaders_(ss, SHEETS.RELATORIOS, RELATORIOS_HEADERS);
+  ensureSheetWithHeaders_(ss, SHEETS.LOGS, LOG_HEADERS);
+  ensureSheetWithHeaders_(ss, SHEETS.CONFIG, CONFIG_HEADERS);
   ensureDefaults_();
 }
 
 function ensureDefaults_() {
   const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.CONFIG);
-  const values = sheet.getDataRange().getValues();
-  const existing = new Set(values.slice(1).map((row) => row[0]));
+  const data = sheet.getDataRange().getValues();
+  const existing = new Set(data.slice(1).map((row) => row[0]));
 
   Object.keys(CONFIG_DEFAULTS).forEach((key) => {
     if (!existing.has(key)) {
@@ -434,35 +548,64 @@ function ensureDefaults_() {
   });
 }
 
-function getSheet_(ss, name) {
-  return ss.getSheetByName(name);
-}
-
-function ensureSheet_(ss, name, headers) {
+function ensureSheetWithHeaders_(ss, name, headers) {
   let sheet = ss.getSheetByName(name);
   if (!sheet) {
     sheet = ss.insertSheet(name);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
+    return sheet;
   }
 
-  const firstRow = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
-  const needsHeader = firstRow.some((value, index) => value !== headers[index]);
-  if (needsHeader) {
+  const lastColumn = Math.max(sheet.getLastColumn(), headers.length);
+  if (lastColumn === 0) {
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
+    return sheet;
+  }
+
+  const headerRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const existingHeaders = headerRow.filter((value) => value !== '' && value !== null);
+
+  const missing = headers.filter((header) => !existingHeaders.includes(header));
+  if (missing.length > 0) {
+    const startCol = headerRow.length + 1;
+    sheet.getRange(1, startCol, 1, missing.length).setValues([missing]);
   }
 
   sheet.setFrozenRows(1);
   return sheet;
 }
 
+function getHeaders_(sheet) {
+  const lastColumn = sheet.getLastColumn();
+  if (lastColumn === 0) return [];
+  return sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+}
+
+function getSheet_(ss, name) {
+  return ss.getSheetByName(name);
+}
+
 function getConfigValue_(key) {
   const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.CONFIG);
   const values = sheet.getDataRange().getValues();
-
   for (let i = 1; i < values.length; i += 1) {
     if (values[i][0] === key) return values[i][1];
   }
-
   return '';
+}
+
+function setConfigValue_(key, value) {
+  const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.CONFIG);
+  const values = sheet.getDataRange().getValues();
+  for (let i = 1; i < values.length; i += 1) {
+    if (values[i][0] === key) {
+      sheet.getRange(i + 1, 2).setValue(value);
+      return;
+    }
+  }
+  sheet.appendRow([key, value]);
 }
 
 function parsePayload_(e) {
@@ -471,96 +614,195 @@ function parsePayload_(e) {
 }
 
 function jsonOutput_(obj) {
-  return ContentService
-    .createTextOutput(JSON.stringify(obj))
+  return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-function normalizeDigits_(value) {
-  return String(value || '').replace(/\D/g, '');
+function normalizeDoc_(value) {
+  return String(value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 }
 
-function saveImageToDrive_(base64, recordId, cpf) {
-  const folder = getDriveFolder_();
+function findDuplicateByDoc_(docNormalized) {
+  const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.REGISTROS);
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow < 2 || lastColumn === 0) return null;
+
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const idIndex = headers.indexOf('ID');
+  const docIndex = headers.indexOf('NUM_DOCUMENTO');
+  const deletadoIndex = headers.indexOf('DELETADO');
+  if (idIndex === -1 || docIndex === -1 || deletadoIndex === -1) return null;
+
+  const data = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
+  for (let i = 0; i < data.length; i += 1) {
+    const rowDoc = normalizeDoc_(data[i][docIndex]);
+    if (rowDoc && rowDoc === docNormalized && !isDeleted_(data[i][deletadoIndex])) {
+      return { id: data[i][idIndex] };
+    }
+  }
+
+  return null;
+}
+
+function addIndexEntry_(docNormalized, recordId, rowNumber) {
+  const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.INDEX);
+  const headers = getHeaders_(sheet);
+  const rowData = {
+    NUM_DOCUMENTO: docNormalized,
+    REG_ID: recordId,
+    ROW_NUMBER: rowNumber,
+    CREATED_AT: new Date(),
+    UPDATED_AT: new Date(),
+    DELETADO: ''
+  };
+  const rowValues = headers.map((header) => (Object.prototype.hasOwnProperty.call(rowData, header) ? rowData[header] : ''));
+  sheet.getRange(sheet.getLastRow() + 1, 1, 1, headers.length).setValues([rowValues]);
+}
+
+function rebuildIndex_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const registrosSheet = getSheet_(ss, SHEETS.REGISTROS);
+  const indexSheet = getSheet_(ss, SHEETS.INDEX);
+
+  const lastRow = registrosSheet.getLastRow();
+  const lastColumn = registrosSheet.getLastColumn();
+  if (lastRow < 2 || lastColumn === 0) return;
+
+  const regHeaders = registrosSheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const idIndex = regHeaders.indexOf('ID');
+  const docIndex = regHeaders.indexOf('NUM_DOCUMENTO');
+  const deletadoIndex = regHeaders.indexOf('DELETADO');
+  if (idIndex === -1 || docIndex === -1 || deletadoIndex === -1) return;
+
+  const rows = [];
+  const seenDocs = new Set();
+
+  const registrosData = registrosSheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
+  for (let i = 0; i < registrosData.length; i += 1) {
+    const docNormalized = normalizeDoc_(registrosData[i][docIndex]);
+    if (!docNormalized || seenDocs.has(docNormalized)) continue;
+    if (isDeleted_(registrosData[i][deletadoIndex])) continue;
+    seenDocs.add(docNormalized);
+
+    rows.push([
+      docNormalized,
+      registrosData[i][idIndex],
+      i + 2,
+      new Date(),
+      new Date(),
+      ''
+    ]);
+  }
+
+  indexSheet.clearContents();
+  indexSheet.getRange(1, 1, 1, INDEX_HEADERS.length).setValues([INDEX_HEADERS]);
+  if (rows.length > 0) {
+    indexSheet.getRange(2, 1, rows.length, INDEX_HEADERS.length).setValues(rows);
+  }
+}
+
+function saveImageToDrive_(base64, recordId, docNormalized) {
+  const folder = getDriveFolder_('images');
   const cleaned = String(base64).replace(/^data:image\/[a-zA-Z]+;base64,/, '');
   const blob = Utilities.newBlob(Utilities.base64Decode(cleaned));
-  blob.setName(`REG_${recordId}_${cpf || 'SEMCPF'}_${Date.now()}.jpg`);
+  const fileName = `REG_${recordId}_${docNormalized || 'SEM_DOC'}_${Date.now()}.jpg`;
+  blob.setName(fileName);
   const file = folder.createFile(blob);
   return file.getUrl();
 }
 
-function getDriveFolder_() {
-  const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.CONFIG);
-  const folderId = getConfigValue_('DRIVE_FOLDER_ID');
+function getDriveFolder_(type) {
+  const isReports = type === 'reports';
+  const idKey = isReports ? 'DRIVE_FOLDER_ID_REPORTS' : 'DRIVE_FOLDER_ID_IMAGES';
+  const nameKey = isReports ? 'DRIVE_FOLDER_NAME_REPORTS' : 'DRIVE_FOLDER_NAME_IMAGES';
 
-  if (folderId) {
+  const existingId = getConfigValue_(idKey);
+  if (existingId) {
     try {
-      return DriveApp.getFolderById(folderId);
+      return DriveApp.getFolderById(existingId);
     } catch (error) {
-      logEvent_('DRIVE', 'Folder ID inválido. Criando nova pasta.');
+      logEvent_('DRIVE', `Folder ID inválido (${idKey}). Criando novo.`);
     }
   }
 
-  const folderName = getConfigValue_('DRIVE_FOLDER_NAME') || CONFIG_DEFAULTS.DRIVE_FOLDER_NAME;
+  const folderName = getConfigValue_(nameKey) || CONFIG_DEFAULTS[nameKey];
   const folder = DriveApp.createFolder(folderName);
-  setConfigValue_('DRIVE_FOLDER_ID', folder.getId());
+  setConfigValue_(idKey, folder.getId());
   return folder;
-}
-
-function setConfigValue_(key, value) {
-  const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.CONFIG);
-  const values = sheet.getDataRange().getValues();
-
-  for (let i = 1; i < values.length; i += 1) {
-    if (values[i][0] === key) {
-      sheet.getRange(i + 1, 2).setValue(value);
-      return;
-    }
-  }
-
-  sheet.appendRow([key, value]);
 }
 
 function getRegistros_() {
   const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.REGISTROS);
-  const values = sheet.getDataRange().getValues();
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow < 2 || lastColumn === 0) return [];
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const data = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
 
-  return values.slice(1).map((row) => {
+  return data.map((row) => {
     const obj = {};
-    REGISTROS_HEADERS.forEach((header, index) => {
+    headers.forEach((header, index) => {
       obj[header] = row[index];
     });
     return obj;
   });
 }
 
-function buildResumoMensal_(registros, competencia) {
-  const totais = {};
-  registros.forEach((registro) => {
-    const produto = registro.PRODUTO || 'Não informado';
-    totais[produto] = (totais[produto] || 0) + 1;
-  });
-
-  const linhas = Object.keys(totais).map((produto) => `${produto}: ${totais[produto]}`);
-  return `Relatório ${competencia}. Total de registros: ${registros.length}. Detalhes: ${linhas.join(', ')}`;
-}
-
 function formatCompetencia_(date) {
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  return `${year}-${month}`;
+  return Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM');
 }
 
-function gerarPdfSimples_(competencia, resumo) {
-  const html = `<h1>Relatório ${competencia}</h1><p>${resumo}</p>`;
-  const blob = HtmlService.createHtmlOutput(html).getBlob().setName(`Relatorio_${competencia}.pdf`);
-  const folder = getDriveFolder_();
-  const file = folder.createFile(blob);
-  return file.getUrl();
+function formatProdutos_(produtos) {
+  return Object.keys(produtos).map((produto) => `${produto}: ${formatNumber_(produtos[produto])}`).join(', ');
+}
+
+function gerarResumoBase_(totals) {
+  return `Resumo geral: ${totals.total} registros no período, ${totals.ativos} ativos e ${totals.duplicados} duplicados.`;
+}
+
+function formatNumber_(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? number.toLocaleString('pt-BR') : '0';
+}
+
+function isDeleted_(value) {
+  if (value === true) return true;
+  const normalized = String(value || '').trim().toUpperCase();
+  return normalized === 'TRUE' || normalized === 'SIM' || normalized === '1';
+}
+
+function escapeHtml_(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function normalizeText_(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function getHeaderIndexes_(headers, requiredHeaders) {
+  const indexes = {};
+  requiredHeaders.forEach((header) => {
+    const index = headers.indexOf(header);
+    indexes[header] = index;
+  });
+  return indexes;
+}
+
+function getNumberParam_(payload, key, defaultValue, min, max) {
+  if (!payload || typeof payload !== 'object') return defaultValue;
+  const value = Number(payload[key]);
+  if (!Number.isFinite(value)) return defaultValue;
+  return Math.min(Math.max(value, min), max);
 }
 
 function logEvent_(action, details) {
   const sheet = getSheet_(SpreadsheetApp.getActiveSpreadsheet(), SHEETS.LOGS);
+  if (!sheet) return;
   sheet.appendRow([new Date(), action, details]);
 }
-
