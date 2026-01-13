@@ -13,11 +13,11 @@
    ================================ */
 
 const CONFIG = {
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbymmvmflkL22DYgFF5Uy1cLgotOGfKxN0lSmC8k86au8vZFtCM94764dVGoQaXqANhR/exec",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxL-BxHrt9vfCH0rg9SLyOjD3M621lMmuDkeD0qBwyV1qYRPM69rqDCHuxs9lGhL4RxbA/exec",
 
-  SYSTEM_URL: "https://script.google.com/macros/s/AKfycbymmvmflkL22DYgFF5Uy1cLgotOGfKxN0lSmC8k86au8vZFtCM94764dVGoQaXqANhR/exec",
+  SYSTEM_URL: "https://script.google.com/macros/s/AKfycbxL-BxHrt9vfCH0rg9SLyOjD3M621lMmuDkeD0qBwyV1qYRPM69rqDCHuxs9lGhL4RxbA/exec",
 
-  GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/1A2owUxg0e0RLWcUy38yYg1kbPltz37FZIumt2H6dssY/edit?gid=358906151#gid=358906151",
+  GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/1kHd2xek8drCRlAi8aJ6dgdU_HfhWDuRCGIRpdpTG3mc/edit?gid=1546822011#gid=1546822011",
 
   DB_NAME: "SocialColetor_SendDB",
   STORE_NAME: "envios_pendentes",
