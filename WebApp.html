@@ -36,6 +36,38 @@ const CONFIG = {
   }
 };
 
+// ===== DIAGNÓSTICO =====
+const DEBUG = false;
+
+function logDebug(message, data) {
+  if (!DEBUG) return;
+  const payload = typeof data === 'undefined' ? '' : data;
+  try {
+    Logger.log(`${message} ${JSON.stringify(payload)}`);
+  } catch (err) {
+    Logger.log(`${message} ${String(payload)}`);
+  }
+  try {
+    console.log(message, payload);
+  } catch (err) {}
+}
+
+function logError(context, error) {
+  const detail = error && error.stack ? error.stack : String(error);
+  try {
+    Logger.log(`${context}: ${detail}`);
+  } catch (err) {}
+  try {
+    console.error(`${context}:`, error);
+  } catch (err) {}
+}
+
+function errorResponse(error, details) {
+  const message = error && error.message ? error.message : String(error || 'Erro desconhecido');
+  const info = details || (error && error.stack ? error.stack : undefined);
+  return { success: false, error: message, details: info };
+}
+
 // ===== FUNÇÃO PRINCIPAL - WEBAPP ENTRY POINT =====
 function doGet() {
   try {
@@ -485,6 +517,7 @@ function ensureDefaultConfig() {
  */
 function getDashboardData() {
   try {
+    logDebug('getDashboardData: inicio');
     const registros = getRegistros();
     
     const total = registros.length;
@@ -515,11 +548,12 @@ function getDashboardData() {
     };
     
   } catch (error) {
-    console.error('Erro em getDashboardData:', error);
+    logError('Erro em getDashboardData', error);
     logEvent('ERROR', 'getDashboardData: ' + error.toString());
     return {
       success: false,
       error: error.toString(),
+      details: error && error.stack ? error.stack : undefined,
       total: 0,
       ativos: 0,
       duplicados: 0,
@@ -534,19 +568,21 @@ function getDashboardData() {
  */
 function getRegistrosTable(options) {
   try {
-    console.log('=== getRegistrosTable iniciado ===');
+    logDebug('getRegistrosTable: inicio', options);
     
     // Configura parâmetros
-    const limit = Math.min(Math.max(Number(options?.limit || 20), 1), 100); // 20 padrão, máximo 100
-    const offset = Math.max(Number(options?.offset || 0), 0);
+    const safeOptions = options || {};
+    const limit = Math.min(Math.max(Number(safeOptions.limit || 20), 1), 100); // 20 padrão, máximo 100
+    const offset = Math.max(Number(safeOptions.offset || 0), 0);
     
-    console.log(`Parâmetros: limit=${limit}, offset=${offset}`);
+    logDebug('getRegistrosTable: parametros', { limit, offset });
     
     const sheet = getSheet(CONFIG.SHEET_NAMES.REGISTROS);
     if (!sheet) {
-      console.log('Aba Registros não encontrada');
+      logDebug('getRegistrosTable: aba Registros não encontrada');
       return {
-        success: true,
+        success: false,
+        error: 'Aba Registros não encontrada',
         headers: CONFIG.REGISTROS_HEADERS,
         rows: [],
         meta: { total: 0, offset: 0, hasMore: false }
@@ -557,11 +593,11 @@ function getRegistrosTable(options) {
     const dataRange = sheet.getDataRange();
     const allData = dataRange.getValues();
     
-    console.log(`Total de linhas na planilha: ${allData.length}`);
+    logDebug('getRegistrosTable: total linhas', allData.length);
     
     // Verifica se há dados além do cabeçalho
     if (allData.length <= 1) {
-      console.log('Apenas cabeçalho ou planilha vazia');
+      logDebug('getRegistrosTable: planilha vazia');
       return {
         success: true,
         headers: allData[0] || CONFIG.REGISTROS_HEADERS,
@@ -571,7 +607,7 @@ function getRegistrosTable(options) {
     }
     
     const headers = allData[0];
-    console.log('Cabeçalhos encontrados:', headers);
+    logDebug('getRegistrosTable: cabecalhos', headers);
     
     // FILTRA APENAS REGISTROS PREENCHIDOS (ignora linhas vazias)
     const registrosPreenchidos = [];
@@ -603,7 +639,7 @@ function getRegistrosTable(options) {
       }
     }
     
-    console.log(`Registros preenchidos encontrados: ${registrosPreenchidos.length}`);
+    logDebug('getRegistrosTable: registros preenchidos', registrosPreenchidos.length);
     
     // APLICA PAGINAÇÃO sobre os registros preenchidos
     const totalPreenchidos = registrosPreenchidos.length;
@@ -613,7 +649,13 @@ function getRegistrosTable(options) {
     
     const pageData = registrosPreenchidos.slice(startIndex, endIndex);
     
-    console.log(`Paginação: start=${startIndex}, end=${endIndex}, pageSize=${pageData.length}, total=${totalPreenchidos}, hasMore=${hasMore}`);
+    logDebug('getRegistrosTable: paginacao', {
+      startIndex,
+      endIndex,
+      pageSize: pageData.length,
+      total: totalPreenchidos,
+      hasMore
+    });
     
     return {
       success: true,
@@ -627,13 +669,14 @@ function getRegistrosTable(options) {
     };
     
   } catch (error) {
-    console.error('ERRO CRÍTICO em getRegistrosTable:', error);
+    logError('ERRO CRÍTICO em getRegistrosTable', error);
     logEvent('ERROR', 'getRegistrosTable: ' + error.toString());
     
     // Retorna estrutura válida mesmo em caso de erro
     return {
       success: false,
       error: error.toString(),
+      details: error && error.stack ? error.stack : undefined,
       headers: CONFIG.REGISTROS_HEADERS,
       rows: [],
       meta: { total: 0, offset: 0, hasMore: false }
@@ -646,54 +689,25 @@ function getRegistrosTable(options) {
  */
 function updateRegistroRow(payload) {
   try {
-    if (!payload || !payload.rowNumber || !payload.values) {
-      return { success: false, error: 'Dados incompletos para atualização' };
+    logDebug('updateRegistroRow: payload', payload);
+    const result = updateRegistroRowsBatch({ updates: [payload] });
+    if (result && result.success) {
+      return { success: true, updated: result.updated || 0 };
     }
-    
-    const sheet = getSheet(CONFIG.SHEET_NAMES.REGISTROS);
-    if (!sheet) {
-      return { success: false, error: 'Planilha de registros não encontrada' };
+    if (result) {
+      return {
+        success: false,
+        error: result.error || 'Falha ao atualizar registro',
+        details: result.details,
+        errors: result.errors,
+        updated: result.updated || 0
+      };
     }
-    
-    const rowNumber = Number(payload.rowNumber);
-    if (rowNumber < 2 || rowNumber > sheet.getLastRow()) {
-      return { success: false, error: 'Número de linha inválido: ' + rowNumber };
-    }
-    
-    // Obtém cabeçalhos
-    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    
-    // Obtém dados atuais da linha
-    const rowRange = sheet.getRange(rowNumber, 1, 1, headers.length);
-    const currentValues = rowRange.getValues()[0];
-    
-    // Aplica as atualizações
-    const updates = payload.values;
-    headers.forEach((header, index) => {
-      if (updates.hasOwnProperty(header)) {
-        currentValues[index] = updates[header];
-      }
-    });
-    
-    // Atualiza o timestamp
-    const updatedAtIndex = headers.indexOf('UPDATED_AT');
-    if (updatedAtIndex !== -1) {
-      currentValues[updatedAtIndex] = new Date();
-    }
-    
-    // Salva na planilha
-    rowRange.setValues([currentValues]);
-    // Reconstrói o índice (guardado). Para múltiplas linhas prefira updateRegistroRowsBatch.
-    try { rebuildIndex(); } catch (e) {}
-    
-    logEvent('UPDATE', `Registro linha ${rowNumber} atualizado`);
-    
-    return { success: true };
-    
+    return { success: false, error: 'Resposta inválida do batch' };
   } catch (error) {
-    console.error('Erro em updateRegistroRow:', error);
+    logError('Erro em updateRegistroRow', error);
     logEvent('ERROR', 'updateRegistroRow: ' + error.toString());
-    return { success: false, error: error.toString() };
+    return { success: false, error: error.toString(), details: error && error.stack ? error.stack : undefined };
   }
 }
 
@@ -706,6 +720,8 @@ function updateRegistroRowsBatch(payload) {
   try {
     lock.waitLock(30000);
 
+    logDebug('updateRegistroRowsBatch: payload', payload);
+
     if (!payload || !Array.isArray(payload.updates) || payload.updates.length === 0) {
       return { success: false, error: 'Nenhuma atualização recebida' };
     }
@@ -713,23 +729,32 @@ function updateRegistroRowsBatch(payload) {
     const sheet = getSheet(CONFIG.SHEET_NAMES.REGISTROS);
     if (!sheet) return { success: false, error: 'Planilha de registros não encontrada' };
 
-    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0] || [];
+    const dataRange = sheet.getDataRange();
+    const allData = dataRange.getValues();
+    const headers = allData[0] || [];
     if (!headers.length) return { success: false, error: 'Cabeçalhos não encontrados na planilha' };
 
+    const lastRow = allData.length;
+    if (lastRow < 2) return { success: false, error: 'Planilha não possui registros para atualizar' };
+
+    const updatedAtIndex = headers.indexOf('UPDATED_AT');
     let updated = 0;
     const errors = [];
 
     payload.updates.forEach((u) => {
       try {
-        const rowNumber = Number(u?.rowNumber);
-        const values = u?.values || {};
-        if (!rowNumber || rowNumber < 2 || rowNumber > sheet.getLastRow()) {
-          errors.push({ rowNumber, error: 'Número de linha inválido' });
+        const rowNumber = Number(u && u.rowNumber);
+        const values = (u && u.values) ? u.values : {};
+        if (!rowNumber || rowNumber < 2) {
+          errors.push({ rowNumber, error: 'Número de linha inválido (deve ser >= 2)' });
+          return;
+        }
+        if (rowNumber > lastRow) {
+          errors.push({ rowNumber, error: 'Número de linha inválido (fora do intervalo)' });
           return;
         }
 
-        const rowRange = sheet.getRange(rowNumber, 1, 1, headers.length);
-        const currentValues = rowRange.getValues()[0];
+        const currentValues = allData[rowNumber - 1];
 
         headers.forEach((header, idx) => {
           if (Object.prototype.hasOwnProperty.call(values, header)) {
@@ -737,18 +762,21 @@ function updateRegistroRowsBatch(payload) {
           }
         });
 
-        const updatedAtIndex = headers.indexOf('UPDATED_AT');
         if (updatedAtIndex !== -1) currentValues[updatedAtIndex] = new Date();
-
-        rowRange.setValues([currentValues]);
         updated += 1;
       } catch (e) {
         errors.push({ rowNumber: u?.rowNumber, error: String(e) });
       }
     });
 
+    if (updated > 0) {
+      dataRange.setValues(allData);
+    }
+
     // Reconstrói o índice uma única vez ao final
-    try { rebuildIndex(); } catch (e) {}
+    if (updated > 0) {
+      try { rebuildIndex(); } catch (e) {}
+    }
 
     if (errors.length) {
       logEvent('WARN', `Batch update: ${updated} ok, ${errors.length} erros`);
@@ -759,9 +787,9 @@ function updateRegistroRowsBatch(payload) {
     return { success: true, updated };
 
   } catch (error) {
-    console.error('Erro em updateRegistroRowsBatch:', error);
+    logError('Erro em updateRegistroRowsBatch', error);
     logEvent('ERROR', 'updateRegistroRowsBatch: ' + String(error));
-    return { success: false, error: String(error) };
+    return { success: false, error: String(error), details: error && error.stack ? error.stack : undefined };
   } finally {
     try { lock.releaseLock(); } catch (e) {}
   }
@@ -772,6 +800,7 @@ function updateRegistroRowsBatch(payload) {
  */
 function getDuplicados() {
   try {
+    logDebug('getDuplicados: inicio');
     const registros = getRegistros();
     
     // Filtra registros duplicados ativos
@@ -779,13 +808,13 @@ function getDuplicados() {
       isDuplicado(r.STATUS) && !isDeleted(r.DELETADO)
     );
     
-    console.log(`Encontrados ${duplicados.length} registros duplicados`);
-    return duplicados;
+    logDebug('getDuplicados: total', duplicados.length);
+    return { success: true, rows: duplicados, duplicados: duplicados };
     
   } catch (error) {
-    console.error('Erro em getDuplicados:', error);
+    logError('Erro em getDuplicados', error);
     logEvent('ERROR', 'getDuplicados: ' + error.toString());
-    return [];
+    return { success: false, error: error.toString(), details: error && error.stack ? error.stack : undefined, rows: [], duplicados: [] };
   }
 }
 
@@ -794,6 +823,7 @@ function getDuplicados() {
  */
 function resolveDuplicado(payload) {
   try {
+    logDebug('resolveDuplicado: payload', payload);
     if (!payload || !payload.id || !payload.action) {
       return { success: false, error: 'Dados incompletos para resolução' };
     }
@@ -861,9 +891,9 @@ function resolveDuplicado(payload) {
     return { success: false, error: 'Registro não encontrado com o ID fornecido' };
     
   } catch (error) {
-    console.error('Erro em resolveDuplicado:', error);
+    logError('Erro em resolveDuplicado', error);
     logEvent('ERROR', 'resolveDuplicado: ' + error.toString());
-    return { success: false, error: error.toString() };
+    return { success: false, error: error.toString(), details: error && error.stack ? error.stack : undefined };
   }
 }
 
@@ -872,11 +902,12 @@ function resolveDuplicado(payload) {
  */
 function getRelatorios() {
   try {
+    logDebug('getRelatorios: inicio');
     const sheet = getSheet(CONFIG.SHEET_NAMES.RELATORIOS);
-    if (!sheet) return [];
+    if (!sheet) return { success: false, error: 'Planilha de relatórios não encontrada', rows: [], relatorios: [] };
     
     const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) return [];
+    if (data.length <= 1) return { success: true, rows: [], relatorios: [] };
     
     const headers = data[0];
     const relatorios = [];
@@ -895,12 +926,12 @@ function getRelatorios() {
       }
     }
     
-    return relatorios;
+    return { success: true, rows: relatorios, relatorios: relatorios };
     
   } catch (error) {
-    console.error('Erro em getRelatorios:', error);
+    logError('Erro em getRelatorios', error);
     logEvent('ERROR', 'getRelatorios: ' + error.toString());
-    return [];
+    return { success: false, error: error.toString(), details: error && error.stack ? error.stack : undefined, rows: [], relatorios: [] };
   }
 }
 
@@ -909,14 +940,14 @@ function getRelatorios() {
  */
 function gerarRelatorio() {
   try {
-    console.log('=== Iniciando geração de relatório ===');
+    logDebug('gerarRelatorio: inicio');
     
     const registros = getRegistros();
     const totals = calculateTotals(registros);
     const competencia = formatCompetencia(new Date());
     
-    console.log(`Competência: ${competencia}`);
-    console.log(`Totais: ${JSON.stringify(totals)}`);
+    logDebug('gerarRelatorio: competencia', competencia);
+    logDebug('gerarRelatorio: totais', totals);
     
     // Gera resumo
     const resumo = generateResumo(totals, competencia);
@@ -952,11 +983,12 @@ function gerarRelatorio() {
     };
     
   } catch (error) {
-    console.error('Erro em gerarRelatorio:', error);
+    logError('Erro em gerarRelatorio', error);
     logEvent('ERROR', 'gerarRelatorio: ' + error.toString());
     return {
       success: false,
-      error: error.toString()
+      error: error.toString(),
+      details: error && error.stack ? error.stack : undefined
     };
   }
 }
