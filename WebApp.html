@@ -17,22 +17,17 @@
     Para alterar cores, tamanhos, etc., modifique aqui
     */
     :root {
-      --bg: #f3f4f6;                    /* Cor de fundo principal */
-      --card: #ffffff;                  /* Cor dos cards */
-      --primary: #2563eb;               /* Cor primária (azul) */
-      --primary-dark: #1d4ed8;          /* Azul mais escuro (hover) */
-      --secondary: #475569;             /* Cor secundária (cinza) */
-      --success: #10b981;               /* Verde (sucesso) */
-      --warning: #f59e0b;               /* Amarelo (alerta) */
-      --danger: #ef4444;                /* Vermelho (erro) */
-      --border: #e2e8f0;                /* Cor das bordas */
-      --text: #0f172a;                  /* Cor do texto principal */
-      --muted: #64748b;                 /* Texto secundário */
-      --shadow: 0 12px 30px rgba(15, 23, 42, 0.08); /* Sombra padrão */
-      --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);   /* Sombra leve */
-      --radius: 12px;                   /* Border-radius padrão */
-      --radius-sm: 8px;                 /* Border-radius pequeno */
-      --header-height: 70px;            /* Altura do header */
+      --bg: #f3f4f6;
+      --card: #ffffff;
+      --primary: #2563eb;
+      --secondary: #475569;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
     }
 
     /* RESET BÁSICO */
@@ -66,10 +61,10 @@
     */
     header {
       background: var(--card);
-      padding: 16px 20px;               /* Menor padding em mobile */
-      box-shadow: var(--shadow-sm);
+      padding: 20px 28px;
+      box-shadow: var(--shadow);
       display: flex;
-      flex-wrap: wrap;                  /* Quebra linha se necessário */
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
@@ -91,9 +86,7 @@
     /* SUBTÍTULO */
     header span {
       color: var(--muted);
-      font-size: clamp(11px, 3vw, 13px); /* Tamanho responsivo */
-      display: block;                   /* Fica em linha separada */
-      margin-top: 2px;
+      font-size: 13px;
     }
 
     /* 
@@ -115,13 +108,10 @@
       border: 1px solid var(--border);
       background: var(--card);
       padding: 8px 14px;
-      border-radius: 999px;             /* Botões arredondados */
+      border-radius: 999px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
-      font-size: clamp(12px, 3vw, 14px); /* Tamanho responsivo */
-      white-space: nowrap;              /* Texto não quebra */
-      flex-shrink: 0;                   /* Não reduz tamanho */
+      transition: 0.2s ease;
     }
 
     /* EFEITO HOVER */
@@ -137,17 +127,10 @@
       color: #fff;
     }
 
-    /* 
-    ============================================
-    CONTEÚDO PRINCIPAL
-    ============================================
-    */
     main {
-      padding: 20px 16px 40px;          /* Padding responsivo */
+      padding: 24px 28px 40px;
       display: grid;
-      gap: 20px;
-      max-width: 1400px;                /* Largura máxima para telas grandes */
-      margin: 0 auto;                   /* Centraliza em telas grandes */
+      gap: 24px;
     }
 
     /* 
@@ -157,45 +140,25 @@
     */
     .card {
       background: var(--card);
-      border-radius: var(--radius);
+      border-radius: 16px;
       border: 1px solid var(--border);
       box-shadow: var(--shadow);
-      padding: clamp(16px, 4vw, 20px);  /* Padding responsivo */
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      padding: 20px;
     }
 
-    /* EFEITO AO PASSAR MOUSE */
-    .card:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow), 0 8px 16px rgba(0, 0, 0, 0.1);
-    }
-
-    /* TÍTULO DOS CARDS */
-    .card h2 {
-      margin: 0 0 16px;
-      font-size: clamp(16px, 4vw, 18px);
-      font-weight: 600;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    /* 
-    ============================================
-    GRID DE CARDS (DASHBOARD)
-    ============================================
-    */
     .grid {
       display: grid;
       gap: 16px;
-      /* Layout responsivo: 1 coluna em mobile, 2 em tablet, 3+ em desktop */
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     }
 
-    /* VALORES NUMÉRICOS GRANDES */
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+    }
+
     .value {
-      font-size: clamp(28px, 6vw, 36px);
+      font-size: 26px;
       font-weight: 700;
       color: var(--primary);
       line-height: 1.2;
@@ -225,30 +188,18 @@
     /* CÉLULAS DA TABELA */
     th, td {
       border-bottom: 1px solid var(--border);
-      padding: 12px 10px;
+      padding: 10px 8px;
+      font-size: 12px;
       text-align: left;
-      font-size: clamp(12px, 3vw, 13px);
-      vertical-align: top;              /* Alinha conteúdo ao topo */
     }
 
     /* CABEÇALHO DA TABELA */
     th {
-      font-weight: 600;
+      font-size: 11px;
       text-transform: uppercase;
       color: var(--muted);
-      font-size: clamp(11px, 2.5vw, 12px);
-      background: #f8fafc;              /* Fundo sutil para cabeçalho */
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      white-space: nowrap;              /* Não quebra linha */
     }
 
-    /* 
-    ============================================
-    BOTÕES E AÇÕES
-    ============================================
-    */
     .actions {
       display: flex;
       gap: 8px;
@@ -258,28 +209,18 @@
     /* CLASSE BASE PARA BOTÕES */
     .btn {
       border: none;
-      padding: 10px 16px;               /* Tamanho maior para mobile (touch) */
-      border-radius: var(--radius-sm);
-      font-size: clamp(13px, 3vw, 14px);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;                         /* Espaço entre ícone e texto */
-      min-height: 40px;                 /* Altura mínima para touch */
-      text-align: center;
-      white-space: nowrap;
-      flex-shrink: 0;                   /* Não reduz tamanho */
     }
 
-    /* EFEITO HOVER PARA TODOS OS BOTÕES */
-    .btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      opacity: 0.95;
-    }
+    .btn.primary { background: var(--primary); color: #fff; }
+    .btn.secondary { background: var(--secondary); color: #fff; }
+    .btn.success { background: var(--success); color: #fff; }
+    .btn.warning { background: var(--warning); color: #fff; }
+    .btn.danger { background: var(--danger); color: #fff; }
 
     /* EFEITO CLICK (ACTIVE) */
     .btn:active {
@@ -347,159 +288,30 @@
     ============================================
     */
     .status {
-      display: none;                    /* Oculto por padrão */
-      padding: 12px 16px;
-      border-radius: var(--radius-sm);
+      display: none;
+      padding: 10px 12px;
+      border-radius: 10px;
       background: #fff7ed;
       border: 1px solid #fed7aa;
       color: #9a3412;
-      font-size: 14px;
-      margin-bottom: 20px;
-      align-items: center;
-      gap: 10px;
-      animation: fadeIn 0.3s ease;
+      font-size: 13px;
     }
 
-    /* ÍCONE NO STATUS */
-    .status::before {
-      content: "ℹ️";
-      font-size: 16px;
+    .table-wrapper {
+      overflow: auto;
+      max-height: 520px;
     }
 
-    /* 
-    ============================================
-    UTILITÁRIOS
-    ============================================
-    */
-    .hidden { 
-      display: none !important;         /* Importante para sobrescrever outros estilos */
+    .editable {
+      background: #f8fafc;
+      border-radius: 6px;
+      padding: 6px;
+      min-width: 120px;
     }
 
-    .loading {
-      opacity: 0.7;
-      pointer-events: none;             /* Desabilita interação durante loading */
-    }
-
-    .text-muted {
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .text-center {
-      text-align: center;
-    }
-
-    .mb-1 { margin-bottom: 8px; }
-    .mb-2 { margin-bottom: 16px; }
-    .mt-2 { margin-top: 16px; }
-
-    /* 
-    ============================================
-    ANIMAÇÕES
-    ============================================
-    */
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    .spinner {
-      animation: spin 1s linear infinite;
-      display: inline-block;
-    }
-
-    /* 
-    ============================================
-    MEDIA QUERIES - RESPONSIVIDADE
-    ============================================
-    */
-
-    /* TABLETS (768px para cima) */
-    @media (min-width: 768px) {
-      header {
-        padding: 20px 28px;
-      }
-      
-      main {
-        padding: 24px 28px 40px;
-        gap: 24px;
-      }
-      
-      .tabs {
-        gap: 8px;
-      }
-      
-      .tabs button {
-        padding: 10px 18px;
-      }
-      
-      .table-wrapper {
-        max-height: 600px;
-      }
-    }
-
-    /* DESKTOP (1024px para cima) */
-    @media (min-width: 1024px) {
-      .grid {
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      }
-      
-      .table-wrapper {
-        max-height: 650px;
-      }
-    }
-
-    /* MOBILE PEQUENO (até 480px) */
-    @media (max-width: 480px) {
-      header {
-        flex-direction: column;         /* Empilha título e tabs */
-        align-items: flex-start;
-        gap: 12px;
-        padding: 12px 16px;
-      }
-      
-      .tabs {
-        width: 100%;                    /* Ocupa largura total */
-        justify-content: flex-start;    /* Alinha à esquerda */
-      }
-      
-      .btn {
-        padding: 10px 12px;             /* Botões mais compactos */
-        font-size: 13px;
-      }
-      
-      .actions {
-        justify-content: center;        /* Centraliza botões em mobile */
-      }
-      
-      .editable {
-        min-width: 100px;               /* Campos mais estreitos */
-      }
-    }
-
-    /* ROLAGEM PERSONALIZADA */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-    
-    ::-webkit-scrollbar-track {
-      background: #f1f1f1;
-      border-radius: 4px;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-      background: #c1c1c1;
-      border-radius: 4px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-      background: #a1a1a1;
+    .dirty {
+      outline: 2px solid rgba(37, 99, 235, 0.35);
+      background: #eff6ff;
     }
   </style>
 </head>
@@ -535,17 +347,7 @@
     </div>
   </header>
 
-  <!-- 
-  ============================================
-  CONTEÚDO PRINCIPAL
-  ============================================
-  Cada section é uma aba do painel
-  -->
   <main>
-    <!-- 
-    CAIXA DE STATUS PARA MENSAGENS
-    Exibe feedback ao usuário (sucesso, erro, carregando)
-    -->
     <div id="status" class="status"></div>
 
     <!-- 
@@ -570,10 +372,8 @@
       RESUMO POR PRODUTO
       -->
       <div class="card">
-        <h2><i class="fas fa-box"></i> Indicadores por produto</h2>
-        <div id="produtosResumo">
-          <p class="text-muted text-center"><i class="fas fa-spinner spinner"></i> Carregando...</p>
-        </div>
+        <h2>Indicadores por produto</h2>
+        <div id="produtosResumo"></div>
       </div>
     </section>
 
@@ -585,35 +385,15 @@
     -->
     <section id="registros" class="tab-content hidden">
       <div class="card">
-        <h2><i class="fas fa-database"></i> Registros (planilha completa)</h2>
-        
-        <!-- 
-        BOTÕES DE AÇÃO PARA REGISTROS
-        onclick: chama funções JavaScript definidas abaixo
-        -->
-        <div class="actions mb-2">
-          <button class="btn secondary" onclick="resetRegistros()">
-            <i class="fas fa-redo"></i> Recarregar
-          </button>
-          <button class="btn secondary" id="btnMaisRegistros" onclick="loadMoreRegistros()" style="display:none;">
-            <i class="fas fa-plus"></i> Mais +50
-          </button>
-          <button class="btn primary" onclick="saveRegistros()">
-            <i class="fas fa-save"></i> Salvar alterações
-          </button>
+        <h2>Registros (planilha completa)</h2>
+        <div class="actions" style="margin-bottom:12px;">
+          <button class="btn secondary" onclick="loadRegistros()">Recarregar</button>
+          <button class="btn primary" onclick="saveRegistros()">Salvar alterações</button>
+          <button class="btn secondary" id="loadMoreBtn" onclick="loadMoreRegistros()">Mais +50</button>
         </div>
-        
-        <!-- 
-        WRAPPER DA TABELA COM SCROLL
-        Permite rolagem horizontal e vertical
-        -->
+        <div id="registrosInfo" style="font-size:12px; color: var(--muted); margin-bottom:12px;"></div>
         <div class="table-wrapper">
-          <table id="registrosTable">
-            <!-- Tabela será populada dinamicamente pelo JavaScript -->
-            <tbody>
-              <tr><td colspan="10" class="text-center">Carregando registros...</td></tr>
-            </tbody>
-          </table>
+          <table id="registrosTable"></table>
         </div>
       </div>
     </section>
@@ -625,14 +405,10 @@
     -->
     <section id="duplicados" class="tab-content hidden">
       <div class="card">
-        <h2><i class="fas fa-copy"></i> Duplicados</h2>
-        
-        <div class="actions mb-2">
-          <button class="btn secondary" onclick="loadDuplicados()">
-            <i class="fas fa-sync"></i> Atualizar
-          </button>
+        <h2>Duplicados</h2>
+        <div class="actions" style="margin-bottom:12px;">
+          <button class="btn secondary" onclick="loadDuplicados()">Atualizar</button>
         </div>
-        
         <div class="table-wrapper">
           <table>
             <thead>
@@ -660,17 +436,11 @@
     -->
     <section id="relatorios" class="tab-content hidden">
       <div class="card">
-        <h2><i class="fas fa-file-pdf"></i> Relatórios</h2>
-        
-        <div class="actions mb-2">
-          <button class="btn primary" onclick="gerarRelatorio()">
-            <i class="fas fa-plus"></i> Gerar relatório
-          </button>
-          <button class="btn secondary" onclick="loadRelatorios()">
-            <i class="fas fa-sync"></i> Atualizar
-          </button>
+        <h2>Relatórios</h2>
+        <div class="actions" style="margin-bottom:12px;">
+          <button class="btn primary" onclick="gerarRelatorio()">Gerar relatório</button>
+          <button class="btn secondary" onclick="loadRelatorios()">Atualizar</button>
         </div>
-        
         <div class="table-wrapper">
           <table>
             <thead>
@@ -705,32 +475,18 @@
     
     // Elemento da caixa de status
     const statusBox = document.getElementById('status');
-    
-    // Estado dos registros (mantém controle da paginação e edições)
     const registrosState = {
-      headers: [],        // Cabeçalhos das colunas
-      rows: [],           // Dados das linhas
-      dirtyRows: new Set(), // Linhas modificadas (para salvar depois)
-      limit: 50,          // Quantos registros carregar por vez
-      offset: 0,          // Quantos registros já foram carregados
-      total: 0,           // Total de registros no banco
-      hasMore: false      // Se há mais registros para carregar
+      headers: [],
+      rows: [],
+      dirtyRows: new Set(),
+      offset: 0,
+      limit: 50,
+      total: 0
     };
-    
-    // ============================================
-    // FUNÇÕES DE UTILIDADE
-    // ============================================
-    
-    /**
-     * Exibe uma mensagem de status para o usuário
-     * @param {string} message - Mensagem a ser exibida
-     * @param {string} type - Tipo (info, success, error) - opcional
-     * 
-     * USO: setStatus('Carregando dados...', 'info');
-     *      setStatus('Erro ao carregar!', 'error');
-     *      setStatus(''); // para limpar
-     */
-    function setStatus(message, type = 'info') {
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    const registrosInfo = document.getElementById('registrosInfo');
+
+    function setStatus(message) {
       if (!message) {
         statusBox.style.display = 'none';
         statusBox.textContent = '';
@@ -775,49 +531,23 @@
         }, 3000);
       }
     }
-    
-    /**
-     * Escapa caracteres HTML para prevenir XSS
-     * @param {string} value - Texto a ser escapado
-     * @returns {string} Texto seguro para HTML
-     * 
-     * USO: escapeHtml('<script>alert("xss")</script>')
-     *      Retorna: &lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;
-     */
-    function escapeHtml(value) {
-      if (value === null || value === undefined) return '';
-      
-      return String(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+
+    function handleFailure(error) {
+      const message = (error && error.message) ? error.message : String(error || 'Erro inesperado.');
+      setStatus(`Erro: ${message}`);
     }
-    
-    /**
-     * Formata um número para o padrão brasileiro
-     * @param {number|string} num - Número a ser formatado
-     * @returns {string} Número formatado
-     * 
-     * USO: formatNumber(1234.56) -> "1.234,56"
-     */
-    function formatNumber(num) {
-      const n = Number(num);
-      if (isNaN(n)) return '0';
-      return n.toLocaleString('pt-BR');
+
+    function runScript(methodName, args, onSuccess) {
+      const runner = google.script.run
+        .withSuccessHandler(onSuccess)
+        .withFailureHandler(handleFailure);
+      if (typeof args === 'undefined') {
+        runner[methodName]();
+        return;
+      }
+      runner[methodName](args);
     }
-    
-    // ============================================
-    // FUNÇÕES DE NAVEGAÇÃO (TABS)
-    // ============================================
-    
-    /**
-     * Alterna entre as abas do painel
-     * @param {string} tabId - ID da aba a ser mostrada
-     * 
-     * USO: showTab('dashboard'); // Mostra aba Dashboard
-     */
+
     function showTab(tabId) {
       // Oculta todas as seções
       document.querySelectorAll('.tab-content').forEach((section) => {
@@ -869,84 +599,26 @@
      * USO: loadDashboard() - chamado automaticamente ao abrir aba
      */
     function loadDashboard() {
-      setStatus('Carregando dashboard...', 'info');
-      
-      google.script.run
-        .withSuccessHandler((data) => {
-          // Sucesso: atualiza a interface
-          updateDashboardUI(data);
-          setStatus('Dashboard atualizado!', 'success');
-        })
-        .withFailureHandler((err) => {
-          // Erro: mostra mensagem
-          console.error('Erro em getDashboardData:', err);
-          setStatus('❌ Erro ao carregar Dashboard', 'error');
-          
-          // Mostra dados placeholder em caso de erro
-          document.getElementById('dashboardCards').innerHTML = `
-            <div class="card">
-              <h2>Erro ao carregar</h2>
-              <div class="value">-</div>
-            </div>
-          `;
-        })
-        .getDashboardData();
-    }
-    
-    /**
-     * Atualiza a interface do Dashboard com dados recebidos
-     * @param {Object} data - Dados do dashboard
-     * 
-     * MODIFIQUE: Para alterar quais cards são exibidos,
-     * edite o array 'cards' abaixo
-     */
-    function updateDashboardUI(data) {
-      // Cards principais do dashboard
-      // Para adicionar/remover cards, modifique este array
-      const cards = [
-        { 
-          label: 'Total de registros', 
-          value: formatNumber(data.total || 0),
-          icon: 'fas fa-database',
-          color: 'var(--primary)'
-        },
-        { 
-          label: 'Registros ativos', 
-          value: formatNumber(data.ativos || 0),
-          icon: 'fas fa-check-circle',
-          color: 'var(--success)'
-        },
-        { 
-          label: 'Registros duplicados', 
-          value: formatNumber(data.duplicados || 0),
-          icon: 'fas fa-copy',
-          color: 'var(--warning)'
-        }
-      ];
-      
-      // Atualiza grid de cards
-      const container = document.getElementById('dashboardCards');
-      container.innerHTML = cards.map(card => `
-        <div class="card">
-          <h2><i class="${card.icon}" style="color: ${card.color}"></i> ${card.label}</h2>
-          <div class="value" style="color: ${card.color}">${card.value}</div>
-        </div>
-      `).join('');
-      
-      // Atualiza resumo por produto
-      const produtosDiv = document.getElementById('produtosResumo');
-      const entries = Object.entries(data.porProduto || {});
-      
-      if (entries.length) {
-        produtosDiv.innerHTML = entries.map(([produto, total]) => `
-          <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
-            <span><strong>${escapeHtml(produto)}</strong></span>
-            <span style="color: var(--primary); font-weight: 600;">${formatNumber(total)}</span>
+      runScript('getDashboardData', undefined, (data) => {
+        const cards = [
+          { label: 'Total de registros', value: data.total },
+          { label: 'Registros ativos', value: data.ativos },
+          { label: 'Registros duplicados', value: data.duplicados }
+        ];
+        const container = document.getElementById('dashboardCards');
+        container.innerHTML = cards.map(card => `
+          <div class="card">
+            <h2>${card.label}</h2>
+            <div class="value">${card.value}</div>
           </div>
         `).join('');
-      } else {
-        produtosDiv.innerHTML = '<p class="text-muted text-center">Sem registros ativos.</p>';
-      }
+
+        const produtosDiv = document.getElementById('produtosResumo');
+        const entries = Object.entries(data.porProduto || {});
+        produtosDiv.innerHTML = entries.length
+          ? entries.map(([produto, total]) => `<p><strong>${produto}</strong>: ${total}</p>`).join('')
+          : '<p>Sem registros ativos.</p>';
+      });
     }
     
     // ============================================
@@ -977,351 +649,173 @@
      * Função de compatibilidade (mantém link com botão antigo)
      */
     function loadRegistros() {
-      resetRegistros();
+      setStatus('Carregando registros...');
+      registrosState.offset = 0;
+      registrosState.rows = [];
+      registrosState.dirtyRows.clear();
+      runScript('getRegistrosTable', { limit: registrosState.limit, offset: registrosState.offset }, (data) => {
+        registrosState.headers = data.headers || [];
+        registrosState.rows = data.rows || [];
+        registrosState.total = data.meta ? data.meta.total : registrosState.rows.length;
+        registrosState.offset = data.meta && data.meta.nextOffset !== null ? data.meta.nextOffset : registrosState.rows.length;
+        renderRegistros();
+        updateRegistrosInfo();
+        setStatus('');
+      });
     }
-    
-    /**
-     * Carrega uma página de registros (com paginação)
-     * @param {boolean} append - Se true, adiciona aos registros existentes
-     * 
-     * USO: loadRegistrosPage(false) // Primeira página
-     *      loadRegistrosPage(true)  // Próxima página (carregar mais)
-     */
-    function loadRegistrosPage(append) {
-      setStatus('Carregando registros...', 'info');
-      
-      // Adiciona classe loading para feedback visual
-      const registrosSection = document.getElementById('registros');
-      if (registrosSection) registrosSection.classList.add('loading');
-      
-      google.script.run
-        .withSuccessHandler((data) => {
-          // Remove loading
-          if (registrosSection) registrosSection.classList.remove('loading');
-          
-          // Atualiza estado
-          registrosState.headers = data.headers || [];
-          const rows = data.rows || [];
-          const meta = data.meta || {};
-          
-          registrosState.total = Number(meta.total || 0);
-          registrosState.offset = Number(meta.offset || 0);
-          registrosState.hasMore = !!meta.hasMore;
-          
-          // Adiciona ou substitui registros
-          if (append) {
-            registrosState.rows = registrosState.rows.concat(rows);
-          } else {
-            registrosState.rows = rows;
-          }
-          
-          // Atualiza interface
-          renderRegistros();
-          updateRegistrosControls();
-          setStatus('');
-        })
-        .withFailureHandler((err) => {
-          // Remove loading em caso de erro
-          if (registrosSection) registrosSection.classList.remove('loading');
-          
-          console.error('Erro em getRegistrosTable:', err);
-          setStatus('❌ Erro ao carregar Registros', 'error');
-          updateRegistrosControls();
-        })
-        .getRegistrosTable({ 
-          limit: registrosState.limit, 
-          offset: registrosState.offset 
-        });
-    }
-    
-    /**
-     * Carrega mais registros (página seguinte)
-     * USO: Chamado pelo botão "Mais +50"
-     */
+
     function loadMoreRegistros() {
-      if (!registrosState.hasMore) return;
-      loadRegistrosPage(true);
-    }
-    
-    /**
-     * Atualiza controles da aba de registros
-     * (botão "Mais +50" e título)
-     */
-    function updateRegistrosControls() {
-      const btn = document.getElementById('btnMaisRegistros');
-      if (btn) {
-        // Mostra/oculta botão baseado em se há mais registros
-        btn.style.display = registrosState.hasMore ? 'inline-flex' : 'none';
-        btn.innerHTML = `<i class="fas fa-plus"></i> Mais +${registrosState.limit}`;
-      }
-      
-      // Atualiza título com contagem
-      const title = document.querySelector('#registros .card h2');
-      if (title) {
-        if (registrosState.total > 0) {
-          const loaded = registrosState.rows.length;
-          const total = registrosState.total;
-          title.innerHTML = `<i class="fas fa-database"></i> Registros (${loaded} de ${total})`;
-        } else {
-          title.innerHTML = '<i class="fas fa-database"></i> Registros';
-        }
-      }
-    }
-    
-    /**
-     * Renderiza a tabela de registros na tela
-     * Cria células editáveis e vincula eventos
-     */
-    function renderRegistros() {
-      const table = document.getElementById('registrosTable');
-      
-      // Verifica se há dados
-      if (!registrosState.headers.length) {
-        table.innerHTML = `
-          <tbody>
-            <tr><td colspan="10" class="text-center">Nenhum registro encontrado.</td></tr>
-          </tbody>
-        `;
+      if (registrosState.offset === null || registrosState.rows.length >= registrosState.total) {
         return;
       }
-      
-      // Cria cabeçalho
-      const headerHtml = registrosState.headers
-        .map((header) => `<th>${escapeHtml(header)}</th>`)
-        .join('');
-      
-      // Cria linhas com dados
+      setStatus('Carregando mais registros...');
+      runScript('getRegistrosTable', { limit: registrosState.limit, offset: registrosState.rows.length }, (data) => {
+        const newRows = data.rows || [];
+        registrosState.rows = registrosState.rows.concat(newRows);
+        registrosState.total = data.meta ? data.meta.total : registrosState.total;
+        registrosState.offset = data.meta && data.meta.nextOffset !== null ? data.meta.nextOffset : null;
+        renderRegistros();
+        updateRegistrosInfo();
+        setStatus('');
+      });
+    }
+
+    function renderRegistros() {
+      const table = document.getElementById('registrosTable');
+      if (!registrosState.headers.length) {
+        table.innerHTML = '<tr><td>Sem dados.</td></tr>';
+        return;
+      }
+
+      const headerHtml = registrosState.headers.map((header) => `<th>${header}</th>`).join('');
       const rowsHtml = registrosState.rows.map((row) => {
         const cells = registrosState.headers.map((header, index) => {
           const value = row.values[index] ?? '';
-          // Cada célula é um campo editável
-          return `
-            <td>
-              <div class="editable" 
-                   contenteditable="true" 
-                   data-header="${escapeHtml(header)}"
-                   data-original="${escapeHtml(value)}">
-                ${escapeHtml(value)}
-              </div>
-            </td>
-          `;
+          return `<td><div class="editable" contenteditable="true" data-header="${header}">${escapeHtml(value)}</div></td>`;
         }).join('');
-        
-        // data-row guarda o número da linha na planilha
         return `<tr data-row="${row.rowNumber}">${cells}</tr>`;
       }).join('');
-      
-      // Monta tabela completa
-      table.innerHTML = `
-        <thead><tr>${headerHtml}</tr></thead>
-        <tbody>${rowsHtml}</tbody>
-      `;
-      
-      // Adiciona eventos aos campos editáveis
+
+      table.innerHTML = `<thead><tr>${headerHtml}</tr></thead><tbody>${rowsHtml}</tbody>`;
+
       table.querySelectorAll('.editable').forEach((cell) => {
         cell.addEventListener('input', () => markDirty(cell));
         cell.addEventListener('blur', () => markDirty(cell));
-        
-        // Enter salva, Esc cancela
-        cell.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            cell.blur();
-          } else if (e.key === 'Escape') {
-            // Restaura valor original
-            const original = cell.dataset.original || '';
-            cell.textContent = original;
-            cell.classList.remove('dirty');
-            cell.blur();
-          }
-        });
       });
     }
-    
-    /**
-     * Marca uma linha como modificada (para salvar depois)
-     * @param {HTMLElement} cell - Célula editável que foi modificada
-     */
+
+    function updateRegistrosInfo() {
+      const total = registrosState.total || 0;
+      const loaded = registrosState.rows.length;
+      registrosInfo.textContent = total
+        ? `Mostrando ${loaded} de ${total} registros.`
+        : 'Nenhum registro encontrado.';
+      if (loadMoreBtn) {
+        loadMoreBtn.disabled = loaded >= total;
+        loadMoreBtn.style.opacity = loaded >= total ? '0.6' : '1';
+        loadMoreBtn.style.cursor = loaded >= total ? 'not-allowed' : 'pointer';
+      }
+    }
+
     function markDirty(cell) {
       const row = cell.closest('tr');
       if (!row) return;
-      
       const rowNumber = row.dataset.row;
       if (!rowNumber) return;
-      
-      // Salva alteração no estado
       registrosState.dirtyRows.add(Number(rowNumber));
-      
-      // Destaca visualmente toda a linha
       row.querySelectorAll('.editable').forEach((editable) => {
         editable.classList.add('dirty');
       });
     }
-    
-    /**
-     * Salva todas as alterações feitas nos registros
-     * Envia para o Google Apps Script processar
-     * 
-     * USO: Chamado pelo botão "Salvar alterações"
-     */
+
     function saveRegistros() {
-      // Verifica se há alterações
       if (!registrosState.dirtyRows.size) {
-        setStatus('Nenhuma alteração para salvar.', 'info');
+        setStatus('Nenhuma alteração para salvar.');
         return;
       }
-      
-      setStatus('Salvando alterações...', 'info');
-      
-      // Prepara dados para envio
+      setStatus('Salvando alterações...');
+
       const updates = Array.from(registrosState.dirtyRows).map((rowNumber) => {
         const row = document.querySelector(`tr[data-row="${rowNumber}"]`);
-        if (!row) return null;
-        
         const values = {};
+        if (!row) return null;
         row.querySelectorAll('.editable').forEach((cell) => {
           values[cell.dataset.header] = cell.textContent.trim();
         });
-        
         return { rowNumber, values };
-      }).filter(Boolean); // Remove nulls
-      
-      // Contador para acompanhar envios
+      }).filter(Boolean);
+
       let remaining = updates.length;
       if (remaining === 0) {
-        setStatus('Nenhuma alteração para salvar.', 'info');
+        setStatus('Nenhuma alteração para salvar.');
         return;
       }
-      
-      // Envia cada atualização individualmente
+
       updates.forEach((update) => {
-        google.script.run
-          .withSuccessHandler((result) => {
-            if (!result.success) {
-              setStatus('Erro ao salvar algumas alterações.', 'error');
-            }
-            
-            remaining -= 1;
-            if (remaining === 0) {
-              // Todas atualizações completas
-              registrosState.dirtyRows.clear();
-              setStatus('Todas alterações salvas com sucesso!', 'success');
-              
-              // Recarrega dashboard para atualizar estatísticas
-              loadDashboard();
-            }
-          })
-          .withFailureHandler((err) => {
-            console.error('Erro ao salvar:', err);
-            setStatus('Erro ao salvar alterações.', 'error');
-          })
-          .updateRegistroRow(update);
+        runScript('updateRegistroRow', update, (result) => {
+          if (!result.success) {
+            setStatus('Erro ao salvar alterações.');
+          }
+          remaining -= 1;
+          if (remaining === 0) {
+            registrosState.dirtyRows.clear();
+            setStatus('Alterações salvas.');
+            loadDashboard();
+          }
+        });
       });
     }
-    
-    // ============================================
-    // FUNÇÕES DOS DUPLICADOS
-    // ============================================
-    
-    /**
-     * Carrega lista de registros duplicados
-     * USO: Chamado ao abrir aba ou clicar em "Atualizar"
-     */
+
     function loadDuplicados() {
-      setStatus('Carregando duplicados...', 'info');
-      
-      google.script.run
-        .withSuccessHandler((duplicados) => {
-          const body = document.getElementById('duplicadosBody');
-          const list = duplicados || [];
-          
-          if (!list.length) {
-            body.innerHTML = `
-              <tr>
-                <td colspan="6" class="text-center">
-                  <i class="fas fa-check-circle" style="color: var(--success);"></i>
-                  Nenhum duplicado encontrado.
-                </td>
-              </tr>
-            `;
-            setStatus('');
-            return;
-          }
-          
-          // Preenche tabela com duplicados
-          body.innerHTML = list.map((registro) => {
-            const id = escapeHtml(String(registro.ID || ''));
-            const nome = escapeHtml(registro.BENEFICIARIO || '-');
-            const doc = escapeHtml(registro.NUM_DOCUMENTO || '-');
-            const produto = escapeHtml(registro.PRODUTO || '-');
-            const motivo = escapeHtml(registro.DUP_REASON || '-');
-            
-            return `
-              <tr>
-                <td><code>${id.substring(0, 8)}...</code></td>
-                <td>${nome}</td>
-                <td><strong>${doc}</strong></td>
-                <td>${produto}</td>
-                <td><span class="badge warning">${motivo}</span></td>
-                <td>
-                  <div class="actions">
-                    <button class="btn success" onclick="resolverDuplicado('${id}', 'validar')" title="Marcar como válido">
-                      <i class="fas fa-check"></i> Validar
-                    </button>
-                    <button class="btn warning" onclick="resolverDuplicado('${id}', 'manter')" title="Manter como duplicado">
-                      <i class="fas fa-pause"></i> Manter
-                    </button>
-                    <button class="btn secondary" onclick="resolverDuplicado('${id}', 'mesclar')" title="Mesclar registros">
-                      <i class="fas fa-compress"></i> Mesclar
-                    </button>
-                    <button class="btn danger" onclick="resolverDuplicado('${id}', 'excluir')" title="Excluir registro">
-                      <i class="fas fa-trash"></i> Excluir
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            `;
-          }).join('');
-          
-          setStatus('');
-        })
-        .withFailureHandler((err) => {
-          console.error('Erro em getDuplicados:', err);
-          setStatus('❌ Erro ao carregar Duplicados', 'error');
-        })
-        .getDuplicados();
+      setStatus('Carregando duplicados...');
+      runScript('getDuplicados', undefined, (duplicados) => {
+        const body = document.getElementById('duplicadosBody');
+        body.innerHTML = (duplicados || []).map((registro) => `
+          <tr>
+            <td>${registro.ID}</td>
+            <td>${registro.BENEFICIARIO || '-'}</td>
+            <td>${registro.NUM_DOCUMENTO || '-'}</td>
+            <td>${registro.PRODUTO || '-'}</td>
+            <td>${registro.DUP_REASON || '-'}</td>
+            <td>
+              <div class="actions">
+                <button class="btn success" onclick="resolverDuplicado('${registro.ID}', 'validar')">Validar</button>
+                <button class="btn warning" onclick="resolverDuplicado('${registro.ID}', 'manter')">Manter</button>
+                <button class="btn secondary" onclick="resolverDuplicado('${registro.ID}', 'mesclar')">Mesclar</button>
+                <button class="btn danger" onclick="resolverDuplicado('${registro.ID}', 'excluir')">Excluir</button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+        setStatus('');
+      });
     }
-    
-    /**
-     * Resolve um registro duplicado (ações)
-     * @param {string} id - ID do registro
-     * @param {string} action - Ação a tomar (validar, manter, mesclar, excluir)
-     * 
-     * USO: resolverDuplicado('12345', 'validar')
-     */
+
     function resolverDuplicado(id, action) {
-      if (!confirm(`Confirmar ação: ${action.toUpperCase()} no registro?`)) {
-        return;
-      }
-      
-      setStatus(`Processando ${action}...`, 'info');
-      
-      google.script.run
-        .withSuccessHandler((result) => {
-          if (result.success) {
-            setStatus(`Duplicado ${action} com sucesso!`, 'success');
-            // Recarrega lista de duplicados e dashboard
-            loadDuplicados();
-            loadDashboard();
-          } else {
-            setStatus(`Erro: ${result.error || 'Ação falhou'}`, 'error');
-          }
-        })
-        .withFailureHandler((err) => {
-          console.error('Erro em resolveDuplicado:', err);
-          setStatus('❌ Erro ao processar duplicado', 'error');
-        })
-        .resolveDuplicado({ id, action });
+      setStatus('Atualizando duplicado...');
+      runScript('resolveDuplicado', { id, action }, (result) => {
+        setStatus(result.success ? 'Duplicado atualizado.' : 'Erro ao atualizar duplicado.');
+        loadDuplicados();
+        loadDashboard();
+      });
+    }
+
+    function loadRelatorios() {
+      setStatus('Carregando relatórios...');
+      runScript('getRelatorios', undefined, (relatorios) => {
+        const body = document.getElementById('relatoriosBody');
+        body.innerHTML = (relatorios || []).map((relatorio) => `
+          <tr>
+            <td>${relatorio.COMPETENCIA || '-'}</td>
+            <td>${relatorio.TOTAL_REGISTROS || '-'}</td>
+            <td>${relatorio.TOTAL_ATIVOS || '-'}</td>
+            <td>${relatorio.TOTAL_DUPLICADOS || '-'}</td>
+            <td>${relatorio.URL_PDF ? `<a href="${relatorio.URL_PDF}" target="_blank">PDF</a>` : '-'}</td>
+            <td>${relatorio.RESUMO || '-'}</td>
+          </tr>
+        `).join('');
+        setStatus('');
+      });
     }
     
     // ============================================
@@ -1397,27 +891,20 @@
      * USO: Chamado pelo botão "Gerar relatório"
      */
     function gerarRelatorio() {
-      if (!confirm('Gerar novo relatório da competência atual?')) {
-        return;
-      }
-      
-      setStatus('Gerando relatório... Isso pode levar alguns segundos.', 'info');
-      
-      google.script.run
-        .withSuccessHandler((result) => {
-          if (result.success) {
-            setStatus('Relatório gerado com sucesso!', 'success');
-            // Recarrega lista de relatórios
-            loadRelatorios();
-          } else {
-            setStatus('Erro ao gerar relatório.', 'error');
-          }
-        })
-        .withFailureHandler((err) => {
-          console.error('Erro em gerarRelatorio:', err);
-          setStatus('❌ Erro ao gerar relatório', 'error');
-        })
-        .gerarRelatorio();
+      setStatus('Gerando relatório...');
+      runScript('gerarRelatorio', {}, (result) => {
+        setStatus(result.success ? 'Relatório gerado.' : 'Erro ao gerar relatório.');
+        loadRelatorios();
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
     
     // ============================================
