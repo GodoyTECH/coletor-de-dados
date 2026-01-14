@@ -178,8 +178,9 @@ function setupAuthFlow() {
 
     if (elements.btnGoRecords) {
         elements.btnGoRecords.addEventListener('click', () => {
-            setLastView('records');
-            window.location.href = PANEL_URL;
+setLastView('records');
+window.location.href = PANEL_URL;
+
         });
     }
 
