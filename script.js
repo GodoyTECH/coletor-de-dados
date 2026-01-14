@@ -1168,7 +1168,7 @@ function extractAndFillData(text) {
         beneficiario: /\b(beneficiário|beneficiario|nome do benefici[áa]rio|nome benefici[áa]rio)\b/i,
         atendente: /\b(atendente|respons[aá]vel|funcion[aá]rio)\b/i,
         produto: /\b(produto|item|descri[cç][aã]o)\b/i,
-        quantidade: /\b(quantidade|qtd|qtde)\b/i
+        quantidade: /\b(quant\w{0,6}dad\w*|qtd|qtde)\b/i
     };
     const numericValue = /(\d+(?:[.,]\d{1,2})?)/;
 
@@ -1198,6 +1198,103 @@ function extractAndFillData(text) {
             return String(match[1] || '').trim();
         }
         return trimmed;
+    };
+
+
+    // ================================
+    // HELPERS (mais robustos p/ Nota de Entrega)
+    // ================================
+    const normalizeSpaces = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+
+    const hasLetters = (s) => /[A-ZÁ-Ú]/i.test(String(s || ''));
+    const hasManyDigits = (s) => (String(s || '').match(/\d/g) || []).length >= 6;
+
+    const looksLikeName = (s) => {
+        const v = normalizeSpaces(s);
+        if (!v || v.length < 4) return false;
+        if (!hasLetters(v)) return false;
+        if (/\d/.test(v)) return false;
+        // geralmente vem com 2+ palavras (ex: SHAMIRA CAROLINA ROMANZINI)
+        return v.split(' ').length >= 2;
+    };
+
+    const looksLikeProdutoValue = (s) => {
+        const v = normalizeSpaces(s);
+        if (!v || v.length < 3) return false;
+        if (!hasLetters(v)) return false;
+        // evita capturar cabeçalhos/labels
+        if (/\b(benefici|cpf|documento|fornecedor|atendente|quantidade|data|nota)\b/i.test(v)) return false;
+        return true;
+    };
+
+    const isBadQuantity = (q) => {
+        const n = Number(String(q || '').replace(',', '.'));
+        if (!Number.isFinite(n) || n <= 0) return true;
+        if (n > 1000) return true; // evita 341245, 06401050, etc.
+        if (Number.isInteger(n) && n >= 1900 && n <= 2100) return true; // evita ano 2025
+        return false;
+    };
+
+    const extractForwardValue = (linesArr, startIndex, inlineValue, validator, maxLook = 8) => {
+        const inline = normalizeSpaces(inlineValue);
+        if (inline && validator(inline)) return inline;
+
+        for (let i = 1; i <= maxLook; i++) {
+            const candidate = normalizeSpaces(linesArr[startIndex + i]);
+            if (!candidate) continue;
+
+            // ignora linha que parece barcode/código longo
+            if (hasManyDigits(candidate)) continue;
+
+            // evita bater em outros rótulos curtos
+            if (/\b(benefici|cpf|documento|fornecedor|produto|quantidade|data|nota)\b/i.test(candidate) && candidate.length < 30) {
+                continue;
+            }
+
+            if (validator(candidate)) return candidate;
+        }
+        return '';
+    };
+
+    const extractQuantidadeNear = (linesArr, index) => {
+        const candidates = [];
+
+        const pushFromLine = (ln) => {
+            const line = String(ln || '');
+            if (!line) return;
+
+            // pula datas tipo 09/12/2025
+            if (/\d{1,2}\/\d{1,2}\/\d{4}/.test(line)) return;
+
+            const matches = line.match(/\d{1,4}(?:[.,]\d{1,2})?/g) || [];
+            matches.forEach((m) => candidates.push(m));
+        };
+
+        pushFromLine(linesArr[index]);
+
+        // olha algumas linhas à frente, mas para se entrar em outro bloco
+        for (let i = 1; i <= 4; i++) {
+            const ln = String(linesArr[index + i] || '');
+            if (!ln) continue;
+            if (/\b(produto|fornecedor|benefici|cpf|documento|data)\b/i.test(ln)) break;
+            pushFromLine(ln);
+        }
+
+        const cleaned = candidates
+            .map((raw) => ({ raw, num: Number(String(raw).replace(',', '.')) }))
+            .filter((x) => Number.isFinite(x.num) && !isBadQuantity(x.raw));
+
+        if (cleaned.length === 0) return '';
+
+        // prioriza valores com decimal (ex: 2,00) e menores
+        cleaned.sort((a, b) => {
+            const aDec = /[.,]\d{1,2}$/.test(a.raw) ? 1 : 0;
+            const bDec = /[.,]\d{1,2}$/.test(b.raw) ? 1 : 0;
+            if (aDec !== bDec) return bDec - aDec;
+            return a.num - b.num;
+        });
+
+        return cleaned[0].raw;
     };
 
     // Extrair CPF
@@ -1234,38 +1331,43 @@ function extractAndFillData(text) {
                 data.beneficiario = candidate;
             }
         }
-
-        // Atendente (não pode ser numérico/documento)
+        // Atendente (mais robusto: procura algumas linhas à frente e ignora barcode/números)
         if (!data.atendente && labelPatterns.atendente.test(lowerLine)) {
             const inlineValue = extractAfterLabel(line, labelPatterns.atendente);
-            const nextLine = lines[index + 1];
-            const candidate = inlineValue || nextLine || '';
-            if (candidate && candidate.length > 2 && !isNumericOnly(candidate) && !isLikelyDocument(candidate)) {
-                data.atendente = candidate;
-            }
-        }
+            const candidate = extractForwardValue(lines, index, inlineValue, (v) => {
+                if (!looksLikeName(v)) return false;
+                if (isNumericOnly(v) || isLikelyDocument(v)) return false;
+                return true;
+            });
 
-        // Quantidade (campo dedicado, ex: "Quantidade 2,00")
+            if (candidate) data.atendente = candidate;
+        }
+        // Quantidade (mais robusto: pega número perto do rótulo e evita ano/documento/endereço)
         if (!data.quantidade && labelPatterns.quantidade.test(lowerLine)) {
             const inlineValue = extractAfterLabel(line, labelPatterns.quantidade);
-            const match = inlineValue.match(numericValue);
-            if (match) {
-                data.quantidade = normalizeQuantityInput(match[1]);
+
+            let qty = '';
+            const inlineMatch = normalizeSpaces(inlineValue).match(/(\d{1,4}(?:[.,]\d{1,2})?)/);
+            if (inlineMatch && !isBadQuantity(inlineMatch[1])) {
+                qty = inlineMatch[1];
             } else {
-                const nextLine = lines[index + 1];
-                const nextMatch = nextLine?.match(numericValue);
-                if (nextMatch) data.quantidade = normalizeQuantityInput(nextMatch[1]);
+                qty = extractQuantidadeNear(lines, index);
+            }
+
+            if (qty && !isBadQuantity(qty)) {
+                data.quantidade = normalizeQuantityInput(qty);
             }
         }
-
-        // Produto
+        // Produto (mais robusto: procura o valor real e evita cair em "Fornecedor" ou outros rótulos)
         if (!data.produto && labelPatterns.produto.test(lowerLine)) {
             const inlineValue = extractAfterLabel(line, labelPatterns.produto);
-            const nextLine = lines[index + 1];
-            const candidate = inlineValue || nextLine || '';
-            if (candidate && candidate.length > 2) {
-                data.produto = sanitizeProduto(candidate);
-            }
+            const candidate = extractForwardValue(lines, index, inlineValue, (v) => {
+                if (!looksLikeProdutoValue(v)) return false;
+                if (isNumericOnly(v) || isLikelyDocument(v)) return false;
+                return true;
+            });
+
+            if (candidate) data.produto = sanitizeProduto(candidate);
         }
 
         // Quantidade na mesma linha de "produto" (ex: "... Produto ... 2,00")
