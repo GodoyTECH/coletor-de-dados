@@ -279,6 +279,15 @@ function renderRegistrosRows() {
         linkWrapper.innerHTML = `
           <a href="${escapeHtml(value)}" target="_blank" rel="noopener noreferrer" class="btn btn-small btn-secondary btn-image">Ver imagem</a>
         `;
+
+        const thumb = document.createElement('img');
+        thumb.src = value;
+        thumb.alt = 'Imagem do registro';
+        thumb.style.maxWidth = '60px';
+        thumb.style.display = 'block';
+        thumb.style.marginTop = '0.5rem';
+        linkWrapper.appendChild(thumb);
+
         td.appendChild(linkWrapper);
       }
 
