@@ -12,9 +12,10 @@ const OCR_API_URL = 'https://api.ocr.space/parse/image';
 const GOOGLE_SCRIPT_URL = ''; // Será configurada dinamicamente
 const AUTH_USER = 'Eduardo';
 const AUTH_PASS = 'decore';
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxTEfxZPj6ujlWqe1vi_3PUOLqfVTM4s0nhVwLHmxla7h1uohx2ZVOhmzzES381KBojyg/exec';
+const PANEL_URL = 'painel.html';
 const AUTH_REMEMBER_KEY = 'social_coletor_remember';
 const AUTH_SESSION_KEY = 'social_coletor_session';
+const AUTH_LAST_VIEW_KEY = 'social_coletor_last_view';
 
 // ================================
 // VARIÁVEIS GLOBAIS
@@ -41,6 +42,7 @@ const MAX_ZOOM = 5;
 // Configurações do Google Sheets
 let googleScriptConfigured = false;
 let googleScriptUrl = '';
+let appInitialized = false;
 
 // Cache para dados offline
 let offlineData = [];
@@ -53,7 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Inicializando Social Coletor...');
     setupElements();
     setupAuthFlow();
-    initializeApp();
     setupPWA();
     loadOfflineData();
     loadGoogleScriptConfig();
@@ -98,6 +99,7 @@ function setupElements() {
         loginForm: document.getElementById('loginForm'),
         loginUser: document.getElementById('loginUser'),
         loginPass: document.getElementById('loginPass'),
+        togglePassword: document.getElementById('togglePassword'),
         loginRemember: document.getElementById('loginRemember'),
         loginError: document.getElementById('loginError'),
         btnGoCollect: document.getElementById('btnGoCollect'),
@@ -156,20 +158,40 @@ function setupAuthFlow() {
         });
     }
 
+    if (elements.togglePassword && elements.loginPass) {
+        elements.togglePassword.addEventListener('click', () => {
+            const isPassword = elements.loginPass.type === 'password';
+            elements.loginPass.type = isPassword ? 'text' : 'password';
+            elements.togglePassword.setAttribute(
+                'aria-label',
+                isPassword ? 'Ocultar senha' : 'Mostrar senha'
+            );
+        });
+    }
+
     if (elements.btnGoCollect) {
         elements.btnGoCollect.addEventListener('click', () => {
-            showAppView();
+            setLastView('collect');
+            window.location.reload();
         });
     }
 
     if (elements.btnGoRecords) {
         elements.btnGoRecords.addEventListener('click', () => {
-            window.open(WEBAPP_URL, '_blank');
+            setLastView('records');
+            window.location.href = PANEL_URL;
         });
     }
 
     if (isLoggedIn) {
-        showHomeView();
+        const lastView = getLastView();
+        if (lastView === 'collect') {
+            showAppView();
+        } else if (lastView === 'records') {
+            window.location.href = PANEL_URL;
+        } else {
+            showHomeView();
+        }
     } else {
         showLoginView();
     }
@@ -199,30 +221,58 @@ function handleLogin() {
 }
 
 function showLoginView() {
+    document.body.classList.add('auth-locked');
     if (elements.loginContainer) elements.loginContainer.hidden = false;
     if (elements.homeContainer) elements.homeContainer.hidden = true;
     if (elements.appContainer) elements.appContainer.hidden = true;
 }
 
 function showHomeView() {
+    if (!isAuthenticated()) {
+        showLoginView();
+        return;
+    }
+    document.body.classList.remove('auth-locked');
     if (elements.loginContainer) elements.loginContainer.hidden = true;
     if (elements.homeContainer) elements.homeContainer.hidden = false;
     if (elements.appContainer) elements.appContainer.hidden = true;
 }
 
 function showAppView() {
+    if (!isAuthenticated()) {
+        showLoginView();
+        return;
+    }
+    document.body.classList.remove('auth-locked');
     if (elements.loginContainer) elements.loginContainer.hidden = true;
     if (elements.homeContainer) elements.homeContainer.hidden = true;
     if (elements.appContainer) elements.appContainer.hidden = false;
+    ensureAppInitialized();
 }
 
-function initializeApp() {
+function ensureAppInitialized() {
+    if (appInitialized) return;
+    appInitialized = true;
     setupEventListeners();
     setupDefaultDate();
     validateForm();
     setupImageControls();
     checkConnectionStatus();
     console.log('✅ Aplicativo pronto!');
+}
+
+function isAuthenticated() {
+    const remembered = localStorage.getItem(AUTH_REMEMBER_KEY) === 'true';
+    const hasSession = sessionStorage.getItem(AUTH_SESSION_KEY) === 'true';
+    return remembered || hasSession;
+}
+
+function getLastView() {
+    return localStorage.getItem(AUTH_LAST_VIEW_KEY);
+}
+
+function setLastView(view) {
+    localStorage.setItem(AUTH_LAST_VIEW_KEY, view);
 }
 
 function setupEventListeners() {
@@ -1113,6 +1163,41 @@ function extractAndFillData(text) {
         assinatura: /(assinado|assinatura|_+|\sX\s)/i
     };
     const quantidadeSolta = /(\d{1,4}(?:[.,]\d{1,2})?)(?!\d)/;
+    const labelPatterns = {
+        beneficiario: /\b(beneficiário|beneficiario|nome do benefici[áa]rio|nome benefici[áa]rio)\b/i,
+        atendente: /\b(atendente|respons[aá]vel|funcion[aá]rio)\b/i,
+        produto: /\b(produto|item|descri[cç][aã]o)\b/i,
+        quantidade: /\b(quantidade|qtd|qtde)\b/i
+    };
+    const numericValue = /(\d+(?:[.,]\d{1,2})?)/;
+
+    const isNumericOnly = (value) => {
+        const cleaned = String(value || '').replace(/[.\-\s]/g, '');
+        return cleaned.length > 0 && /^\d+$/.test(cleaned);
+    };
+
+    const isLikelyDocument = (value) => {
+        return patterns.cpf.test(value) || patterns.numeroDocumento.test(value);
+    };
+
+    const extractAfterLabel = (line, regex) => {
+        const match = line.match(new RegExp(`${regex.source}\\s*[:\\-]?\\s*(.+)`, 'i'));
+        return match ? match[1].trim() : '';
+    };
+
+    const sanitizeProduto = (value) => {
+        if (!value) return '';
+        const trimmed = String(value).trim();
+        const match = trimmed.match(/^(.*?)(?:\s+(\d+(?:[.,]\d{1,2})?))?$/);
+        if (match) {
+            const possibleQty = match[2];
+            if (possibleQty && !data.quantidade) {
+                data.quantidade = normalizeQuantityInput(possibleQty);
+            }
+            return String(match[1] || '').trim();
+        }
+        return trimmed;
+    };
 
     // Extrair CPF
     const cpfMatch = text.match(patterns.cpf);
@@ -1126,8 +1211,8 @@ function extractAndFillData(text) {
     const dateMatch = text.match(patterns.data);
     if (dateMatch) data.data = formatDate(dateMatch[0]);
 
-    // Extrair quantidade
-    const qtdMatch = text.match(patterns.quantidade);
+    // Extrair quantidade (prioridade por rótulo)
+    const qtdMatch = text.match(patterns.quantidadeRotulo);
     if (qtdMatch) data.quantidade = normalizeQuantityInput(qtdMatch[1]);
 
     // Verificar assinatura
@@ -1140,46 +1225,50 @@ function extractAndFillData(text) {
         const lowerLine = line.toLowerCase();
         
         // Beneficiário
-        if (!data.beneficiario && /beneficiário|beneficiario|nome\s*:/.test(lowerLine)) {
+        if (!data.beneficiario && labelPatterns.beneficiario.test(lowerLine)) {
+            const inlineValue = extractAfterLabel(line, labelPatterns.beneficiario);
             const nextLine = lines[index + 1];
-            if (nextLine && nextLine.length > 3) {
-                data.beneficiario = nextLine;
-            } else {
-                const match = line.match(/benefici[áa]rio\s*:\s*(.+)/i);
-                if (match) data.beneficiario = match[1];
+            const candidate = inlineValue || nextLine || '';
+            if (candidate && candidate.length > 3) {
+                data.beneficiario = candidate;
             }
         }
-        
-        // Atendente
-        if (!data.atendente && /atendente|responsável|funcionário/.test(lowerLine)) {
+
+        // Atendente (não pode ser numérico/documento)
+        if (!data.atendente && labelPatterns.atendente.test(lowerLine)) {
+            const inlineValue = extractAfterLabel(line, labelPatterns.atendente);
             const nextLine = lines[index + 1];
-            if (nextLine && nextLine.length > 3) {
-                data.atendente = nextLine;
-            }
-        }
-        
-        // Produto
-        if (!data.produto && /produto|item|descrição/.test(lowerLine)) {
-            const nextLine = lines[index + 1];
-            if (nextLine && nextLine.length > 2) {
-                data.produto = nextLine;
+            const candidate = inlineValue || nextLine || '';
+            if (candidate && candidate.length > 2 && !isNumericOnly(candidate) && !isLikelyDocument(candidate)) {
+                data.atendente = candidate;
             }
         }
 
         // Quantidade (campo dedicado, ex: "Quantidade 2,00")
-        if (!data.quantidade && /quantidade|qtd|qtde/.test(lowerLine)) {
-            const match = line.match(patterns.quantidadeRotulo);
+        if (!data.quantidade && labelPatterns.quantidade.test(lowerLine)) {
+            const inlineValue = extractAfterLabel(line, labelPatterns.quantidade);
+            const match = inlineValue.match(numericValue);
             if (match) {
                 data.quantidade = normalizeQuantityInput(match[1]);
             } else {
                 const nextLine = lines[index + 1];
-                const nextMatch = nextLine?.match(/(\d+(?:[.,]\d{1,2})?)/);
+                const nextMatch = nextLine?.match(numericValue);
                 if (nextMatch) data.quantidade = normalizeQuantityInput(nextMatch[1]);
             }
         }
 
+        // Produto
+        if (!data.produto && labelPatterns.produto.test(lowerLine)) {
+            const inlineValue = extractAfterLabel(line, labelPatterns.produto);
+            const nextLine = lines[index + 1];
+            const candidate = inlineValue || nextLine || '';
+            if (candidate && candidate.length > 2) {
+                data.produto = sanitizeProduto(candidate);
+            }
+        }
+
         // Quantidade na mesma linha de "produto" (ex: "... Produto ... 2,00")
-        if (!data.quantidade && /produto|item|descrição/.test(lowerLine)) {
+        if (!data.quantidade && labelPatterns.produto.test(lowerLine)) {
             const match = line.match(quantidadeSolta);
             if (match) data.quantidade = normalizeQuantityInput(match[1]);
         }
@@ -1210,6 +1299,21 @@ function extractAndFillData(text) {
             }
         }
     });
+
+    if (data.atendente && (isNumericOnly(data.atendente) || isLikelyDocument(data.atendente))) {
+        data.atendente = '';
+    }
+
+    if (data.produto) {
+        const cleanedProduto = data.produto.replace(/\s+(\d+(?:[.,]\d{1,2})?)\s*$/, '');
+        if (cleanedProduto !== data.produto) {
+            if (!data.quantidade) {
+                const match = data.produto.match(numericValue);
+                if (match) data.quantidade = normalizeQuantityInput(match[1]);
+            }
+            data.produto = cleanedProduto.trim();
+        }
+    }
 
     // Adicionar texto extra nas observações se tiver informações úteis
     const textoParaObservacoes = [];
