@@ -130,7 +130,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 800px;
+      min-width: 1200px;
     }
     th {
       background: #f8fafc;
@@ -149,6 +149,8 @@
       border-bottom: 1px solid var(--border);
       vertical-align: top;
       font-size: 0.875rem;
+      white-space: nowrap;
+      max-width: 220px;
     }
     tbody tr:hover { background: #f8fafc; }
 
@@ -161,17 +163,26 @@
       outline: none;
       cursor: text;
       transition: background 0.2s;
-      white-space: pre-wrap;
-      word-break: break-word;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .editable-cell:focus {
       background: white;
       outline: 2px solid var(--primary);
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      white-space: pre;
+      overflow: visible;
+      position: relative;
+      z-index: 2;
     }
     .editable-cell.dirty {
       background: #eff6ff;
       outline: 2px solid rgba(59, 130, 246, 0.5);
+    }
+
+    .btn-image {
+      white-space: nowrap;
     }
 
     /* BUTTONS */

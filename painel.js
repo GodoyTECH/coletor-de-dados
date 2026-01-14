@@ -277,8 +277,9 @@ function renderRegistrosRows() {
         const linkWrapper = document.createElement('div');
         linkWrapper.className = 'mt-1';
         linkWrapper.innerHTML = `
-          <a href="${escapeHtml(value)}" target="_blank" rel="noopener noreferrer" class="btn btn-small btn-secondary">Ver imagem</a>
+          <a href="${escapeHtml(value)}" target="_blank" rel="noopener noreferrer" class="btn btn-small btn-secondary btn-image">Ver imagem</a>
         `;
+
         const thumb = document.createElement('img');
         thumb.src = value;
         thumb.alt = 'Imagem do registro';
@@ -286,6 +287,7 @@ function renderRegistrosRows() {
         thumb.style.display = 'block';
         thumb.style.marginTop = '0.5rem';
         linkWrapper.appendChild(thumb);
+
         td.appendChild(linkWrapper);
       }
 
