@@ -1880,7 +1880,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxTEfxZPj6ujlWqe1vi_3PUOLqfVTM4s0nhVwLHmxla7h1uohx2ZVOhmzzES381KBojyg/exec';
+    const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxQoIoQB2Jx6kbtwpuVu6HNp7KlAm_f9nnzFZkrorFzoU2xb_QnDCAoIHyAEZKKfETe/exec';
 
     viewSheetBtn.addEventListener('click', () => {
         try {
