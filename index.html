@@ -50,7 +50,12 @@
                 <input type="text" id="loginUser" placeholder="Digite o usuário" autocomplete="username">
 
                 <label for="loginPass">Senha</label>
-                <input type="password" id="loginPass" placeholder="Digite a senha" autocomplete="current-password">
+                <div class="password-field">
+                    <input type="password" id="loginPass" placeholder="Digite a senha" autocomplete="current-password">
+                    <button type="button" class="toggle-password" id="togglePassword" aria-label="Mostrar senha">
+                        👁️
+                    </button>
+                </div>
 
                 <div class="auth-remember">
                     <input type="checkbox" id="loginRemember">

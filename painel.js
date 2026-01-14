@@ -1,5 +1,9 @@
 const API_ENDPOINT = '/.netlify/functions/sc-api';
 
+const AUTH_REMEMBER_KEY = 'social_coletor_remember';
+const AUTH_SESSION_KEY = 'social_coletor_session';
+
+ main
 const appState = {
   registros: {
     headers: [],
@@ -14,6 +18,14 @@ const appState = {
   },
   currentTab: 'dashboard'
 };
+
+
+function isAuthenticated() {
+  const remembered = localStorage.getItem(AUTH_REMEMBER_KEY) === 'true';
+  const hasSession = sessionStorage.getItem(AUTH_SESSION_KEY) === 'true';
+  return remembered || hasSession;
+}
+
 
 function showStatus(message, type = 'info', duration = 3000) {
   const statusEl = document.getElementById('status');
@@ -106,6 +118,35 @@ function showTab(tabId) {
   if (tabId === 'relatorios') loadRelatorios();
 }
 
+function normalizeProdutoLabel(label) {
+  return String(label || '').trim().toLowerCase();
+}
+
+function aggregateProdutos(porProduto = {}) {
+  const map = new Map();
+  let totalQuantidade = 0;
+
+  Object.entries(porProduto || {}).forEach(([produto, quantidade]) => {
+    const normalized = normalizeProdutoLabel(produto);
+    if (!normalized) return;
+    const qty = Number(quantidade || 0);
+    if (Number.isNaN(qty)) return;
+    totalQuantidade += qty;
+
+    if (!map.has(normalized)) {
+      map.set(normalized, { label: String(produto || '').trim(), quantidade: 0 });
+    }
+
+    const entry = map.get(normalized);
+    entry.quantidade += qty;
+  });
+
+  return {
+    totalQuantidade,
+    produtos: Array.from(map.values()).sort((a, b) => b.quantidade - a.quantidade)
+  };
+}
+
 async function loadDashboard() {
   showStatus('Carregando dados do dashboard...', 'info');
   const result = await apiRequest('getDashboardData', {});
@@ -120,14 +161,18 @@ async function loadDashboard() {
     document.getElementById('duplicadosRegistros').textContent = result.duplicados || 0;
 
     const produtosDiv = document.getElementById('produtosChart');
-    if (result.porProduto && Object.keys(result.porProduto).length > 0) {
+    const aggregated = aggregateProdutos(result.porProduto || {});
+    if (aggregated.produtos.length > 0) {
       let html = '<div style="max-width: 500px; margin: 0 auto;">';
-      Object.entries(result.porProduto).forEach(([produto, quantidade]) => {
-        const percent = result.total > 0 ? ((quantidade / result.total) * 100).toFixed(1) : 0;
+      aggregated.produtos.forEach(({ label, quantidade }) => {
+        const percent = aggregated.totalQuantidade > 0
+          ? ((quantidade / aggregated.totalQuantidade) * 100).toFixed(1)
+          : 0;
         html += `
           <div style="margin-bottom: 0.75rem;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-              <span><strong>${escapeHtml(produto)}</strong></span>
+              <span><strong>${escapeHtml(label)}</strong></span>
+
               <span>${quantidade} (${percent}%)</span>
             </div>
             <div style="height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
@@ -270,26 +315,36 @@ function renderRegistrosRows() {
     (row.values || []).forEach((value, colIndex) => {
       const td = document.createElement('td');
       const header = appState.registros.headers[colIndex] || '';
+      if (header === 'IMG_URL') {
+        if (value) {
+          const linkWrapper = document.createElement('div');
+          linkWrapper.className = 'mt-1';
+          linkWrapper.innerHTML = `
+            <a href="${escapeHtml(value)}" target="_blank" rel="noopener noreferrer" class="btn btn-small btn-secondary btn-image">Ver imagem</a>
+          `;
+
+          // Thumbnail (melhoria da main)
+          const thumb = document.createElement('img');
+          thumb.src = value;
+          thumb.alt = 'Imagem do registro';
+          thumb.style.maxWidth = '60px';
+          thumb.style.display = 'block';
+          thumb.style.marginTop = '0.5rem';
+          thumb.loading = 'lazy';
+          thumb.referrerPolicy = 'no-referrer';
+          thumb.onerror = () => thumb.remove(); // se URL quebrada, remove o preview
+
+          linkWrapper.appendChild(thumb);
+          td.appendChild(linkWrapper);
+        } else {
+          td.textContent = '—';
+        }
+        tr.appendChild(td);
+        return;
+      }
+
       const editable = buildEditableCell(value, row.rowNumber, header);
       td.appendChild(editable);
-
-      if (header === 'IMG_URL' && value) {
-        const linkWrapper = document.createElement('div');
-        linkWrapper.className = 'mt-1';
-        linkWrapper.innerHTML = `
-          <a href="${escapeHtml(value)}" target="_blank" rel="noopener noreferrer" class="btn btn-small btn-secondary btn-image">Ver imagem</a>
-        `;
-
-        const thumb = document.createElement('img');
-        thumb.src = value;
-        thumb.alt = 'Imagem do registro';
-        thumb.style.maxWidth = '60px';
-        thumb.style.display = 'block';
-        thumb.style.marginTop = '0.5rem';
-        linkWrapper.appendChild(thumb);
-
-        td.appendChild(linkWrapper);
-      }
 
       tr.appendChild(td);
     });
@@ -475,6 +530,11 @@ window.loadRelatorios = loadRelatorios;
 window.gerarRelatorio = gerarRelatorio;
 
 window.addEventListener('DOMContentLoaded', () => {
+if (!isAuthenticated()) {
+  window.location.href = 'index.html';
+  return;
+}
+
   setupTabs();
   showTab('dashboard');
 });
