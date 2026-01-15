@@ -50,6 +50,7 @@
     }
     .header-left h1 { font-size: 1.25rem; margin-bottom: 0.25rem; color: var(--primary); }
     .header-left span { color: var(--muted); font-size: 0.875rem; }
+    .header-actions { display: flex; align-items: center; gap: 0.5rem; }
 
     /* TABS */
     .tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; }
@@ -276,6 +277,11 @@
         <i class="fas fa-file-alt"></i> Relatórios
       </button>
     </nav>
+    <div class="header-actions">
+      <button class="btn btn-danger btn-small" id="logoutBtn">
+        <i class="fas fa-sign-out-alt"></i> Sair
+      </button>
+    </div>
   </header>
 
   <!-- MAIN CONTENT -->
@@ -428,6 +434,28 @@
   </main>
 
   <!-- JAVASCRIPT -->
+  <script>
+    const AUTH_REMEMBER_KEY = 'social_coletor_remember';
+    const AUTH_SESSION_KEY = 'social_coletor_session';
+    const AUTH_LAST_VIEW_KEY = 'social_coletor_last_view';
+
+    const isLoggedIn =
+      localStorage.getItem(AUTH_REMEMBER_KEY) === 'true' ||
+      sessionStorage.getItem(AUTH_SESSION_KEY) === 'true';
+
+    if (!isLoggedIn) {
+      window.location.href = 'index.html';
+    } else {
+      localStorage.setItem(AUTH_LAST_VIEW_KEY, 'records');
+    }
+
+    document.getElementById('logoutBtn')?.addEventListener('click', () => {
+      localStorage.removeItem(AUTH_REMEMBER_KEY);
+      sessionStorage.removeItem(AUTH_SESSION_KEY);
+      localStorage.removeItem(AUTH_LAST_VIEW_KEY);
+      window.location.href = 'index.html';
+    });
+  </script>
   <script src="painel.js" defer></script>
 
 </body>
