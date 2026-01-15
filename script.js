@@ -1228,6 +1228,7 @@ function extractAndFillData(text) {
         if (!v || v.length < 4) return false;
         if (!hasLetters(v)) return false;
         if (/\d/.test(v)) return false;
+        if (/\b(produto|item|descri[cç][aã]o|quantidade|qtd|qtde|fornecedor|benefici[áa]rio|cpf|documento|data)\b/i.test(v)) return false;
         // geralmente vem com 2+ palavras (ex: SHAMIRA CAROLINA ROMANZINI)
         return v.split(' ').length >= 2;
     };
@@ -1249,7 +1250,7 @@ function extractAndFillData(text) {
         return false;
     };
 
-    const extractForwardValue = (linesArr, startIndex, inlineValue, validator, maxLook = 8) => {
+    const extractForwardValue = (linesArr, startIndex, inlineValue, validator, maxLook = 5) => {
         const inline = normalizeSpaces(inlineValue);
         if (inline && validator(inline)) return inline;
 
@@ -1261,7 +1262,7 @@ function extractAndFillData(text) {
             if (hasManyDigits(candidate)) continue;
 
             // evita bater em outros rótulos curtos
-            if (/\b(benefici|cpf|documento|fornecedor|produto|quantidade|data|nota)\b/i.test(candidate) && candidate.length < 30) {
+            if (/\b(benefici|cpf|documento|fornecedor|produto|quantidade|data|nota|atendente)\b/i.test(candidate) && candidate.length < 30) {
                 continue;
             }
 
@@ -1351,6 +1352,7 @@ function extractAndFillData(text) {
             const candidate = extractForwardValue(lines, index, inlineValue, (v) => {
                 if (!looksLikeName(v)) return false;
                 if (isNumericOnly(v) || isLikelyDocument(v)) return false;
+                if (labelPatterns.produto.test(v) || labelPatterns.quantidade.test(v)) return false;
                 return true;
             });
 
@@ -1378,6 +1380,7 @@ function extractAndFillData(text) {
             const candidate = extractForwardValue(lines, index, inlineValue, (v) => {
                 if (!looksLikeProdutoValue(v)) return false;
                 if (isNumericOnly(v) || isLikelyDocument(v)) return false;
+                if (labelPatterns.atendente.test(v) || labelPatterns.quantidade.test(v)) return false;
                 return true;
             });
 
