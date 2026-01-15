@@ -13,9 +13,9 @@
    ================================ */
 
 const CONFIG = {
-  APPS_SCRIPT_URL:PANEL_URL,
+  APPS_SCRIPT_URL:"https://script.google.com/macros/s/AKfycbwuXMzLAxunMgmaNI0KORAOT0OaNxvHB27HMD_8u62gfYIcLby44pGrjq4M5-RR8Gli/exec",
 
-  SYSTEM_URL:PANEL_URL,
+  SYSTEM_URL:"https://script.google.com/macros/s/AKfycbwuXMzLAxunMgmaNI0KORAOT0OaNxvHB27HMD_8u62gfYIcLby44pGrjq4M5-RR8Gli/exec",
 
   GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/1Shrv8LbY_UlXBGVjoYNl5zqmkfJbOrv7Z2dA0At8d_A/edit?gid=768807706#gid=768807706",
 
