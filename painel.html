@@ -435,28 +435,29 @@
 
   <!-- JAVASCRIPT -->
   <script>
-    const AUTH_REMEMBER_KEY = 'social_coletor_remember';
-    const AUTH_SESSION_KEY = 'social_coletor_session';
-    const AUTH_LAST_VIEW_KEY = 'social_coletor_last_view';
+  // Chaves de autenticação (usar strings aqui para não redeclarar const já existente no painel.js)
+  const AUTH_LAST_VIEW_KEY = 'social_coletor_last_view';
 
-    const isLoggedIn =
-      localStorage.getItem(AUTH_REMEMBER_KEY) === 'true' ||
-      sessionStorage.getItem(AUTH_SESSION_KEY) === 'true';
+  const isLoggedIn =
+    localStorage.getItem('social_coletor_remember') === 'true' ||
+    sessionStorage.getItem('social_coletor_session') === 'true';
 
-    if (!isLoggedIn) {
-      window.location.href = 'index.html';
-    } else {
-      localStorage.setItem(AUTH_LAST_VIEW_KEY, 'records');
-    }
+  if (!isLoggedIn) {
+    window.location.href = 'index.html';
+  } else {
+    localStorage.setItem(AUTH_LAST_VIEW_KEY, 'records');
+  }
 
-    document.getElementById('logoutBtn')?.addEventListener('click', () => {
-      localStorage.removeItem(AUTH_REMEMBER_KEY);
-      sessionStorage.removeItem(AUTH_SESSION_KEY);
-      localStorage.removeItem(AUTH_LAST_VIEW_KEY);
-      window.location.href = 'index.html';
-    });
-  
-  <script src="painel.js" defer></script>
+  document.getElementById('logoutBtn')?.addEventListener('click', () => {
+    localStorage.removeItem('social_coletor_remember');
+    sessionStorage.removeItem('social_coletor_session');
+    localStorage.removeItem(AUTH_LAST_VIEW_KEY);
+    window.location.href = 'index.html';
+  });
+</script>
+
+<script src="painel.js" defer></script>
+
 
 </body>
 </html>
