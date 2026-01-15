@@ -7,15 +7,14 @@
 // CONFIGURAÇÃO
 // ================================
 
-const OCR_API_KEY = 'K89229373088957'; // Chave gratuita do OCR.Space
-const OCR_API_URL = 'https://api.ocr.space/parse/image';
+const OCR_API_URL = '/.netlify/functions/ocr';
 const GOOGLE_SCRIPT_URL = ''; // Será configurada dinamicamente
-const AUTH_USER = 'Eduardo';
-const AUTH_PASS = 'decore';
 const PANEL_URL = 'painel.html';
 const AUTH_REMEMBER_KEY = 'social_coletor_remember';
 const AUTH_SESSION_KEY = 'social_coletor_session';
 const AUTH_LAST_VIEW_KEY = 'social_coletor_last_view';
+const AUTH_TOKEN_KEY = 'social_coletor_token';
+const OCR_DEBUG = false;
 
 // ================================
 // VARIÁVEIS GLOBAIS
@@ -90,7 +89,9 @@ function setupElements() {
         rotateLeft: document.getElementById('rotateLeft'),
         rotateRight: document.getElementById('rotateRight'),
         imageZoomContainer: document.getElementById('imageZoomContainer'),
-        imageWrapper: document.getElementById('imageWrapper'),
+        imageWrapper: document.getElementById('imageZoomWrapper'),
+        imageDraggableContainer: document.getElementById('imageDraggableContainer'),
+        resetZoom: document.getElementById('resetZoom'),
 
         // Autenticação
         loginContainer: document.getElementById('loginContainer'),
@@ -145,7 +146,7 @@ function setupElements() {
 function setupAuthFlow() {
     const remembered = localStorage.getItem(AUTH_REMEMBER_KEY) === 'true';
     const hasSession = sessionStorage.getItem(AUTH_SESSION_KEY) === 'true';
-    const isLoggedIn = remembered || hasSession;
+    const isLoggedIn = Boolean(getAuthToken());
 
     if (elements.loginRemember) {
         elements.loginRemember.checked = remembered;
@@ -198,13 +199,13 @@ window.location.href = PANEL_URL;
     }
 }
 
-function handleLogin() {
+async function handleLogin() {
     const user = elements.loginUser?.value?.trim() || '';
     const pass = elements.loginPass?.value || '';
-    const isValid = user === AUTH_USER && pass === AUTH_PASS;
 
-    if (!isValid) {
+    if (!user || !pass) {
         if (elements.loginError) {
+            elements.loginError.textContent = 'Informe usuário e senha.';
             elements.loginError.hidden = false;
         }
         return;
@@ -214,11 +215,34 @@ function handleLogin() {
         elements.loginError.hidden = true;
     }
 
-    const remember = Boolean(elements.loginRemember?.checked);
-    localStorage.setItem(AUTH_REMEMBER_KEY, String(remember));
-    sessionStorage.setItem(AUTH_SESSION_KEY, 'true');
+    showStatusMessage('Validando acesso...', 'info');
 
-    showHomeView();
+    try {
+        const response = await fetch('/.netlify/functions/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: user, password: pass })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result?.success) {
+            throw new Error(result?.error || 'Usuário ou senha inválidos.');
+        }
+
+        const remember = Boolean(elements.loginRemember?.checked);
+        localStorage.setItem(AUTH_REMEMBER_KEY, String(remember));
+        sessionStorage.setItem(AUTH_SESSION_KEY, 'true');
+
+        storeAuthToken(result.token, remember);
+        showHomeView();
+    } catch (error) {
+        if (elements.loginError) {
+            elements.loginError.textContent = error.message || 'Falha no login.';
+            elements.loginError.hidden = false;
+        }
+        showStatusMessage('❌ Falha no login.', 'error');
+    }
 }
 
 function showLoginView() {
@@ -263,9 +287,7 @@ function ensureAppInitialized() {
 }
 
 function isAuthenticated() {
-    const remembered = localStorage.getItem(AUTH_REMEMBER_KEY) === 'true';
-    const hasSession = sessionStorage.getItem(AUTH_SESSION_KEY) === 'true';
-    return remembered || hasSession;
+    return Boolean(getAuthToken());
 }
 
 function getLastView() {
@@ -274,6 +296,21 @@ function getLastView() {
 
 function setLastView(view) {
     localStorage.setItem(AUTH_LAST_VIEW_KEY, view);
+}
+
+function getAuthToken() {
+    return localStorage.getItem(AUTH_TOKEN_KEY) || sessionStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+function storeAuthToken(token, remember) {
+    if (!token) return;
+    if (remember) {
+        localStorage.setItem(AUTH_TOKEN_KEY, token);
+        sessionStorage.removeItem(AUTH_TOKEN_KEY);
+    } else {
+        sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
 }
 
 function setupEventListeners() {
@@ -738,6 +775,10 @@ function setupImageControls() {
         });
     }
 
+    if (elements.resetZoom) {
+        elements.resetZoom.addEventListener('click', resetImageTransform);
+    }
+
     // Eventos de movimento
     if (elements.moveUp) elements.moveUp.addEventListener('click', () => moveImage(0, -MOVE_STEP));
     if (elements.moveDown) elements.moveDown.addEventListener('click', () => moveImage(0, MOVE_STEP));
@@ -768,10 +809,10 @@ function setupImageControls() {
 }
 
 function updateImageTransform() {
-    const imagePreview = elements.imagePreview;
-    if (!imagePreview) return;
+    const target = elements.imageDraggableContainer || elements.imagePreview;
+    if (!target) return;
 
-    imagePreview.style.transform = `
+    target.style.transform = `
         translate(${posX}px, ${posY}px) 
         scale(${zoomLevel}) 
         rotate(${rotation}deg)
@@ -780,6 +821,14 @@ function updateImageTransform() {
     if (elements.zoomLevelDisplay) {
         elements.zoomLevelDisplay.textContent = `${Math.round(zoomLevel * 100)}%`;
     }
+}
+
+function resetImageTransform() {
+    zoomLevel = 1;
+    posX = 0;
+    posY = 0;
+    rotation = 0;
+    updateImageTransform();
 }
 
 function moveImage(deltaX, deltaY) {
@@ -1077,23 +1126,16 @@ async function enhanceImageProfessionally(dataURL) {
 // ================================
 async function processOCR(imageDataURL) {
     try {
-        // Converter dataURL para blob
-        const blob = await dataURLtoBlob(imageDataURL);
-        const formData = new FormData();
-        formData.append('file', blob, 'document.jpg');
-        formData.append('apikey', OCR_API_KEY);
-        formData.append('language', 'por');
-        formData.append('isOverlayRequired', 'false');
-        formData.append('detectOrientation', 'true');
-        formData.append('scale', 'true');
-        formData.append('isTable', 'true');
-        formData.append('OCREngine', '2'); // Engine 2 é mais precisa
-
         setProgress(70, 'Enviando para OCR...');
-        
+
+        const token = getAuthToken();
         const response = await fetch(OCR_API_URL, {
             method: 'POST',
-            body: formData
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ imageDataURL })
         });
 
         if (!response.ok) {
@@ -1205,6 +1247,9 @@ function extractAndFillData(text) {
     // HELPERS (mais robustos p/ Nota de Entrega)
     // ================================
     const normalizeSpaces = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+    const debugLog = (...args) => {
+        if (OCR_DEBUG) console.log('[OCR]', ...args);
+    };
 
     const hasLetters = (s) => /[A-ZÁ-Ú]/i.test(String(s || ''));
     const hasManyDigits = (s) => (String(s || '').match(/\d/g) || []).length >= 6;
@@ -1214,6 +1259,7 @@ function extractAndFillData(text) {
         if (!v || v.length < 4) return false;
         if (!hasLetters(v)) return false;
         if (/\d/.test(v)) return false;
+        if (/\b(produto|item|descri[cç][aã]o|quantidade|qtd|qtde|fornecedor|benefici[áa]rio|cpf|documento|data)\b/i.test(v)) return false;
         // geralmente vem com 2+ palavras (ex: SHAMIRA CAROLINA ROMANZINI)
         return v.split(' ').length >= 2;
     };
@@ -1223,7 +1269,7 @@ function extractAndFillData(text) {
         if (!v || v.length < 3) return false;
         if (!hasLetters(v)) return false;
         // evita capturar cabeçalhos/labels
-        if (/\b(benefici|cpf|documento|fornecedor|atendente|quantidade|data|nota)\b/i.test(v)) return false;
+        if (/\b(benefici|cpf|documento|fornecedor|atendente|quantidade|data|nota|produto)\b/i.test(v)) return false;
         return true;
     };
 
@@ -1235,7 +1281,32 @@ function extractAndFillData(text) {
         return false;
     };
 
-    const extractForwardValue = (linesArr, startIndex, inlineValue, validator, maxLook = 8) => {
+    const isDateLikeLine = (line) => {
+        if (!line) return false;
+        return /\b(0?[1-9]|[12][0-9]|3[01])[\/\-](0?[1-9]|1[0-2])[\/\-]\d{4}\b/.test(line);
+    };
+
+    const isLikelyDayOnly = (value, line) => {
+        const num = Number(String(value).replace(',', '.'));
+        if (!Number.isFinite(num) || num < 1 || num > 31) return false;
+        if (String(value).length > 2) return false;
+        return /\bdata\b/i.test(line) || /[\/\-]/.test(line) || isDateLikeLine(line);
+    };
+
+    const normalizeQuantityCandidate = (value, line) => {
+        if (!value) return '';
+        if (isBadQuantity(value)) {
+            debugLog('Quantidade rejeitada (ruim):', value);
+            return '';
+        }
+        if (isLikelyDayOnly(value, line || '')) {
+            debugLog('Quantidade rejeitada (dia):', value, line);
+            return '';
+        }
+        return normalizeQuantityInput(value);
+    };
+
+    const extractForwardValue = (linesArr, startIndex, inlineValue, validator, maxLook = 5) => {
         const inline = normalizeSpaces(inlineValue);
         if (inline && validator(inline)) return inline;
 
@@ -1247,8 +1318,9 @@ function extractAndFillData(text) {
             if (hasManyDigits(candidate)) continue;
 
             // evita bater em outros rótulos curtos
-            if (/\b(benefici|cpf|documento|fornecedor|produto|quantidade|data|nota)\b/i.test(candidate) && candidate.length < 30) {
-                continue;
+            if (/\b(benefici|cpf|documento|fornecedor|produto|quantidade|data|nota|atendente|endereco|endereço)\b/i.test(candidate) && candidate.length < 30) {
+                debugLog('Parando em label:', candidate);
+                break;
             }
 
             if (validator(candidate)) return candidate;
@@ -1264,10 +1336,10 @@ function extractAndFillData(text) {
             if (!line) return;
 
             // pula datas tipo 09/12/2025
-            if (/\d{1,2}\/\d{1,2}\/\d{4}/.test(line)) return;
+            if (isDateLikeLine(line)) return;
 
             const matches = line.match(/\d{1,4}(?:[.,]\d{1,2})?/g) || [];
-            matches.forEach((m) => candidates.push(m));
+            matches.forEach((m) => candidates.push({ value: m, line }));
         };
 
         pushFromLine(linesArr[index]);
@@ -1281,8 +1353,8 @@ function extractAndFillData(text) {
         }
 
         const cleaned = candidates
-            .map((raw) => ({ raw, num: Number(String(raw).replace(',', '.')) }))
-            .filter((x) => Number.isFinite(x.num) && !isBadQuantity(x.raw));
+            .map((entry) => ({ raw: entry.value, line: entry.line, num: Number(String(entry.value).replace(',', '.')) }))
+            .filter((x) => Number.isFinite(x.num) && !isBadQuantity(x.raw) && !isLikelyDayOnly(x.raw, x.line));
 
         if (cleaned.length === 0) return '';
 
@@ -1311,7 +1383,7 @@ function extractAndFillData(text) {
 
     // Extrair quantidade (prioridade por rótulo)
     const qtdMatch = text.match(patterns.quantidadeRotulo);
-    if (qtdMatch) data.quantidade = normalizeQuantityInput(qtdMatch[1]);
+    if (qtdMatch) data.quantidade = normalizeQuantityCandidate(qtdMatch[1], '');
 
     // Verificar assinatura
     if (patterns.assinatura.test(text)) data.assinatura = 'OK';
@@ -1337,6 +1409,7 @@ function extractAndFillData(text) {
             const candidate = extractForwardValue(lines, index, inlineValue, (v) => {
                 if (!looksLikeName(v)) return false;
                 if (isNumericOnly(v) || isLikelyDocument(v)) return false;
+                if (labelPatterns.produto.test(v) || labelPatterns.quantidade.test(v)) return false;
                 return true;
             });
 
@@ -1348,14 +1421,15 @@ function extractAndFillData(text) {
 
             let qty = '';
             const inlineMatch = normalizeSpaces(inlineValue).match(/(\d{1,4}(?:[.,]\d{1,2})?)/);
-            if (inlineMatch && !isBadQuantity(inlineMatch[1])) {
+            if (inlineMatch && !isBadQuantity(inlineMatch[1]) && !isLikelyDayOnly(inlineMatch[1], line)) {
                 qty = inlineMatch[1];
             } else {
                 qty = extractQuantidadeNear(lines, index);
             }
 
-            if (qty && !isBadQuantity(qty)) {
-                data.quantidade = normalizeQuantityInput(qty);
+            const normalizedQty = normalizeQuantityCandidate(qty, line);
+            if (normalizedQty) {
+                data.quantidade = normalizedQty;
             }
         }
         // Produto (mais robusto: procura o valor real e evita cair em "Fornecedor" ou outros rótulos)
@@ -1364,6 +1438,7 @@ function extractAndFillData(text) {
             const candidate = extractForwardValue(lines, index, inlineValue, (v) => {
                 if (!looksLikeProdutoValue(v)) return false;
                 if (isNumericOnly(v) || isLikelyDocument(v)) return false;
+                if (labelPatterns.atendente.test(v) || labelPatterns.quantidade.test(v)) return false;
                 return true;
             });
 
@@ -1373,7 +1448,10 @@ function extractAndFillData(text) {
         // Quantidade na mesma linha de "produto" (ex: "... Produto ... 2,00")
         if (!data.quantidade && labelPatterns.produto.test(lowerLine)) {
             const match = line.match(quantidadeSolta);
-            if (match) data.quantidade = normalizeQuantityInput(match[1]);
+            if (match) {
+                const normalizedQty = normalizeQuantityCandidate(match[1], line);
+                if (normalizedQty) data.quantidade = normalizedQty;
+            }
         }
         
         // Endereço
@@ -1477,11 +1555,15 @@ function fillFormWithData(data) {
 // UTILITÁRIOS
 // ================================
 function normalizeQuantityInput(value) {
-    const cleaned = String(value).trim();
+    const cleaned = String(value || '').trim();
     if (!cleaned) return '';
-    const numberPart = cleaned.split(/[.,]/)[0];
-    const integerValue = numberPart.replace(/\D/g, '');
-    return integerValue || cleaned;
+    const normalized = cleaned.replace(',', '.').replace(/[^\d.]/g, '');
+    if (!normalized) return '';
+    const match = normalized.match(/^\d+(?:\.\d{1,2})?/);
+    if (!match) return '';
+    const numeric = Number(match[0]);
+    if (!Number.isFinite(numeric)) return '';
+    return numeric.toFixed(2);
 }
 
 function formatCPF(cpf) {
@@ -1511,17 +1593,19 @@ function showImagePreview(dataURL) {
     if (elements.imageWrapper) {
         elements.imageWrapper.style.display = 'flex';
     }
+
+    if (elements.imageDraggableContainer) {
+        elements.imageDraggableContainer.style.display = 'flex';
+    }
     
     if (elements.imagePreview) {
         elements.imagePreview.src = dataURL;
+        elements.imagePreview.hidden = false;
+        elements.imagePreview.removeAttribute('hidden');
         elements.imagePreview.style.display = 'block';
         
         // Resetar controles
-        zoomLevel = 1;
-        posX = 0;
-        posY = 0;
-        rotation = 0;
-        updateImageTransform();
+        resetImageTransform();
     }
     
     if (elements.btnMelhorarFoto) {
@@ -1647,10 +1731,16 @@ function clearForm() {
     if (elements.imagePreview) {
         elements.imagePreview.style.display = 'none';
         elements.imagePreview.src = '';
+        elements.imagePreview.hidden = true;
+        elements.imagePreview.setAttribute('hidden', '');
     }
     
     if (elements.imageWrapper) {
         elements.imageWrapper.style.display = 'none';
+    }
+
+    if (elements.imageDraggableContainer) {
+        elements.imageDraggableContainer.style.display = 'none';
     }
     
     if (elements.imagePlaceholder) {
@@ -1662,11 +1752,7 @@ function clearForm() {
     }
     
     // Resetar controles
-    zoomLevel = 1;
-    posX = 0;
-    posY = 0;
-    rotation = 0;
-    updateImageTransform();
+    resetImageTransform();
     
     currentImageData = null;
     validateForm();

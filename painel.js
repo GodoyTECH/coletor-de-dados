@@ -2,6 +2,7 @@ const API_ENDPOINT = '/.netlify/functions/sc-api';
 
 const AUTH_REMEMBER_KEY = 'social_coletor_remember';
 const AUTH_SESSION_KEY = 'social_coletor_session';
+const AUTH_TOKEN_KEY = 'social_coletor_token';
 
 const appState = {
   registros: {
@@ -19,9 +20,11 @@ const appState = {
 };
 
 function isAuthenticated() {
-  const remembered = localStorage.getItem(AUTH_REMEMBER_KEY) === 'true';
-  const hasSession = sessionStorage.getItem(AUTH_SESSION_KEY) === 'true';
-  return remembered || hasSession;
+  return Boolean(getAuthToken());
+}
+
+function getAuthToken() {
+  return localStorage.getItem(AUTH_TOKEN_KEY) || sessionStorage.getItem(AUTH_TOKEN_KEY);
 }
 
 function showStatus(message, type = 'info', duration = 3000) {
@@ -63,9 +66,13 @@ async function apiRequest(action, data = {}, options = {}) {
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const token = getAuthToken();
     const response = await fetch(API_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
       body: JSON.stringify({ action, data }),
       signal: controller.signal
     });

@@ -13,11 +13,8 @@
    ================================ */
 
 const CONFIG = {
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxQoIoQB2Jx6kbtwpuVu6HNp7KlAm_f9nnzFZkrorFzoU2xb_QnDCAoIHyAEZKKfETe/exec",
-
-  SYSTEM_URL: "https://script.google.com/macros/s/AKfycbxQoIoQB2Jx6kbtwpuVu6HNp7KlAm_f9nnzFZkrorFzoU2xb_QnDCAoIHyAEZKKfETe/exec",
-
-  GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/1Shrv8LbY_UlXBGVjoYNl5zqmkfJbOrv7Z2dA0At8d_A/edit?gid=768807706#gid=768807706",
+  SEND_ENDPOINT: "/.netlify/functions/send",
+  CONFIG_ENDPOINT: "/.netlify/functions/config",
 
   DB_NAME: "SocialColetor_SendDB",
   STORE_NAME: "envios_pendentes",
@@ -26,6 +23,28 @@ const CONFIG = {
   REQUEST_TIMEOUT: 25000,
 };
 let SC_MESSAGE_LOCK = false;
+let cachedSheetUrl = '';
+
+const AUTH_TOKEN_KEY = 'social_coletor_token';
+
+function getAuthToken() {
+  return localStorage.getItem(AUTH_TOKEN_KEY) || sessionStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+async function getSheetUrl() {
+  if (cachedSheetUrl) return cachedSheetUrl;
+  try {
+    const response = await fetch(CONFIG.CONFIG_ENDPOINT);
+    const result = await response.json();
+    if (response.ok && result?.success && result.sheetUrl) {
+      cachedSheetUrl = result.sheetUrl;
+      return cachedSheetUrl;
+    }
+  } catch (error) {
+    console.warn('[CONFIG] Falha ao buscar URL da planilha:', error);
+  }
+  return '';
+}
 
 function safeStatusMessage(msg, type = "info") {
   if (SC_MESSAGE_LOCK) return;
@@ -159,11 +178,13 @@ function showActionButtons(successData = null) {
       viewSheetBtn.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
     };
     
-    viewSheetBtn.onclick = () => {
-      // Abrir SUA planilha específica em nova aba
-      window.open(CONFIG.GOOGLE_SHEETS_URL, '_blank');
-      
-      // Opcional: fechar a caixa de ação após abrir a planilha
+    viewSheetBtn.onclick = async () => {
+      const sheetUrl = await getSheetUrl();
+      if (!sheetUrl) {
+        safeStatusMessage('⚠️ URL da planilha não configurada.', 'warning');
+        return;
+      }
+      window.open(sheetUrl, '_blank');
       setTimeout(() => {
         closeActionOverlay();
       }, 300);
@@ -441,17 +462,18 @@ async function sendToGoogleSheets(formData) {
   
   // Tentar envio online
   try {
-    console.log('[SEND] Enviando para:', CONFIG.APPS_SCRIPT_URL);
+    console.log('[SEND] Enviando para:', CONFIG.SEND_ENDPOINT);
     
     // Timeout configurável
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
     
-    const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+    const token = getAuthToken();
+    const response = await fetch(CONFIG.SEND_ENDPOINT, {
       method: 'POST',
-      mode: 'no-cors',
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
       },
       body: JSON.stringify(payload),
       signal: controller.signal
@@ -459,32 +481,32 @@ async function sendToGoogleSheets(formData) {
     
     clearTimeout(timeoutId);
     
-    console.log('[SEND] Resposta recebida, status:', response.type);
-    
-    // Em modo no-cors, assumimos sucesso se não houve erro de rede
-    if (response.type === 'opaque') {
-      console.log('[SEND] Envio bem-sucedido (modo no-cors)');
-      
-      // Dados para mostrar na tela de sucesso
-      const successData = {
-        success: true,
-        recordId: `SC${new Date().getTime().toString().slice(-8)}`,
-        timestamp: new Date().toLocaleTimeString('pt-BR'),
-        online: true,
-        message: 'Dados enviados para Google Sheets'
-      };
-      
-      // Mostrar botões de ação com sucesso
-      setTimeout(() => {
-        if (window.hideModal) window.hideModal();
-        showActionButtons(successData);
-      }, 500);
-      
-      return successData;
-      
-    } else {
-      throw new Error('Resposta não-opaque do servidor');
+    const responseText = await response.text();
+    let parsed = null;
+    try {
+      parsed = responseText ? JSON.parse(responseText) : null;
+    } catch (parseError) {
+      throw new Error('Resposta inválida do servidor.');
     }
+    
+    if (!response.ok || !parsed?.success) {
+      throw new Error(parsed?.error || 'Erro ao enviar para o servidor.');
+    }
+
+    const successData = {
+      success: true,
+      recordId: parsed.recordId || `SC${new Date().getTime().toString().slice(-8)}`,
+      timestamp: parsed.timestamp || new Date().toLocaleTimeString('pt-BR'),
+      online: true,
+      message: parsed.message || 'Dados enviados para Google Sheets'
+    };
+    
+    setTimeout(() => {
+      if (window.hideModal) window.hideModal();
+      showActionButtons(successData);
+    }, 500);
+    
+    return successData;
     
   } catch (error) {
     console.error('[SEND] Erro no envio online:', error);
@@ -766,10 +788,13 @@ async function syncOfflineData() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
         
-        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+        const token = getAuthToken();
+        const response = await fetch(CONFIG.SEND_ENDPOINT, {
           method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
           body: JSON.stringify(record.data),
           signal: controller.signal
         });
@@ -781,7 +806,7 @@ async function syncOfflineData() {
           lastAttempt: new Date().toISOString()
         });
         
-        if (response.type === 'opaque') {
+        if (response.ok) {
           await db.updateRecord(record.id, {
             status: 'sent',
             sentAt: new Date().toISOString()

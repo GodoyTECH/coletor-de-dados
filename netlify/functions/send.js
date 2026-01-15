@@ -19,11 +19,11 @@ exports.handler = async (event) => {
     };
   }
 
-  const appsScriptUrl = process.env.APPSCRIPT_URL;
-  const apiToken = process.env.API_TOKEN;
+  const execUrl = process.env.EXEC_URL;
   const jwtSecret = process.env.JWT_SECRET;
+  const execToken = process.env.EXEC_TOKEN;
 
-  if (!appsScriptUrl || !apiToken || !jwtSecret) {
+  if (!execUrl || !jwtSecret) {
     return {
       statusCode: 500,
       headers: DEFAULT_HEADERS,
@@ -49,32 +49,37 @@ exports.handler = async (event) => {
     return {
       statusCode: 400,
       headers: DEFAULT_HEADERS,
-      body: JSON.stringify({ success: false, error: 'JSON inválido', details: error?.message || String(error) })
+      body: JSON.stringify({ success: false, error: 'JSON inválido' })
     };
   }
 
+  const forwardPayload = {
+    action: payload.action,
+    data: payload.data || {}
+  };
+
+  if (execToken) {
+    forwardPayload.token = execToken;
+  }
+
   try {
-    const response = await fetch(appsScriptUrl, {
+    const response = await fetch(execUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: payload.action,
-        data: payload.data || {},
-        token: apiToken
-      })
+      body: JSON.stringify(forwardPayload)
     });
 
     const text = await response.text();
     return {
       statusCode: response.status,
       headers: DEFAULT_HEADERS,
-      body: text || JSON.stringify({ success: false, error: 'Resposta vazia do Apps Script' })
+      body: text || JSON.stringify({ success: false, error: 'Resposta vazia do servidor' })
     };
   } catch (error) {
     return {
       statusCode: 500,
       headers: DEFAULT_HEADERS,
-      body: JSON.stringify({ success: false, error: 'Falha ao chamar Apps Script', details: error?.message || String(error) })
+      body: JSON.stringify({ success: false, error: 'Falha ao enviar dados', details: error?.message || String(error) })
     };
   }
 };

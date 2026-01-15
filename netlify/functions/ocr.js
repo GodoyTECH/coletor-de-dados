@@ -19,11 +19,11 @@ exports.handler = async (event) => {
     };
   }
 
-  const appsScriptUrl = process.env.APPSCRIPT_URL;
-  const apiToken = process.env.API_TOKEN;
+  const ocrKey = process.env.OCR_KEY;
   const jwtSecret = process.env.JWT_SECRET;
+  const ocrUrl = process.env.OCR_URL || 'https://api.ocr.space/parse/image';
 
-  if (!appsScriptUrl || !apiToken || !jwtSecret) {
+  if (!ocrKey || !jwtSecret) {
     return {
       statusCode: 500,
       headers: DEFAULT_HEADERS,
@@ -49,32 +49,46 @@ exports.handler = async (event) => {
     return {
       statusCode: 400,
       headers: DEFAULT_HEADERS,
-      body: JSON.stringify({ success: false, error: 'JSON inválido', details: error?.message || String(error) })
+      body: JSON.stringify({ success: false, error: 'JSON inválido' })
+    };
+  }
+
+  const imageDataURL = payload.imageDataURL || '';
+  if (!imageDataURL.startsWith('data:image')) {
+    return {
+      statusCode: 400,
+      headers: DEFAULT_HEADERS,
+      body: JSON.stringify({ success: false, error: 'Imagem inválida' })
     };
   }
 
   try {
-    const response = await fetch(appsScriptUrl, {
+    const formData = new FormData();
+    formData.append('apikey', ocrKey);
+    formData.append('language', 'por');
+    formData.append('isOverlayRequired', 'false');
+    formData.append('detectOrientation', 'true');
+    formData.append('scale', 'true');
+    formData.append('isTable', 'true');
+    formData.append('OCREngine', '2');
+    formData.append('base64Image', imageDataURL);
+
+    const response = await fetch(ocrUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: payload.action,
-        data: payload.data || {},
-        token: apiToken
-      })
+      body: formData
     });
 
     const text = await response.text();
     return {
       statusCode: response.status,
       headers: DEFAULT_HEADERS,
-      body: text || JSON.stringify({ success: false, error: 'Resposta vazia do Apps Script' })
+      body: text || JSON.stringify({ success: false, error: 'Resposta vazia do OCR' })
     };
   } catch (error) {
     return {
       statusCode: 500,
       headers: DEFAULT_HEADERS,
-      body: JSON.stringify({ success: false, error: 'Falha ao chamar Apps Script', details: error?.message || String(error) })
+      body: JSON.stringify({ success: false, error: 'Falha ao processar OCR', details: error?.message || String(error) })
     };
   }
 };
