@@ -1179,9 +1179,10 @@ function extractAndFillData(text) {
     };
     const quantidadeSolta = /(\d{1,4}(?:[.,]\d{1,2})?)(?!\d)/;
     const labelPatterns = {
-        beneficiario: /\b(beneficiário|beneficiario|nome do benefici[áa]rio|nome benefici[áa]rio)\b/i,
+        beneficiario: /\b(benefici[áa]rio|beneficiario|nome do benefici[áa]rio|nome benefici[áa]rio)\b/i,
         atendente: /\b(atendente|respons[aá]vel|funcion[aá]rio)\b/i,
-        produto: /\b(produto|item|descri[cç][aã]o)\b/i,
+        // IMPORTANTÍSSIMO: não tratar "PRODUTO PARA RETIRAR..." como rótulo de produto
+        produto: /\b(produto|item|descri[cç][aã]o)\b(?!\s+para\s+retirar)/i,
         quantidade: /\b(quant\w{0,6}dad\w*|qtd|qtde)\b/i
     };
     const numericValue = /(\d+(?:[.,]\d{1,2})?)/;
@@ -1203,11 +1204,16 @@ function extractAndFillData(text) {
     const sanitizeProduto = (value) => {
         if (!value) return '';
         const trimmed = String(value).trim();
+
+        // Se terminar com número, só considera como quantidade quando houver decimal (ex: 2,00 / 2.0)
+        // Isso evita casos como "COVID 19" virar quantidade.
         const match = trimmed.match(/^(.*?)(?:\s+(\d+(?:[.,]\d{1,2})?))?$/);
         if (match) {
             const possibleQty = match[2];
             if (possibleQty && !data.quantidade) {
-                data.quantidade = normalizeQuantityInput(possibleQty);
+                if (/[.,]\d{1,2}$/.test(possibleQty)) {
+                    data.quantidade = normalizeQuantityInput(possibleQty);
+                }
             }
             return String(match[1] || '').trim();
         }
@@ -1228,7 +1234,11 @@ function extractAndFillData(text) {
         if (!v || v.length < 4) return false;
         if (!hasLetters(v)) return false;
         if (/\d/.test(v)) return false;
-        if (/\b(produto|item|descri[cç][aã]o|quantidade|qtd|qtde|fornecedor|benefici[áa]rio|cpf|documento|data)\b/i.test(v)) return false;
+        if (/\b(produto|item|descri[cç][aã]o|quantidade|qtd|qtde|fornecedor|benefici[áa]rio|cpf|documento|data|nota|entrega)\b/i.test(v)) return false;
+
+        // rejeita palavras comuns de produto/logística que aparecem em anotações e confundem o OCR
+        if (/\b(fralda|covid|doa[cç][aã]o|dep[oó]sito|prefeito|cidade|avenida|rua|jardim|barueri|sp)\b/i.test(v)) return false;
+
         // geralmente vem com 2+ palavras (ex: SHAMIRA CAROLINA ROMANZINI)
         return v.split(' ').length >= 2;
     };
@@ -1346,17 +1356,25 @@ function extractAndFillData(text) {
                 data.beneficiario = candidate;
             }
         }
-        // Atendente (mais robusto: procura algumas linhas à frente e ignora barcode/números)
+        // Atendente (mais robusto: limpa inline com dígitos e limita lookahead para não cair em rodapé/anotações)
         if (!data.atendente && labelPatterns.atendente.test(lowerLine)) {
-            const inlineValue = extractAfterLabel(line, labelPatterns.atendente);
-            const candidate = extractForwardValue(lines, index, inlineValue, (v) => {
-                if (!looksLikeName(v)) return false;
-                if (isNumericOnly(v) || isLikelyDocument(v)) return false;
-                if (labelPatterns.produto.test(v) || labelPatterns.quantidade.test(v)) return false;
-                return true;
-            });
+            let inlineValue = extractAfterLabel(line, labelPatterns.atendente);
+            inlineValue = normalizeSpaces(inlineValue)
+                // remove sequências numéricas longas (barcode / códigos) e qualquer resto após isso
+                .replace(/\b\d{6,}\b.*$/, '')
+                .trim();
 
-            if (candidate) data.atendente = candidate;
+            const candidate = extractForwardValue(lines, index, inlineValue, (v) => {
+                const cleaned = normalizeSpaces(v).replace(/\b\d{6,}\b.*$/, '').trim();
+                if (!looksLikeName(cleaned)) return false;
+                if (isNumericOnly(cleaned) || isLikelyDocument(cleaned)) return false;
+                if (labelPatterns.produto.test(cleaned) || labelPatterns.quantidade.test(cleaned)) return false;
+                return true;
+            }, 3);
+
+            if (candidate) {
+                data.atendente = normalizeSpaces(candidate).replace(/\b\d{6,}\b.*$/, '').trim();
+            }
         }
         // Quantidade (mais robusto: pega número perto do rótulo e evita ano/documento/endereço)
         if (!data.quantidade && labelPatterns.quantidade.test(lowerLine)) {
@@ -1388,22 +1406,48 @@ function extractAndFillData(text) {
         }
 
         // Quantidade na mesma linha de "produto" (ex: "... Produto ... 2,00")
+        // Regras de segurança:
+        // - ignora "produto para retirar" (onde há datas)
+        // - ignora linhas com datas
+        // - só aceita número com decimal OU com unidade explícita
         if (!data.quantidade && labelPatterns.produto.test(lowerLine)) {
-            const match = line.match(quantidadeSolta);
-            if (match) data.quantidade = normalizeQuantityInput(match[1]);
+            const raw = String(line || '');
+            if (/\bpara\s+retirar\b/i.test(raw)) {
+                // ex: "PRODUTO PARA RETIRAR EM 09/12/2025..." -> não é quantidade
+            } else if (/\b\d{1,2}\/\d{1,2}\/\d{4}\b/.test(raw)) {
+                // contém data -> não inferir quantidade daqui
+            } else {
+                const unitMatch = raw.match(/\b(\d{1,4}(?:[.,]\d{1,2})?)\s*(un|kg|g|ml|l|cx|unidades?)\b/i);
+                const decMatch = raw.match(/\b\d{1,4}[.,]\d{1,2}\b/);
+                const qty = unitMatch ? unitMatch[1] : (decMatch ? decMatch[0] : '');
+
+                if (qty && !isBadQuantity(qty)) {
+                    data.quantidade = normalizeQuantityInput(qty);
+                }
+            }
         }
         
         // Endereço
         if (!data.endereco && /rua|av\.|avenida|travessa|alameda|endereço/.test(lowerLine)) {
-            let address = line;
-            // Pegar até 3 linhas seguintes que parecem ser endereço
-            for (let i = 1; i <= 3; i++) {
-                const nextLine = lines[index + i];
-                if (nextLine && /[\d,\-]/.test(nextLine)) {
-                    address += ', ' + nextLine;
+            const parts = [line];
+
+            // Pega até 4 linhas seguintes, aceitando linhas com letras (bairro/cidade) e/ou números (nº/CEP)
+            for (let i = 1; i <= 4; i++) {
+                const nextLine = normalizeSpaces(lines[index + i]);
+                if (!nextLine) continue;
+
+                // para se entrar em outro bloco/campo
+                if (/\b(benefici|cpf|produto|quantidade|fornecedor|atendente|data|nota)\b/i.test(nextLine)) break;
+
+                // ignora linha que parece barcode/código longo
+                if (hasManyDigits(nextLine)) continue;
+
+                if (hasLetters(nextLine) || /[\d,\-]/.test(nextLine)) {
+                    parts.push(nextLine);
                 }
             }
-            data.endereco = address;
+
+            data.endereco = parts.join(', ');
         }
 
         // Fornecedor
@@ -1429,7 +1473,10 @@ function extractAndFillData(text) {
         if (cleanedProduto !== data.produto) {
             if (!data.quantidade) {
                 const match = data.produto.match(numericValue);
-                if (match) data.quantidade = normalizeQuantityInput(match[1]);
+                // só aceita como quantidade se parecer decimal (evita COVID 19)
+                if (match && /[.,]\d{1,2}$/.test(match[1])) {
+                    data.quantidade = normalizeQuantityInput(match[1]);
+                }
             }
             data.produto = cleanedProduto.trim();
         }
@@ -2015,3 +2062,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
