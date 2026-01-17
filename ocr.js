@@ -9,6 +9,7 @@
 const OCR_API_KEY = 'K89229373088957'; // Chave gratuita do OCR.Space
 const OCR_API_URL = 'https://api.ocr.space/parse/image';
 const ENABLE_AI_STRUCTURING = false;
+const ENABLE_TESSERACT_FALLBACK = true;
 const AI_STRUCTURE_ENDPOINT = '/.netlify/functions/ai-structure';
 
 // ================================
@@ -173,6 +174,58 @@ async function enhanceImageProfessionally(dataURL) {
 // ================================
 // OCR COM OCR.SPACE
 // ================================
+async function preprocessForOCR(dataURL) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+                const maxWidth = 1200;
+                const maxHeight = 1600;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxWidth || height > maxHeight) {
+                    const ratio = Math.min(maxWidth / width, maxHeight / height);
+                    width *= ratio;
+                    height *= ratio;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const imageData = ctx.getImageData(0, 0, width, height);
+                const data = imageData.data;
+
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                    const contrasted = Math.min(255, Math.max(0, (gray - 128) * 1.2 + 128));
+                    const binary = contrasted > 160 ? 255 : 0;
+                    data[i] = binary;
+                    data[i + 1] = binary;
+                    data[i + 2] = binary;
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+                resolve(canvas.toDataURL('image/jpeg', 0.9));
+            } catch (error) {
+                reject(error);
+            }
+        };
+
+        img.onerror = reject;
+        img.src = dataURL;
+    });
+}
+
 async function structureWithAI(text) {
     const response = await fetch(AI_STRUCTURE_ENDPOINT, {
         method: 'POST',
@@ -192,15 +245,43 @@ async function structureWithAI(text) {
     return payload.data;
 }
 
+function getMissingCriticalFields() {
+    const criticalFields = ['beneficiario', 'cpf', 'atendente', 'produto', 'quantidade', 'endereco'];
+    return criticalFields.filter((key) => !formFields[key]?.value?.trim());
+}
+
+async function runTesseractFallback(imageDataURL, extractedText) {
+    if (!ENABLE_TESSERACT_FALLBACK || !window.Tesseract) return false;
+
+    const missingFields = getMissingCriticalFields();
+    if (missingFields.length === 0) return false;
+
+    try {
+        console.log('🔍 Tesseract fallback ativado para campos faltantes:', missingFields);
+        const result = await window.Tesseract.recognize(imageDataURL, 'por');
+        const tesseractText = result?.data?.text || '';
+
+        if (tesseractText.trim()) {
+            extractAndFillData(tesseractText, { onlyEmpty: true });
+            return true;
+        }
+    } catch (error) {
+        console.warn('⚠️ Falha no Tesseract fallback:', error);
+    }
+
+    return false;
+}
+
 async function processOCR(imageDataURL) {
     try {
+        const ocrInputDataURL = await preprocessForOCR(imageDataURL);
         // Converter dataURL para blob
-        const blob = await dataURLtoBlob(imageDataURL);
+        const blob = await dataURLtoBlob(ocrInputDataURL);
         const formData = new FormData();
         formData.append('file', blob, 'document.jpg');
         formData.append('apikey', OCR_API_KEY);
         formData.append('language', 'por');
-        formData.append('isOverlayRequired', 'false');
+        formData.append('isOverlayRequired', 'true');
         formData.append('detectOrientation', 'true');
         formData.append('scale', 'true');
         formData.append('isTable', 'true');
@@ -246,6 +327,8 @@ async function processOCR(imageDataURL) {
         } else {
             extractAndFillData(extractedText);
         }
+
+        await runTesseractFallback(ocrInputDataURL, extractedText);
         
     } catch (error) {
         console.error('❌ Erro OCR:', error);
@@ -269,7 +352,8 @@ function dataURLtoBlob(dataURL) {
 // ================================
 // EXTRAÇÃO DE DADOS
 // ================================
-function extractAndFillData(text) {
+function extractAndFillData(text, options = {}) {
+    const { onlyEmpty = false } = options;
     const data = {
         beneficiario: '',
         cpf: '',
@@ -619,7 +703,11 @@ function extractAndFillData(text) {
     }
 
     // Preencher formulário
-    fillFormWithData(data);
+    if (onlyEmpty) {
+        fillFormWithDataMissing(data);
+    } else {
+        fillFormWithData(data);
+    }
 }
 
 function isClassifiedLine(line, data) {
@@ -643,6 +731,23 @@ function fillFormWithData(data) {
             formFields[key].style.boxShadow = '0 0 0 2px rgba(76, 175, 80, 0.2)';
             
             // Remover efeito após 2 segundos
+            setTimeout(() => {
+                if (formFields[key]) {
+                    formFields[key].style.boxShadow = '';
+                }
+            }, 2000);
+        }
+    });
+    validateForm();
+}
+
+function fillFormWithDataMissing(data) {
+    Object.entries(data).forEach(([key, value]) => {
+        if (value && formFields[key] && !formFields[key].value) {
+            formFields[key].value = value;
+            formFields[key].style.borderColor = '#4caf50';
+            formFields[key].style.boxShadow = '0 0 0 2px rgba(76, 175, 80, 0.2)';
+
             setTimeout(() => {
                 if (formFields[key]) {
                     formFields[key].style.boxShadow = '';
