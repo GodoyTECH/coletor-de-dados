@@ -20,6 +20,7 @@ const CONFIG = {
   SYSTEM_URL:"https://script.google.com/macros/s/AKfycbwuXMzLAxunMgmaNI0KORAOT0OaNxvHB27HMD_8u62gfYIcLby44pGrjq4M5-RR8Gli/exec",
 
   GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/1Shrv8LbY_UlXBGVjoYNl5zqmkfJbOrv7Z2dA0At8d_A/edit?gid=768807706#gid=768807706",
+  PANEL_URL: "painel.html",
 
   DB_NAME: "SocialColetor_SendDB",
   STORE_NAME: "envios_pendentes",
@@ -144,6 +145,50 @@ function showActionButtons(successData = null) {
   
   // Botão VER PLANILHA (apenas se enviou com sucesso)
   if (successData) {
+    const dashboardBtn = document.createElement('button');
+    dashboardBtn.innerHTML = `
+      <svg style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;"
+           fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 13h6v7H4v-7zm10-9h6v16h-6V4zM4 4h6v7H4V4z" />
+      </svg>
+      Dashboard
+    `;
+    dashboardBtn.style.cssText = `
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: white;
+      border: none;
+      padding: 14px 20px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    `;
+
+    dashboardBtn.onmouseover = () => {
+      dashboardBtn.style.transform = 'translateY(-2px)';
+      dashboardBtn.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)';
+    };
+
+    dashboardBtn.onmouseout = () => {
+      dashboardBtn.style.transform = 'translateY(0)';
+      dashboardBtn.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+    };
+
+    dashboardBtn.onclick = () => {
+      window.open(CONFIG.PANEL_URL, '_blank');
+      setTimeout(() => {
+        closeActionOverlay();
+      }, 300);
+    };
+
+    buttonContainer.appendChild(dashboardBtn);
+
     const viewSheetBtn = document.createElement('button');
     viewSheetBtn.innerHTML = `
       <svg style="width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;" 
