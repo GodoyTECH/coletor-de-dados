@@ -14,6 +14,8 @@
 
 const CONFIG = {
   APPS_SCRIPT_URL:"https://script.google.com/macros/s/AKfycbwuXMzLAxunMgmaNI0KORAOT0OaNxvHB27HMD_8u62gfYIcLby44pGrjq4M5-RR8Gli/exec",
+  NETLIFY_FUNCTION_URL: "/.netlify/functions/sc-api",
+  USE_NETLIFY_FUNCTION: true,
 
   SYSTEM_URL:"https://script.google.com/macros/s/AKfycbwuXMzLAxunMgmaNI0KORAOT0OaNxvHB27HMD_8u62gfYIcLby44pGrjq4M5-RR8Gli/exec",
 
@@ -26,6 +28,24 @@ const CONFIG = {
   REQUEST_TIMEOUT: 25000,
 };
 let SC_MESSAGE_LOCK = false;
+
+function shouldUseNetlifyFunction() {
+  return Boolean(CONFIG.USE_NETLIFY_FUNCTION && CONFIG.NETLIFY_FUNCTION_URL);
+}
+
+function getSendEndpoint() {
+  return shouldUseNetlifyFunction() ? CONFIG.NETLIFY_FUNCTION_URL : CONFIG.APPS_SCRIPT_URL;
+}
+
+async function parseJsonResponse_(response) {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    return null;
+  }
+}
 
 function safeStatusMessage(msg, type = "info") {
   if (SC_MESSAGE_LOCK) return;
@@ -441,15 +461,17 @@ async function sendToGoogleSheets(formData) {
   
   // Tentar envio online
   try {
-    console.log('[SEND] Enviando para:', CONFIG.APPS_SCRIPT_URL);
+    const endpoint = getSendEndpoint();
+    const useNetlify = shouldUseNetlifyFunction();
+    console.log('[SEND] Enviando para:', endpoint);
     
     // Timeout configurável
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
     
-    const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+    const response = await fetch(endpoint, {
       method: 'POST',
-      mode: 'no-cors',
+      mode: useNetlify ? 'cors' : 'no-cors',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -459,8 +481,30 @@ async function sendToGoogleSheets(formData) {
     
     clearTimeout(timeoutId);
     
+    if (useNetlify) {
+      const result = await parseJsonResponse_(response);
+      if (!response.ok || !result || !result.success) {
+        throw new Error(result?.error || `Falha no servidor (${response.status})`);
+      }
+
+      const successData = {
+        success: true,
+        recordId: result.recordId || `SC${new Date().getTime().toString().slice(-8)}`,
+        timestamp: result.timestamp || new Date().toLocaleTimeString('pt-BR'),
+        online: true,
+        message: result.message || 'Dados enviados para Google Sheets'
+      };
+
+      setTimeout(() => {
+        if (window.hideModal) window.hideModal();
+        showActionButtons(successData);
+      }, 500);
+
+      return successData;
+    }
+
     console.log('[SEND] Resposta recebida, status:', response.type);
-    
+
     // Em modo no-cors, assumimos sucesso se não houve erro de rede
     if (response.type === 'opaque') {
       console.log('[SEND] Envio bem-sucedido (modo no-cors)');
@@ -759,16 +803,18 @@ async function syncOfflineData() {
     let successCount = 0;
     let errorCount = 0;
     
-    for (const record of pendingRecords) {
+  for (const record of pendingRecords) {
       try {
         console.log(`[SYNC] Processando registro ${record.offlineId}`);
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
-        
-        const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+
+        const endpoint = getSendEndpoint();
+        const useNetlify = shouldUseNetlifyFunction();
+        const response = await fetch(endpoint, {
           method: 'POST',
-          mode: 'no-cors',
+          mode: useNetlify ? 'cors' : 'no-cors',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(record.data),
           signal: controller.signal
@@ -781,7 +827,16 @@ async function syncOfflineData() {
           lastAttempt: new Date().toISOString()
         });
         
-        if (response.type === 'opaque') {
+        if (useNetlify) {
+          const result = await parseJsonResponse_(response);
+          if (!response.ok || !result || !result.success) {
+            throw new Error(result?.error || `Falha no servidor (${response.status})`);
+          }
+        } else if (response.type !== 'opaque') {
+          throw new Error('Resposta não-opaque do servidor');
+        }
+
+        if (useNetlify || response.type === 'opaque') {
           await db.updateRecord(record.id, {
             status: 'sent',
             sentAt: new Date().toISOString()
