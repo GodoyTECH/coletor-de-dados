@@ -420,7 +420,6 @@ function extractAndFillData(text, options = {}) {
         return trimmed;
     };
 
-
     // ================================
     // HELPERS (mais robustos p/ Nota de Entrega)
     // ================================
