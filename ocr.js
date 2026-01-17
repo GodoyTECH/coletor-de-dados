@@ -575,6 +575,16 @@ function extractAndFillData(text, overlayLines = null, options = {}) {
     }
   }
 
+  if (!data.produto) {
+    const p = findProduto_(lines);
+    if (p) data.produto = p;
+  }
+
+  if (!data.quantidade) {
+    const q = findQuantidade_(lines);
+    if (q) data.quantidade = q;
+  }
+
   if (!data.beneficiario) {
     const b = findBeneficiario_(lines);
     if (b) data.beneficiario = b;
@@ -674,6 +684,41 @@ function extractAndFillData(text, overlayLines = null, options = {}) {
     }
 
     return best ? { produto: best.produto, quantidade: best.quantidade } : null;
+  }
+
+  function findProduto_(linesArr) {
+    for (let i = 0; i < linesArr.length; i++) {
+      const v = normalizeSpaces(linesArr[i]);
+      if (!/\bproduto\b/i.test(v)) continue;
+      if (/\bpara\s+retirar\b/i.test(v)) continue;
+
+      const inline = normalizeSpaces(v.replace(/\bproduto\b[:\-]?\s*/i, ''));
+      const next = normalizeSpaces(linesArr[i + 1] || '');
+      const candidate = inline || next;
+      const cleaned = sanitizeProduto_(candidate);
+      if (cleaned && cleaned.length >= 3 && hasLetters(cleaned) && !looksLikeBarcodeOrCode(cleaned)) {
+        return cleaned;
+      }
+    }
+    return '';
+  }
+
+  function findQuantidade_(linesArr) {
+    const qtyRegex = /\b\d{1,3}[.,]\d{2,3}\b/;
+
+    for (const line of linesArr) {
+      const v = normalizeSpaces(line);
+      if (!v) continue;
+      if (/\b\d{1,2}\/\d{1,2}\/\d{4}\b/.test(v)) continue;
+      if (/\bcpf\b|\bdocumento\b|\bnota\b|\bprefeit\b|\bsecret\b/i.test(v)) continue;
+      if (looksLikeBarcodeOrCode(v)) continue;
+
+      const match = v.match(qtyRegex);
+      if (match && !isBadQuantity(match[0])) {
+        return normalizeQuantityInput(match[0]);
+      }
+    }
+    return '';
   }
 
   function findBeneficiario_(linesArr) {
