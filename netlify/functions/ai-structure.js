@@ -59,7 +59,7 @@ exports.handler = async (event) => {
     };
   }
 
-  const prompt = `Você é um assistente que extrai dados de OCR em português.
+  const prompt = `Você é um assistente que extrai dados de OCR em português.analise todos o texto, e retorne cada qual no seu qual , (ex : Produto : nome do produto . quantodade : x,xx)
 Retorne SOMENTE um JSON válido com as chaves exatamente:
 ${ALLOWED_FIELDS.join(', ')}.
 Se algum campo não existir, retorne string vazia.
