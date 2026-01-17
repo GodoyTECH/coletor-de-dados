@@ -1,7 +1,7 @@
 // service-worker.js - Social Coletor PWA
 // ======================================
 
-const APP_VERSION = '2.2.0';
+const APP_VERSION = '2.2.4';
 const CACHE_NAME = `social-coletor-${APP_VERSION}`;
 
 // Arquivos para cache (App Shell)
@@ -9,6 +9,7 @@ const APP_SHELL = [
   '/',
   '/index.html',
   '/style.css',
+  '/ocr.js',
   '/send.js',
   '/script.js',
   '/manifest.json',
