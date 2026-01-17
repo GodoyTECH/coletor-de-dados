@@ -1022,10 +1022,15 @@ function resolveDuplicadoByRow(payload) {
     const data = sheet.getDataRange().getValues();
     if (rowNumber > data.length) return { success: false, error: 'Número de linha inválido (fora do intervalo)' };
 
+    if (action === 'excluir') {
+      sheet.deleteRow(rowNumber);
+      try { rebuildIndex(); } catch (error) {}
+      return { success: true, rowNumber, action, deleted: true };
+    }
+
     const headers = data[0];
     const statusIndex = headers.indexOf('STATUS');
     const updatedAtIndex = headers.indexOf('UPDATED_AT');
-    const deletadoIndex = headers.indexOf('DELETADO');
 
     if (statusIndex === -1) {
       return { success: false, error: 'Coluna STATUS não encontrada' };
@@ -1039,10 +1044,6 @@ function resolveDuplicadoByRow(payload) {
         break;
       case 'manter':
         row[statusIndex] = 'DUPLICADO_MANTIDO';
-        break;
-      case 'excluir':
-        row[statusIndex] = 'EXCLUIDO';
-        if (deletadoIndex !== -1) row[deletadoIndex] = 'TRUE';
         break;
       default:
         return { success: false, error: 'Ação inválida. Use: validar, manter ou excluir.' };

@@ -264,17 +264,17 @@ body.auth-locked {
    ============================================ */
 .container {
    
-    max-width: 1000px;
+    max-width: 1100px;
     margin: 40px auto;
-    padding: 20px;
+    padding: 24px;
     position: relative;
     z-index: 1;
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 18px;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 12px 36px rgba(15, 23, 42, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 /* ============================================
@@ -283,10 +283,10 @@ body.auth-locked {
 .main-card {
    
     
-    background: rgba(255, 255, 255, 0.10);
-    border-radius: 15px;
-    padding: 25px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 18px;
+    padding: 28px;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
@@ -644,19 +644,21 @@ textarea {
    ============================================ */
 .install-container {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     z-index: 100;
     animation: slideUp 0.3s ease-out;
+    width: min(92vw, 420px);
 }
 
 .install-card {
     background: linear-gradient(135deg, var(--primary-color) 0%, #1a237e 100%);
     color: white;
     border-radius: 15px;
-    padding: 20px;
-    max-width: 300px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    padding: 24px;
+    max-width: 100%;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
     border: 2px solid rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(10px);
 }
@@ -841,14 +843,7 @@ textarea {
     }
     
     .install-container {
-        position: relative;
-        bottom: auto;
-        right: auto;
-        margin: 20px 0;
-    }
-    
-    .install-card {
-        max-width: 100%;
+        width: min(92vw, 420px);
     }
     
     .form-grid {
