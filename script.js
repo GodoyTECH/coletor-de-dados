@@ -10,6 +10,8 @@
 const GOOGLE_SCRIPT_URL = ''; // Será configurada dinamicamente
 const AUTH_USER = 'Eduardo';
 const AUTH_PASS = 'decore';
+const AUTH_VALIDATE_ENDPOINT = '/.netlify/functions/auth';
+const AUTH_USE_SERVER = true;
 const PANEL_URL = 'painel.html';
 const AUTH_REMEMBER_KEY = 'social_coletor_remember';
 const AUTH_SESSION_KEY = 'social_coletor_session';
@@ -152,9 +154,9 @@ function setupAuthFlow() {
     }
 
     if (elements.loginForm) {
-        elements.loginForm.addEventListener('submit', (event) => {
+        elements.loginForm.addEventListener('submit', async (event) => {
             event.preventDefault();
-            handleLogin();
+            await handleLogin();
         });
     }
 
@@ -198,10 +200,23 @@ window.location.href = PANEL_URL;
     }
 }
 
-function handleLogin() {
+async function handleLogin() {
     const user = elements.loginUser?.value?.trim() || '';
     const pass = elements.loginPass?.value || '';
-    const isValid = user === AUTH_USER && pass === AUTH_PASS;
+    let isValid = false;
+    let checkedServer = false;
+
+    if (AUTH_USE_SERVER) {
+        const serverResult = await validateLoginWithServer(user, pass);
+        if (serverResult === true || serverResult === false) {
+            isValid = serverResult;
+            checkedServer = true;
+        }
+    }
+
+    if (!checkedServer) {
+        isValid = user === AUTH_USER && pass === AUTH_PASS;
+    }
 
     if (!isValid) {
         if (elements.loginError) {
@@ -219,6 +234,26 @@ function handleLogin() {
     sessionStorage.setItem(AUTH_SESSION_KEY, 'true');
 
     showHomeView();
+}
+
+async function validateLoginWithServer(user, pass) {
+    try {
+        const response = await fetch(AUTH_VALIDATE_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user, pass })
+        });
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const result = await response.json();
+        return result && typeof result.success === 'boolean' ? result.success : null;
+    } catch (error) {
+        console.warn('Falha ao validar login no servidor:', error);
+        return null;
+    }
 }
 
 function showLoginView() {
@@ -1114,6 +1149,7 @@ async function handleFormSubmit(event) {
     if (window.SocialColetorSend && window.SocialColetorSend.sendToGoogleSheets) {
         showStatusMessage('Preparando dados para Google Sheets...', 'info');
         
+        const imageData = currentImageData || window.currentImageData || '';
         const formData = {
             beneficiario: formFields.beneficiario.value.trim(),
             cpf: formFields.cpf.value.trim(),
@@ -1125,7 +1161,7 @@ async function handleFormSubmit(event) {
             assinatura: formFields.assinatura.value.trim() || 'N/A',
             numeroDocumento: formFields.numeroDocumento.value.trim(),
             observacoes: formFields.observacoes.value.trim() || '',
-            imagemBase64: currentImageData || '',
+            imagemBase64: imageData,
             timestamp: new Date().toISOString()
         };
         

@@ -477,6 +477,10 @@ function renderDuplicados(duplicados) {
 }
 
 async function resolverDuplicado(rowNumber, action) {
+  if (action === 'excluir') {
+    const confirmed = window.confirm('Tem certeza que deseja excluir este registro da planilha?');
+    if (!confirmed) return;
+  }
   const result = await apiRequest('resolveDuplicado', { rowNumber, action });
 
   if (result.success) {
