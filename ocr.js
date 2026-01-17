@@ -8,6 +8,8 @@
 
 const OCR_API_KEY = 'K89229373088957'; // Chave gratuita do OCR.Space
 const OCR_API_URL = 'https://api.ocr.space/parse/image';
+const ENABLE_AI_STRUCTURING = false;
+const AI_STRUCTURE_ENDPOINT = '/.netlify/functions/ai-structure';
 
 // ================================
 // MANUSEIO DE IMAGEM
@@ -171,6 +173,25 @@ async function enhanceImageProfessionally(dataURL) {
 // ================================
 // OCR COM OCR.SPACE
 // ================================
+async function structureWithAI(text) {
+    const response = await fetch(AI_STRUCTURE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+    });
+
+    if (!response.ok) {
+        throw new Error(`Erro IA: ${response.status}`);
+    }
+
+    const payload = await response.json();
+    if (!payload || !payload.success || !payload.data) {
+        throw new Error(payload?.error || 'Resposta inválida da IA');
+    }
+
+    return payload.data;
+}
+
 async function processOCR(imageDataURL) {
     try {
         // Converter dataURL para blob
@@ -211,7 +232,20 @@ async function processOCR(imageDataURL) {
         console.log('📝 Texto extraído:', extractedText);
         
         // Processar e preencher dados
-        extractAndFillData(extractedText);
+        let structuredData = null;
+        if (ENABLE_AI_STRUCTURING) {
+            try {
+                structuredData = await structureWithAI(extractedText);
+            } catch (error) {
+                console.warn('⚠️ IA indisponível, usando parser padrão:', error);
+            }
+        }
+
+        if (structuredData) {
+            fillFormWithData(structuredData);
+        } else {
+            extractAndFillData(extractedText);
+        }
         
     } catch (error) {
         console.error('❌ Erro OCR:', error);
