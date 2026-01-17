@@ -576,6 +576,38 @@ async function sendToGoogleSheets(formData) {
     }
     
   } catch (error) {
+    if (shouldUseNetlifyFunction()) {
+      console.warn('[SEND] Falha na Netlify Function, tentando Apps Script direto:', error);
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
+        const fallbackResponse = await fetch(CONFIG.APPS_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (fallbackResponse.type === 'opaque') {
+          const successData = {
+            success: true,
+            recordId: `SC${new Date().getTime().toString().slice(-8)}`,
+            timestamp: new Date().toLocaleTimeString('pt-BR'),
+            online: true,
+            message: 'Dados enviados para Google Sheets'
+          };
+
+          if (window.hideModal) window.hideModal();
+          showActionButtons(successData);
+          return successData;
+        }
+      } catch (fallbackError) {
+        console.error('[SEND] Falha no fallback Apps Script:', fallbackError);
+      }
+    }
+
     console.error('[SEND] Erro no envio online:', error);
     
     // Se for erro de rede, salvar offline
@@ -857,53 +889,7 @@ async function syncOfflineData() {
 
         const endpoint = getSendEndpoint();
         const useNetlify = shouldUseNetlifyFunction();
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          mode: useNetlify ? 'cors' : 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(record.data),
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        await db.updateRecord(record.id, {
-          attempts: record.attempts + 1,
-          lastAttempt: new Date().toISOString()
-        });
-        
-        if (useNetlify) {
-          const result = await parseJsonResponse_(response);
-          if (!response.ok || !result || !result.success) {
-            throw new Error(result?.error || `Falha no servidor (${response.status})`);
-          }
-        } else if (response.type !== 'opaque') {
-          throw new Error('Resposta não-opaque do servidor');
-        }
-
-        if (useNetlify || response.type === 'opaque') {
-          await db.updateRecord(record.id, {
-            status: 'sent',
-            sentAt: new Date().toISOString()
-          });
-          
-          successCount++;
-          console.log(`[SYNC] ✅ Registro ${record.offlineId} sincronizado`);
-        } else {
-          errorCount++;
-          console.log(`[SYNC] ❌ Falha no registro ${record.offlineId}`);
-        }
-        
-      } catch (error) {
-        console.error(`[SYNC] Erro no registro ${record.offlineId}:`, error);
-        errorCount++;
-        
-        await db.updateRecord(record.id, {
-          attempts: record.attempts + 1,
-          lastAttempt: new Date().toISOString()
-        });
-      }
-    }
+favicon.ico
     
     console.log(`[SYNC] Concluído: ${successCount} sucesso, ${errorCount} falhas`);
     
