@@ -12,7 +12,7 @@
    CONFIGURAÇÕES
    ================================ */
 
-const CONFIG = "https://script.google.com/macros/s/AKfycby_X624TtHgbKzNf4Qf7mgdhX4Ibh1swPIDweteNRplJtWjQDsNmPJKaf8nn29YhIRI/exec",
+const CONFIG = {
   NETLIFY_FUNCTION_URL: "/.netlify/functions/sc-api",
   USE_NETLIFY_FUNCTION: true,
 
@@ -27,6 +27,7 @@ const CONFIG = "https://script.google.com/macros/s/AKfycby_X624TtHgbKzNf4Qf7mgdh
   RETRY_DELAY: 5000,
   REQUEST_TIMEOUT: 25000,
 };
+
 
 let SC_MESSAGE_LOCK = false;
 
