@@ -530,7 +530,7 @@ function upsertIndexEntry(normalizedDoc, regId, rowNumber) {
 
 // ===== SISTEMA - INICIALIZAÇÃO E CONFIGURAÇÃO =====
 function ensureSystem() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet_();
   
   // Garante que todas as abas existam com cabeçalhos corretos
   ensureSheetWithHeaders(ss, CONFIG.SHEET_NAMES.REGISTROS, CONFIG.REGISTROS_HEADERS);
@@ -1148,26 +1148,41 @@ function getRelatorios() {
  * gerarRelatorio - Gera um novo relatório
  */
 function gerarRelatorio() {
+  logDebug('gerarRelatorio: inicio');
+
+  const registros = getRegistros();
+  const totals = calculateTotals(registros);
+  const competencia = formatCompetencia(new Date());
+
+  logDebug('gerarRelatorio: competencia', competencia);
+  logDebug('gerarRelatorio: totais', totals);
+
+  // Gera resumo (Gemini com fallback) primeiro
+  const resumo = generateResumoWithGemini(totals, competencia);
+  logDebug('gerarRelatorio: resumo gerado');
+
+  let pdfUrl = '';
+  let pdfError = '';
+
   try {
-    logDebug('gerarRelatorio: inicio');
-    
-    const registros = getRegistros();
-    const totals = calculateTotals(registros);
-    const competencia = formatCompetencia(new Date());
-    
-    logDebug('gerarRelatorio: competencia', competencia);
-    logDebug('gerarRelatorio: totais', totals);
-    
-    // Gera resumo (Gemini com fallback)
-    const resumo = generateResumoWithGemini(totals, competencia);
-    
-    // Gera PDF real no Drive
-    const pdfUrl = generatePdf(competencia, totals, resumo);
-    
+    pdfUrl = generatePdf(competencia, totals, resumo);
+    logDebug('gerarRelatorio: pdf ok');
+  } catch (error) {
+    pdfError = error?.message || String(error);
+    logError('Erro ao gerar PDF', error);
+    logEvent('ERROR', 'gerarRelatorio PDF: ' + pdfError);
+    logDebug('gerarRelatorio: pdf falhou', pdfError);
+    pdfUrl = '';
+  }
+
+  let saveOk = true;
+  let saveError = '';
+
+  try {
     // Salva metadados do relatório
     const sheet = getSheet(CONFIG.SHEET_NAMES.RELATORIOS);
     const headers = getSheetHeaders(sheet) || CONFIG.RELATORIOS_HEADERS;
-    
+
     const relatorioData = {
       ID: Utilities.getUuid(),
       COMPETENCIA: competencia,
@@ -1178,42 +1193,59 @@ function gerarRelatorio() {
       RESUMO: resumo,
       CREATED_AT: new Date()
     };
-    
+
     // Prepara valores para inserção
     const rowValues = headers.map(header => relatorioData[header] || '');
     sheet.appendRow(rowValues);
-    
+
     logEvent('RELATORIO', `Relatório ${competencia} gerado: ${totals.total} registros`);
-    
-    return {
-      success: true,
-      message: `Relatório ${competencia} gerado com sucesso`,
-      urlPdf: pdfUrl,
-      resumo: resumo,
-      competencia: competencia
-    };
-    
+    logDebug('gerarRelatorio: save ok');
   } catch (error) {
-    logError('Erro em gerarRelatorio', error);
-    logEvent('ERROR', 'gerarRelatorio: ' + error.toString());
-    return {
-      success: false,
-      error: error.toString(),
-      details: error && error.stack ? error.stack : undefined
-    };
+    saveOk = false;
+    saveError = error?.message || String(error);
+    logError('Erro ao salvar metadados do relatório', error);
+    logEvent('ERROR', 'gerarRelatorio save: ' + saveError);
+    logDebug('gerarRelatorio: save falhou', saveError);
   }
+
+  const message = (pdfError || !saveOk)
+    ? `Relatório ${competencia} gerado com pendências`
+    : `Relatório ${competencia} gerado com sucesso`;
+
+  return {
+    success: true,
+    message: message,
+    urlPdf: pdfUrl,
+    resumo: resumo,
+    competencia: competencia,
+    pdfError: pdfError || null,
+    saveOk: saveOk,
+    saveError: saveError || null
+  };
 }
 
 // ===== FUNÇÕES AUXILIARES =====
 
 function getSheet(sheetName) {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getSpreadsheet_();
     return ss.getSheetByName(sheetName);
   } catch (error) {
     console.error(`Erro ao obter aba ${sheetName}:`, error);
     return null;
   }
+}
+
+function getSpreadsheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (ss) return ss;
+
+  const spreadsheetId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  if (spreadsheetId) {
+    return SpreadsheetApp.openById(spreadsheetId);
+  }
+
+  throw new Error('Nenhuma planilha ativa encontrada. Configure SPREADSHEET_ID nas propriedades do script.');
 }
 
 function getSheetHeaders(sheet) {
@@ -1342,7 +1374,7 @@ function formatCompetencia(date) {
 }
 
 function generateResumo(totals, competencia) {
-  const base = `Relatório ${competencia}: ${totals.total} registros totais, ${totals.ativos} ativos, ${totals.duplicados} duplicados.`;
+  const base = `Relatório ${competencia}: ${totals.total} registros totais, ${totals.ativos} ativos e ${totals.duplicados} duplicados.`;
   
   // Adiciona detalhes por produto se houver
   const produtos = Object.keys(totals.porProduto);
@@ -1713,7 +1745,7 @@ function fixSystem() {
   console.log('=== CORRIGINDO SISTEMA ===');
   
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getSpreadsheet_();
     
     // 1. Recria aba Registros
     let registrosSheet = ss.getSheetByName(CONFIG.SHEET_NAMES.REGISTROS);
@@ -1785,6 +1817,12 @@ function fixSystem() {
       error: error.toString()
     };
   }
+}
+
+function test_gerarRelatorio_safe() {
+  const result = gerarRelatorio();
+  Logger.log(JSON.stringify(result, null, 2));
+  return result;
 }
 
 function onOpen() {
