@@ -265,7 +265,11 @@ function submitRegistro(req) {
 
     // Deduplicação simples via _Index (NUM_DOCUMENTO)
     const normalizedDoc = normalizeDoc(numDocumento);
-    const dupInfo = normalizedDoc ? findIndexByDoc(normalizedDoc) : null;
+    let dupInfo = normalizedDoc ? findIndexByDoc(normalizedDoc) : null;
+
+    if (!dupInfo && normalizedDoc) {
+      dupInfo = findRegistroByDoc(normalizedDoc, sheet, headers);
+    }
 
     let status = 'NOVO';
     let dupRefId = '';
@@ -443,6 +447,39 @@ function findIndexByDoc(normalizedDoc) {
   }
 }
 
+function findRegistroByDoc(normalizedDoc, sheet, headers) {
+  try {
+    const registrosSheet = sheet || getSheet(CONFIG.SHEET_NAMES.REGISTROS);
+    if (!registrosSheet) return null;
+
+    const data = registrosSheet.getDataRange().getValues();
+    if (data.length <= 1) return null;
+
+    const sheetHeaders = headers && headers.length ? headers : data[0];
+    const docIdx = sheetHeaders.indexOf('NUM_DOCUMENTO');
+    const regIdIdx = sheetHeaders.indexOf('ID');
+    const deletadoIdx = sheetHeaders.indexOf('DELETADO');
+
+    if (docIdx === -1 || regIdIdx === -1) return null;
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      const doc = normalizeDoc(row[docIdx]);
+      if (doc !== normalizedDoc) continue;
+
+      const deletado = deletadoIdx !== -1 ? isDeleted(row[deletadoIdx]) : false;
+      if (!deletado) {
+        return { regId: row[regIdIdx] || '', rowNumber: i + 1 };
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.warn('Erro em findRegistroByDoc:', error);
+    return null;
+  }
+}
+
 function upsertIndexEntry(normalizedDoc, regId, rowNumber) {
   try {
     const indexSheet = getSheet(CONFIG.SHEET_NAMES.INDEX);
@@ -493,7 +530,7 @@ function upsertIndexEntry(normalizedDoc, regId, rowNumber) {
 
 // ===== SISTEMA - INICIALIZAÇÃO E CONFIGURAÇÃO =====
 function ensureSystem() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet_();
   
   // Garante que todas as abas existam com cabeçalhos corretos
   ensureSheetWithHeaders(ss, CONFIG.SHEET_NAMES.REGISTROS, CONFIG.REGISTROS_HEADERS);
@@ -561,12 +598,15 @@ function getDashboardData() {
   try {
     logDebug('getDashboardData: inicio');
     const registros = getRegistros();
+    const duplicateDocs = buildDuplicateDocSet(registros);
     
     const total = registros.length;
     const ativos = registros.filter(r => !isDeleted(r.DELETADO)).length;
-    const duplicados = registros.filter(r => 
-      isDuplicado(r.STATUS) && !isDeleted(r.DELETADO)
-    ).length;
+    const duplicados = registros.filter(r => {
+      if (isDeleted(r.DELETADO)) return false;
+      const doc = normalizeDoc(r.NUM_DOCUMENTO);
+      return doc && duplicateDocs.has(doc);
+    }).length;
     
     // Agrupa por produto
     const porProduto = {};
@@ -851,21 +891,10 @@ function deleteRegistroByRow(payload) {
     if (rowNumber > data.length) {
       return { success: false, error: 'Número de linha inválido (fora do intervalo)' };
     }
-
-    const headers = data[0] || [];
-    const statusIndex = headers.indexOf('STATUS');
-    const deletadoIndex = headers.indexOf('DELETADO');
-    const updatedAtIndex = headers.indexOf('UPDATED_AT');
-
-    const row = data[rowNumber - 1];
-    if (deletadoIndex !== -1) row[deletadoIndex] = 'TRUE';
-    if (statusIndex !== -1) row[statusIndex] = 'EXCLUIDO';
-    if (updatedAtIndex !== -1) row[updatedAtIndex] = new Date();
-
-    sheet.getRange(rowNumber, 1, 1, headers.length).setValues([row]);
+    sheet.deleteRow(rowNumber);
     try { rebuildIndex(); } catch (error) {}
 
-    return { success: true, rowNumber };
+    return { success: true, rowNumber, deleted: true };
   } catch (error) {
     logError('Erro em deleteRegistroByRow', error);
     return { success: false, error: String(error), details: error && error.stack ? error.stack : undefined };
@@ -879,10 +908,11 @@ function getDuplicados() {
   try {
     logDebug('getDuplicados: inicio');
     const registros = getRegistros();
+    const duplicateDocs = buildDuplicateDocSet(registros);
     
     // Filtra registros duplicados ativos
     const duplicados = registros.filter(r => 
-      isDuplicado(r.STATUS) && !isDeleted(r.DELETADO)
+      !isDeleted(r.DELETADO) && duplicateDocs.has(normalizeDoc(r.NUM_DOCUMENTO))
     );
     
     logDebug('getDuplicados: total', duplicados.length);
@@ -906,14 +936,17 @@ function listDuplicados() {
     const headers = data[0];
     const statusIndex = headers.indexOf('STATUS');
     const deletadoIndex = headers.indexOf('DELETADO');
+    const docIndex = headers.indexOf('NUM_DOCUMENTO');
+    const duplicateDocs = buildDuplicateDocSetFromSheetData(data, headers);
 
     const duplicados = [];
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
       const status = statusIndex !== -1 ? row[statusIndex] : '';
       const deletado = deletadoIndex !== -1 ? isDeleted(row[deletadoIndex]) : false;
+      const doc = docIndex !== -1 ? normalizeDoc(row[docIndex]) : '';
 
-      if (!deletado && isDuplicado(status)) {
+      if (!deletado && doc && (isDuplicado(status) || duplicateDocs.has(doc))) {
         const registro = { rowNumber: i + 1 };
         headers.forEach((header, index) => {
           registro[header] = row[index];
@@ -1115,26 +1148,41 @@ function getRelatorios() {
  * gerarRelatorio - Gera um novo relatório
  */
 function gerarRelatorio() {
+  logDebug('gerarRelatorio: inicio');
+
+  const registros = getRegistros();
+  const totals = calculateTotals(registros);
+  const competencia = formatCompetencia(new Date());
+
+  logDebug('gerarRelatorio: competencia', competencia);
+  logDebug('gerarRelatorio: totais', totals);
+
+  // Gera resumo (Gemini com fallback) primeiro
+  const resumo = generateResumoWithGemini(totals, competencia);
+  logDebug('gerarRelatorio: resumo gerado');
+
+  let pdfUrl = '';
+  let pdfError = '';
+
   try {
-    logDebug('gerarRelatorio: inicio');
-    
-    const registros = getRegistros();
-    const totals = calculateTotals(registros);
-    const competencia = formatCompetencia(new Date());
-    
-    logDebug('gerarRelatorio: competencia', competencia);
-    logDebug('gerarRelatorio: totais', totals);
-    
-    // Gera resumo (Gemini com fallback)
-    const resumo = generateResumoWithGemini(totals, competencia);
-    
-    // Gera PDF real no Drive
-    const pdfUrl = generatePdf(competencia, totals, resumo);
-    
+    pdfUrl = generatePdf(competencia, totals, resumo);
+    logDebug('gerarRelatorio: pdf ok');
+  } catch (error) {
+    pdfError = error?.message || String(error);
+    logError('Erro ao gerar PDF', error);
+    logEvent('ERROR', 'gerarRelatorio PDF: ' + pdfError);
+    logDebug('gerarRelatorio: pdf falhou', pdfError);
+    pdfUrl = '';
+  }
+
+  let saveOk = true;
+  let saveError = '';
+
+  try {
     // Salva metadados do relatório
     const sheet = getSheet(CONFIG.SHEET_NAMES.RELATORIOS);
     const headers = getSheetHeaders(sheet) || CONFIG.RELATORIOS_HEADERS;
-    
+
     const relatorioData = {
       ID: Utilities.getUuid(),
       COMPETENCIA: competencia,
@@ -1145,42 +1193,59 @@ function gerarRelatorio() {
       RESUMO: resumo,
       CREATED_AT: new Date()
     };
-    
+
     // Prepara valores para inserção
     const rowValues = headers.map(header => relatorioData[header] || '');
     sheet.appendRow(rowValues);
-    
+
     logEvent('RELATORIO', `Relatório ${competencia} gerado: ${totals.total} registros`);
-    
-    return {
-      success: true,
-      message: `Relatório ${competencia} gerado com sucesso`,
-      urlPdf: pdfUrl,
-      resumo: resumo,
-      competencia: competencia
-    };
-    
+    logDebug('gerarRelatorio: save ok');
   } catch (error) {
-    logError('Erro em gerarRelatorio', error);
-    logEvent('ERROR', 'gerarRelatorio: ' + error.toString());
-    return {
-      success: false,
-      error: error.toString(),
-      details: error && error.stack ? error.stack : undefined
-    };
+    saveOk = false;
+    saveError = error?.message || String(error);
+    logError('Erro ao salvar metadados do relatório', error);
+    logEvent('ERROR', 'gerarRelatorio save: ' + saveError);
+    logDebug('gerarRelatorio: save falhou', saveError);
   }
+
+  const message = (pdfError || !saveOk)
+    ? `Relatório ${competencia} gerado com pendências`
+    : `Relatório ${competencia} gerado com sucesso`;
+
+  return {
+    success: true,
+    message: message,
+    urlPdf: pdfUrl,
+    resumo: resumo,
+    competencia: competencia,
+    pdfError: pdfError || null,
+    saveOk: saveOk,
+    saveError: saveError || null
+  };
 }
 
 // ===== FUNÇÕES AUXILIARES =====
 
 function getSheet(sheetName) {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getSpreadsheet_();
     return ss.getSheetByName(sheetName);
   } catch (error) {
     console.error(`Erro ao obter aba ${sheetName}:`, error);
     return null;
   }
+}
+
+function getSpreadsheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (ss) return ss;
+
+  const spreadsheetId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  if (spreadsheetId) {
+    return SpreadsheetApp.openById(spreadsheetId);
+  }
+
+  throw new Error('Nenhuma planilha ativa encontrada. Configure SPREADSHEET_ID nas propriedades do script.');
 }
 
 function getSheetHeaders(sheet) {
@@ -1254,6 +1319,7 @@ function getRegistros() {
 }
 
 function calculateTotals(registros) {
+  const duplicateDocs = buildDuplicateDocSet(registros);
   const totals = {
     total: registros.length,
     ativos: 0,
@@ -1267,7 +1333,8 @@ function calculateTotals(registros) {
     if (!deletado) {
       totals.ativos++;
       
-      if (isDuplicado(r.STATUS)) {
+      const doc = normalizeDoc(r.NUM_DOCUMENTO);
+      if (doc && duplicateDocs.has(doc)) {
         totals.duplicados++;
       }
       
@@ -1307,7 +1374,7 @@ function formatCompetencia(date) {
 }
 
 function generateResumo(totals, competencia) {
-  const base = `Relatório ${competencia}: ${totals.total} registros totais, ${totals.ativos} ativos, ${totals.duplicados} duplicados.`;
+  const base = `Relatório ${competencia}: ${totals.total} registros totais, ${totals.ativos} ativos e ${totals.duplicados} duplicados.`;
   
   // Adiciona detalhes por produto se houver
   const produtos = Object.keys(totals.porProduto);
@@ -1330,18 +1397,18 @@ function generateResumoWithGemini(totals, competencia) {
   const duplicadosNum = Number(totals.duplicados || 0);
   const duplicadosStatus = (duplicadosNum === 0) ? 'Duplicados resolvidos' : 'Duplicados pendentes';
 
-  // Prompt: texto puro, parágrafos e regra explícita para duplicados = 0
+  // Prompt: texto curto (máx. 7 linhas) e regra explícita para duplicados = 0
   const prompt = [
     `Você é um analista responsável por redigir um Relatório Executivo de Distribuição com base nos dados abaixo.`,
     ``,
     `REGRAS (OBRIGATÓRIO)`,
     `- Escreva em português do Brasil.`,
-    `- Gere entre 6 e 12 parágrafos curtos (separados por uma linha em branco).`,
+    `- Gere um texto formal com 5 a 7 linhas no máximo (uma frase por linha).`,
     `- Use linguagem institucional (prefeitura/assistência social/ONG).`,
     `- NÃO invente números: use apenas os valores fornecidos.`,
     `- Se algum dado estiver ausente, escreva "não informado" sem supor.`,
     `- NÃO use Markdown: não use **, #, nem listas com traços ou asteriscos.`,
-    `- Escreva como texto puro, com quebras de linha entre parágrafos.`,
+    `- Escreva como texto puro, com quebras de linha entre as frases.`,
     `- Se Duplicados for 0, inclua obrigatoriamente um parágrafo com a frase exata: "Duplicados resolvidos".`,
     `- No final, inclua um parágrafo de agradecimento ao trabalho e desempenho de todos os envolvidos.`,
     `- Feche com assinatura: "Eduardo Pereira da Silva".`,
@@ -1407,9 +1474,9 @@ function generateResumoWithGemini(totals, competencia) {
       text = `${text}\n\nDuplicados resolvidos.`;
     }
 
-    // Guardrail: exigir pelo menos 5 linhas/parágrafos úteis (o PDF precisa renderizar conteúdo)
+    // Guardrail: exigir conteúdo mínimo para evitar respostas vazias
     const linhasNaoVazias = text.split('\n').map(l => l.trim()).filter(Boolean);
-    if (!text || text.length < 120 || linhasNaoVazias.length < 5) {
+    if (!text || text.length < 60 || linhasNaoVazias.length < 3) {
       logError('Gemini retornou texto vazio/curto', new Error(`Texto: "${text}"`));
       return generateResumo(totals, competencia);
     }
@@ -1553,6 +1620,51 @@ function normalizeDoc(doc) {
   return String(doc).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 }
 
+function buildDuplicateDocSet(registros) {
+  const counts = new Map();
+  (registros || []).forEach(r => {
+    if (isDeleted(r.DELETADO)) return;
+    const doc = normalizeDoc(r.NUM_DOCUMENTO);
+    if (!doc) return;
+    counts.set(doc, (counts.get(doc) || 0) + 1);
+  });
+
+  const dupes = new Set();
+  counts.forEach((count, doc) => {
+    if (count > 1) dupes.add(doc);
+  });
+
+  return dupes;
+}
+
+function buildDuplicateDocSetFromSheetData(data, headers) {
+  const counts = new Map();
+  if (!Array.isArray(data) || data.length <= 1) return new Set();
+
+  const headerRow = headers && headers.length ? headers : data[0];
+  const docIndex = headerRow.indexOf('NUM_DOCUMENTO');
+  const deletadoIndex = headerRow.indexOf('DELETADO');
+
+  if (docIndex === -1) return new Set();
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const deletado = deletadoIndex !== -1 ? isDeleted(row[deletadoIndex]) : false;
+    if (deletado) continue;
+
+    const doc = normalizeDoc(row[docIndex]);
+    if (!doc) continue;
+    counts.set(doc, (counts.get(doc) || 0) + 1);
+  }
+
+  const dupes = new Set();
+  counts.forEach((count, doc) => {
+    if (count > 1) dupes.add(doc);
+  });
+
+  return dupes;
+}
+
 function logEvent(action, details) {
   try {
     const sheet = getSheet(CONFIG.SHEET_NAMES.LOGS);
@@ -1633,7 +1745,7 @@ function fixSystem() {
   console.log('=== CORRIGINDO SISTEMA ===');
   
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getSpreadsheet_();
     
     // 1. Recria aba Registros
     let registrosSheet = ss.getSheetByName(CONFIG.SHEET_NAMES.REGISTROS);
@@ -1705,6 +1817,12 @@ function fixSystem() {
       error: error.toString()
     };
   }
+}
+
+function test_gerarRelatorio_safe() {
+  const result = gerarRelatorio();
+  Logger.log(JSON.stringify(result, null, 2));
+  return result;
 }
 
 function onOpen() {
