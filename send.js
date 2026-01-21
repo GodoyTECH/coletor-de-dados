@@ -1,4 +1,4 @@
-jk/**
+ /**
  * send.js - Social Coletor (Com botões de ação pós-envio)
  * ===========================================================
  * 
