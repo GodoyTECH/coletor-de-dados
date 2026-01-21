@@ -1059,6 +1059,7 @@ function resolveDuplicadoByRow(payload) {
     return { success: false, error: String(error), details: error && error.stack ? error.stack : undefined };
   }
 }
+ 
 
 function listRelatorios() {
   const result = getRelatorios();
@@ -1320,52 +1321,114 @@ function generateResumo(totals, competencia) {
 
 function generateResumoWithGemini(totals, competencia) {
   const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
-  if (!apiKey) {
-    return generateResumo(totals, competencia);
-  }
+  if (!apiKey) return generateResumo(totals, competencia);
 
   const produtosResumo = Object.entries(totals.porProduto || {})
     .map(([produto, quantidade]) => `${produto}: ${quantidade}`)
     .join(', ') || 'nenhum produto informado';
 
+  const duplicadosNum = Number(totals.duplicados || 0);
+  const duplicadosStatus = (duplicadosNum === 0) ? 'Duplicados resolvidos' : 'Duplicados pendentes';
+
+  // Prompt: texto puro, parágrafos e regra explícita para duplicados = 0
   const prompt = [
-    `Crie um resumo curto e objetivo em português para o relatório ${competencia}.`,
+    `Você é um analista responsável por redigir um Relatório Executivo de Distribuição com base nos dados abaixo.`,
+    ``,
+    `REGRAS (OBRIGATÓRIO)`,
+    `- Escreva em português do Brasil.`,
+    `- Gere entre 6 e 12 parágrafos curtos (separados por uma linha em branco).`,
+    `- Use linguagem institucional (prefeitura/assistência social/ONG).`,
+    `- NÃO invente números: use apenas os valores fornecidos.`,
+    `- Se algum dado estiver ausente, escreva "não informado" sem supor.`,
+    `- NÃO use Markdown: não use **, #, nem listas com traços ou asteriscos.`,
+    `- Escreva como texto puro, com quebras de linha entre parágrafos.`,
+    `- Se Duplicados for 0, inclua obrigatoriamente um parágrafo com a frase exata: "Duplicados resolvidos".`,
+    `- No final, inclua um parágrafo de agradecimento ao trabalho e desempenho de todos os envolvidos.`,
+    `- Feche com assinatura: "Eduardo Pereira da Silva".`,
+    ``,
+    `DADOS`,
+    `Competência: ${competencia}.`,
     `Total de registros: ${totals.total}.`,
     `Ativos: ${totals.ativos}.`,
     `Duplicados: ${totals.duplicados}.`,
+    `Status de duplicados: ${duplicadosStatus}.`,
     `Distribuição por produto: ${produtosResumo}.`
-  ].join(' ');
+  ].join('\n');
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const model = 'gemini-1.5-flash';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
     const response = UrlFetchApp.fetch(url, {
       method: 'post',
       contentType: 'application/json',
       payload: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 256
+          temperature: 0.35,
+          maxOutputTokens: 900
         }
       }),
       muteHttpExceptions: true
     });
 
-    const payload = JSON.parse(response.getContentText() || '{}');
-    const text = payload?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (text) return String(text).trim();
+    const code = response.getResponseCode();
+    const body = response.getContentText() || '';
+
+    if (code !== 200) {
+      logError('Gemini HTTP não-200', new Error(`HTTP ${code}: ${body}`));
+      return generateResumo(totals, competencia);
+    }
+
+    let payload;
+    try {
+      payload = JSON.parse(body || '{}');
+    } catch (e) {
+      logError('Gemini JSON parse falhou', new Error(`Body: ${body}`));
+      return generateResumo(totals, competencia);
+    }
+
+    const parts = payload?.candidates?.[0]?.content?.parts || [];
+    let text = parts.map(p => (p && p.text ? String(p.text) : '')).join('').trim();
+
+    // Sanitização: remove resquícios comuns de Markdown e normaliza parágrafos
+    text = (text || '')
+      .replace(/\r\n/g, '\n')
+      .replace(/\*\*/g, '')
+      .replace(/__+/g, '')
+      .replace(/^#+\s*/gm, '')
+      .replace(/^\s*[-*]\s+/gm, '')   // remove bullets com traço/asterisco
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    // Garantia: se duplicados = 0, força a presença do parágrafo "Duplicados resolvidos"
+    if (duplicadosNum === 0 && !/Duplicados resolvidos/i.test(text)) {
+      // Insere como um parágrafo adicional (não inventa números; só qualifica o "0")
+      text = `${text}\n\nDuplicados resolvidos.`;
+    }
+
+    // Guardrail: exigir pelo menos 5 linhas/parágrafos úteis (o PDF precisa renderizar conteúdo)
+    const linhasNaoVazias = text.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!text || text.length < 120 || linhasNaoVazias.length < 5) {
+      logError('Gemini retornou texto vazio/curto', new Error(`Texto: "${text}"`));
+      return generateResumo(totals, competencia);
+    }
+
+    return text;
+
   } catch (error) {
     logError('Erro ao gerar resumo com Gemini', error);
+    return generateResumo(totals, competencia);
   }
-
-  return generateResumo(totals, competencia);
 }
 
 function generatePdf(competencia, totals, resumo) {
   const folder = getOrCreateFolderPath('Social Coletor/Relatorios');
   const html = buildRelatorioHtml(competencia, totals, resumo);
+
   const blob = HtmlService.createHtmlOutput(html).getAs(MimeType.PDF);
   const file = folder.createFile(blob).setName(`Relatorio_${competencia}.pdf`);
+
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   return file.getUrl();
 }
@@ -1376,39 +1439,58 @@ function buildRelatorioHtml(competencia, totals, resumo) {
     ? produtos.map(([produto, quantidade]) => `<li>${escapeHtml(produto)}: ${quantidade}</li>`).join('')
     : '<li>Sem dados de produto.</li>';
 
+  // Para o PDF: preservar parágrafos/quebras de linha do resumo (sem “colar” tudo em uma linha).
+  // Também evita assinatura duplicada: mantém assinatura no footer e remove a última linha se for a assinatura.
+  const resumoStr = String(resumo || '').trim();
+  const resumoSemAssinatura = resumoStr.replace(/\n?\s*"?Eduardo Pereira da Silva"?\s*$/i, '').trim();
+
+  const resumoParagrafos = (resumoSemAssinatura ? resumoSemAssinatura.split(/\n\s*\n+/) : []);
+  const resumoHtml = resumoParagrafos.length
+    ? resumoParagrafos
+        .map(p => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`)
+        .join('')
+    : `<p>${escapeHtml(resumoStr || 'Resumo não informado.')}</p>`;
+
   return `
     <html>
       <head>
         <meta charset="UTF-8">
         <style>
           body { font-family: Arial, sans-serif; color: #111827; }
-          h1 { color: #1d4ed8; }
+          h1 { color: #1d4ed8; margin-bottom: 8px; }
+          h2 { margin: 0 0 8px 0; }
           .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-          ul { padding-left: 20px; }
-          .footer { margin-top: 32px; font-size: 12px; color: #6b7280; }
+          ul { padding-left: 20px; margin: 0; }
+          p { margin: 0 0 10px 0; line-height: 1.35; }
+          .footer { margin-top: 28px; font-size: 12px; color: #6b7280; }
         </style>
       </head>
       <body>
         <h1>Relatório Social Coletor</h1>
+
         <div class="card">
           <p><strong>Competência:</strong> ${escapeHtml(competencia)}</p>
           <p><strong>Total de registros:</strong> ${totals.total}</p>
           <p><strong>Ativos:</strong> ${totals.ativos}</p>
           <p><strong>Duplicados:</strong> ${totals.duplicados}</p>
         </div>
+
         <div class="card">
           <h2>Distribuição por produto</h2>
           <ul>${produtosList}</ul>
         </div>
+
         <div class="card">
           <h2>Resumo</h2>
-          <p>${escapeHtml(resumo)}</p>
+          ${resumoHtml}
         </div>
-        <div class="footer">Autenticação: Eduardo Pereira da Silva</div>
+
+        <div class="footer">Eduardo Pereira da Silva</div>
       </body>
     </html>
   `;
 }
+
 
 function rebuildIndex() {
   try {
