@@ -598,12 +598,15 @@ function getDashboardData() {
   try {
     logDebug('getDashboardData: inicio');
     const registros = getRegistros();
+    const duplicateDocs = buildDuplicateDocSet(registros);
     
     const total = registros.length;
     const ativos = registros.filter(r => !isDeleted(r.DELETADO)).length;
-    const duplicados = registros.filter(r => 
-      isDuplicado(r.STATUS) && !isDeleted(r.DELETADO)
-    ).length;
+    const duplicados = registros.filter(r => {
+      if (isDeleted(r.DELETADO)) return false;
+      const doc = normalizeDoc(r.NUM_DOCUMENTO);
+      return doc && duplicateDocs.has(doc);
+    }).length;
     
     // Agrupa por produto
     const porProduto = {};
@@ -916,10 +919,11 @@ function getDuplicados() {
   try {
     logDebug('getDuplicados: inicio');
     const registros = getRegistros();
+    const duplicateDocs = buildDuplicateDocSet(registros);
     
     // Filtra registros duplicados ativos
     const duplicados = registros.filter(r => 
-      isDuplicado(r.STATUS) && !isDeleted(r.DELETADO)
+      !isDeleted(r.DELETADO) && duplicateDocs.has(normalizeDoc(r.NUM_DOCUMENTO))
     );
     
     logDebug('getDuplicados: total', duplicados.length);
@@ -943,14 +947,17 @@ function listDuplicados() {
     const headers = data[0];
     const statusIndex = headers.indexOf('STATUS');
     const deletadoIndex = headers.indexOf('DELETADO');
+    const docIndex = headers.indexOf('NUM_DOCUMENTO');
+    const duplicateDocs = buildDuplicateDocSetFromSheetData(data, headers);
 
     const duplicados = [];
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
       const status = statusIndex !== -1 ? row[statusIndex] : '';
       const deletado = deletadoIndex !== -1 ? isDeleted(row[deletadoIndex]) : false;
+      const doc = docIndex !== -1 ? normalizeDoc(row[docIndex]) : '';
 
-      if (!deletado && isDuplicado(status)) {
+      if (!deletado && doc && (isDuplicado(status) || duplicateDocs.has(doc))) {
         const registro = { rowNumber: i + 1 };
         headers.forEach((header, index) => {
           registro[header] = row[index];
@@ -1291,6 +1298,7 @@ function getRegistros() {
 }
 
 function calculateTotals(registros) {
+  const duplicateDocs = buildDuplicateDocSet(registros);
   const totals = {
     total: registros.length,
     ativos: 0,
@@ -1304,7 +1312,8 @@ function calculateTotals(registros) {
     if (!deletado) {
       totals.ativos++;
       
-      if (isDuplicado(r.STATUS)) {
+      const doc = normalizeDoc(r.NUM_DOCUMENTO);
+      if (doc && duplicateDocs.has(doc)) {
         totals.duplicados++;
       }
       
@@ -1588,6 +1597,51 @@ function rebuildIndex() {
 function normalizeDoc(doc) {
   if (!doc) return '';
   return String(doc).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+}
+
+function buildDuplicateDocSet(registros) {
+  const counts = new Map();
+  (registros || []).forEach(r => {
+    if (isDeleted(r.DELETADO)) return;
+    const doc = normalizeDoc(r.NUM_DOCUMENTO);
+    if (!doc) return;
+    counts.set(doc, (counts.get(doc) || 0) + 1);
+  });
+
+  const dupes = new Set();
+  counts.forEach((count, doc) => {
+    if (count > 1) dupes.add(doc);
+  });
+
+  return dupes;
+}
+
+function buildDuplicateDocSetFromSheetData(data, headers) {
+  const counts = new Map();
+  if (!Array.isArray(data) || data.length <= 1) return new Set();
+
+  const headerRow = headers && headers.length ? headers : data[0];
+  const docIndex = headerRow.indexOf('NUM_DOCUMENTO');
+  const deletadoIndex = headerRow.indexOf('DELETADO');
+
+  if (docIndex === -1) return new Set();
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const deletado = deletadoIndex !== -1 ? isDeleted(row[deletadoIndex]) : false;
+    if (deletado) continue;
+
+    const doc = normalizeDoc(row[docIndex]);
+    if (!doc) continue;
+    counts.set(doc, (counts.get(doc) || 0) + 1);
+  }
+
+  const dupes = new Set();
+  counts.forEach((count, doc) => {
+    if (count > 1) dupes.add(doc);
+  });
+
+  return dupes;
 }
 
 function logEvent(action, details) {
