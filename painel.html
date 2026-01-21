@@ -280,6 +280,9 @@
       </button>
     </nav>
     <div class="header-actions">
+      <button class="btn btn-secondary btn-small" id="backBtn">
+        <i class="fas fa-arrow-left"></i> Voltar
+      </button>
       <button class="btn btn-danger btn-small" id="logoutBtn">
         <i class="fas fa-sign-out-alt"></i> Sair
       </button>
@@ -454,6 +457,11 @@
     localStorage.removeItem('social_coletor_remember');
     sessionStorage.removeItem('social_coletor_session');
     localStorage.removeItem(AUTH_LAST_VIEW_KEY);
+    window.location.href = 'index.html';
+  });
+
+  document.getElementById('backBtn')?.addEventListener('click', () => {
+    localStorage.setItem(AUTH_LAST_VIEW_KEY, 'collect');
     window.location.href = 'index.html';
   });
 </script>

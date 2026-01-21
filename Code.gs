@@ -265,7 +265,11 @@ function submitRegistro(req) {
 
     // Deduplicação simples via _Index (NUM_DOCUMENTO)
     const normalizedDoc = normalizeDoc(numDocumento);
-    const dupInfo = normalizedDoc ? findIndexByDoc(normalizedDoc) : null;
+    let dupInfo = normalizedDoc ? findIndexByDoc(normalizedDoc) : null;
+
+    if (!dupInfo && normalizedDoc) {
+      dupInfo = findRegistroByDoc(normalizedDoc, sheet, headers);
+    }
 
     let status = 'NOVO';
     let dupRefId = '';
@@ -439,6 +443,39 @@ function findIndexByDoc(normalizedDoc) {
     return null;
   } catch (error) {
     console.warn('Erro em findIndexByDoc:', error);
+    return null;
+  }
+}
+
+function findRegistroByDoc(normalizedDoc, sheet, headers) {
+  try {
+    const registrosSheet = sheet || getSheet(CONFIG.SHEET_NAMES.REGISTROS);
+    if (!registrosSheet) return null;
+
+    const data = registrosSheet.getDataRange().getValues();
+    if (data.length <= 1) return null;
+
+    const sheetHeaders = headers && headers.length ? headers : data[0];
+    const docIdx = sheetHeaders.indexOf('NUM_DOCUMENTO');
+    const regIdIdx = sheetHeaders.indexOf('ID');
+    const deletadoIdx = sheetHeaders.indexOf('DELETADO');
+
+    if (docIdx === -1 || regIdIdx === -1) return null;
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      const doc = normalizeDoc(row[docIdx]);
+      if (doc !== normalizedDoc) continue;
+
+      const deletado = deletadoIdx !== -1 ? isDeleted(row[deletadoIdx]) : false;
+      if (!deletado) {
+        return { regId: row[regIdIdx] || '', rowNumber: i + 1 };
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.warn('Erro em findRegistroByDoc:', error);
     return null;
   }
 }
