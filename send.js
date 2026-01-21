@@ -12,12 +12,11 @@
    CONFIGURAÇÕES
    ================================ */
 
-const CONFIG = {
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzwJTObbcfAdJ_SDj7B5_AQ_cnhMfEWnzWRtbt5njHz54yiNtwyTZTwsPo0Y7Mwzjy1/exec",
+const CONFIG = {https://script.google.com/macros/s/AKfycby_X624TtHgbKzNf4Qf7mgdhX4Ibh1swPIDweteNRplJtWjQDsNmPJKaf8nn29YhIRI/exec",
   NETLIFY_FUNCTION_URL: "/.netlify/functions/sc-api",
   USE_NETLIFY_FUNCTION: true,
 
-  SYSTEM_URL: "https://script.google.com/macros/s/AKfycbzwJTObbcfAdJ_SDj7B5_AQ_cnhMfEWnzWRtbt5njHz54yiNtwyTZTwsPo0Y7Mwzjy1/exec",
+  SYSTEM_URL: "https://script.google.com/macros/s/AKfycby_X624TtHgbKzNf4Qf7mgdhX4Ibh1swPIDweteNRplJtWjQDsNmPJKaf8nn29YhIRI/exec",
 
   GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/1Shrv8LbY_UlXBGVjoYNl5zqmkfJbOrv7Z2dA0At8d_A/edit?gid=768807706#gid=768807706",
   PANEL_URL: "painel.html",
