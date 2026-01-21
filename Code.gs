@@ -891,21 +891,10 @@ function deleteRegistroByRow(payload) {
     if (rowNumber > data.length) {
       return { success: false, error: 'Número de linha inválido (fora do intervalo)' };
     }
-
-    const headers = data[0] || [];
-    const statusIndex = headers.indexOf('STATUS');
-    const deletadoIndex = headers.indexOf('DELETADO');
-    const updatedAtIndex = headers.indexOf('UPDATED_AT');
-
-    const row = data[rowNumber - 1];
-    if (deletadoIndex !== -1) row[deletadoIndex] = 'TRUE';
-    if (statusIndex !== -1) row[statusIndex] = 'EXCLUIDO';
-    if (updatedAtIndex !== -1) row[updatedAtIndex] = new Date();
-
-    sheet.getRange(rowNumber, 1, 1, headers.length).setValues([row]);
+    sheet.deleteRow(rowNumber);
     try { rebuildIndex(); } catch (error) {}
 
-    return { success: true, rowNumber };
+    return { success: true, rowNumber, deleted: true };
   } catch (error) {
     logError('Erro em deleteRegistroByRow', error);
     return { success: false, error: String(error), details: error && error.stack ? error.stack : undefined };
