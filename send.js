@@ -1,4 +1,4 @@
-/**
+jk/**
  * send.js - Social Coletor (Com botões de ação pós-envio)
  * ===========================================================
  * 
@@ -13,8 +13,11 @@
    ================================ */
 
 const CONFIG = {
+
   NETLIFY_FUNCTION_URL: "/.netlify/functions/sc-api",
   USE_NETLIFY_FUNCTION: true,
+
+    APPS_SCRIPT_URL:"https://script.google.com/macros/s/AKfycby_X624TtHgbKzNf4Qf7mgdhX4Ibh1swPIDweteNRplJtWjQDsNmPJKaf8nn29YhIRI/exec",
 
   SYSTEM_URL: "https://script.google.com/macros/s/AKfycby_X624TtHgbKzNf4Qf7mgdhX4Ibh1swPIDweteNRplJtWjQDsNmPJKaf8nn29YhIRI/exec",
 
