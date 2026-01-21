@@ -288,6 +288,10 @@ function renderHeaders(headers) {
     th.textContent = header;
     headersRow.appendChild(th);
   });
+
+  const actionTh = document.createElement('th');
+  actionTh.textContent = 'Ações';
+  headersRow.appendChild(actionTh);
 }
 
 function buildEditableCell(value, rowNumber, header) {
@@ -361,8 +365,33 @@ function renderRegistrosRows() {
       tr.appendChild(td);
     });
 
+    const actionTd = document.createElement('td');
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn btn-small btn-danger';
+    deleteBtn.innerHTML = '<i class="fas fa-trash"></i> Excluir';
+    deleteBtn.addEventListener('click', () => deleteRegistroRow(row.rowNumber));
+    actionTd.appendChild(deleteBtn);
+    tr.appendChild(actionTd);
+
     tbody.appendChild(tr);
   });
+}
+
+async function deleteRegistroRow(rowNumber) {
+  const confirmed = window.confirm('Tem certeza que deseja excluir este registro?');
+  if (!confirmed) return;
+
+  showStatus('Excluindo registro...', 'info');
+
+  const result = await apiRequest('deleteRegistro', { rowNumber });
+
+  if (result.success) {
+    showStatus('Registro excluído com sucesso', 'success');
+    appState.registros.dirtyCells.delete(rowNumber);
+    resetRegistros();
+  } else {
+    showStatus(`Erro ao excluir: ${result.error}`, 'error');
+  }
 }
 
 function markCellDirty(rowNumber, column, value, cellElement) {
@@ -553,6 +582,7 @@ function setupTabs() {
 window.resetRegistros = resetRegistros;
 window.loadMoreRegistros = loadMoreRegistros;
 window.saveRegistros = saveRegistros;
+window.deleteRegistroRow = deleteRegistroRow;
 window.loadDuplicados = loadDuplicados;
 window.resolverDuplicado = resolverDuplicado;
 window.loadRelatorios = loadRelatorios;
