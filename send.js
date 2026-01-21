@@ -12,7 +12,7 @@
    CONFIGURAÇÕES
    ================================ */
 
-const CONFIG = {https://script.google.com/macros/s/AKfycby_X624TtHgbKzNf4Qf7mgdhX4Ibh1swPIDweteNRplJtWjQDsNmPJKaf8nn29YhIRI/exec",
+const CONFIG = "https://script.google.com/macros/s/AKfycby_X624TtHgbKzNf4Qf7mgdhX4Ibh1swPIDweteNRplJtWjQDsNmPJKaf8nn29YhIRI/exec",
   NETLIFY_FUNCTION_URL: "/.netlify/functions/sc-api",
   USE_NETLIFY_FUNCTION: true,
 
