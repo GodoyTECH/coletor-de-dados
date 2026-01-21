@@ -1367,18 +1367,18 @@ function generateResumoWithGemini(totals, competencia) {
   const duplicadosNum = Number(totals.duplicados || 0);
   const duplicadosStatus = (duplicadosNum === 0) ? 'Duplicados resolvidos' : 'Duplicados pendentes';
 
-  // Prompt: texto puro, parágrafos e regra explícita para duplicados = 0
+  // Prompt: texto curto (máx. 7 linhas) e regra explícita para duplicados = 0
   const prompt = [
     `Você é um analista responsável por redigir um Relatório Executivo de Distribuição com base nos dados abaixo.`,
     ``,
     `REGRAS (OBRIGATÓRIO)`,
     `- Escreva em português do Brasil.`,
-    `- Gere entre 6 e 12 parágrafos curtos (separados por uma linha em branco).`,
+    `- Gere um texto formal com 5 a 7 linhas no máximo (uma frase por linha).`,
     `- Use linguagem institucional (prefeitura/assistência social/ONG).`,
     `- NÃO invente números: use apenas os valores fornecidos.`,
     `- Se algum dado estiver ausente, escreva "não informado" sem supor.`,
     `- NÃO use Markdown: não use **, #, nem listas com traços ou asteriscos.`,
-    `- Escreva como texto puro, com quebras de linha entre parágrafos.`,
+    `- Escreva como texto puro, com quebras de linha entre as frases.`,
     `- Se Duplicados for 0, inclua obrigatoriamente um parágrafo com a frase exata: "Duplicados resolvidos".`,
     `- No final, inclua um parágrafo de agradecimento ao trabalho e desempenho de todos os envolvidos.`,
     `- Feche com assinatura: "Eduardo Pereira da Silva".`,
@@ -1444,9 +1444,9 @@ function generateResumoWithGemini(totals, competencia) {
       text = `${text}\n\nDuplicados resolvidos.`;
     }
 
-    // Guardrail: exigir pelo menos 5 linhas/parágrafos úteis (o PDF precisa renderizar conteúdo)
+    // Guardrail: exigir conteúdo mínimo para evitar respostas vazias
     const linhasNaoVazias = text.split('\n').map(l => l.trim()).filter(Boolean);
-    if (!text || text.length < 120 || linhasNaoVazias.length < 5) {
+    if (!text || text.length < 60 || linhasNaoVazias.length < 3) {
       logError('Gemini retornou texto vazio/curto', new Error(`Texto: "${text}"`));
       return generateResumo(totals, competencia);
     }
