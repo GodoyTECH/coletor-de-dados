@@ -295,6 +295,9 @@ function ensureAppInitialized() {
     setupImageControls();
     checkConnectionStatus();
     console.log('✅ Aplicativo pronto!');
+    if (window.SocialColetorSplash?.hideSplash) {
+        window.SocialColetorSplash.hideSplash('app-ready');
+    }
 }
 
 function isAuthenticated() {
