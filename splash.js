@@ -1,5 +1,5 @@
 (() => {
-  const SPLASH_TIMEOUT_MS = 10000;
+  const SPLASH_TIMEOUT_MS = 15000;
   const SKIP_DELAY_MS = 5000;
 
   let splashEl;
