@@ -37,12 +37,43 @@
     <!-- Tesseract.js -->
     <script src="https://unpkg.com/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
 
+    <!-- Splash -->
+    <script src="splash.js" defer></script>
+
     <!-- Script principal -->
     <script src="ocr.js" defer></script>
     <script src="script.js" defer></script>
     <script src="send.js" defer></script>
 </head>
 <body>
+    <!-- SPLASH DE ABERTURA -->
+    <section id="sc-splash" aria-label="Abertura do aplicativo">
+        <video
+            id="sc-splash-video"
+            class="sc-splash-video"
+            playsinline
+            preload="auto"
+            poster="logo.png"
+        >
+            <source src="abertura.mp4" type="video/mp4">
+        </video>
+        <div class="sc-splash-overlay" aria-hidden="true"></div>
+        <div class="sc-splash-content">
+            <div class="sc-splash-countdown" id="sc-splash-countdown">Pular em 5...</div>
+            <div class="sc-splash-actions">
+                <button class="sc-splash-btn sc-splash-skip" id="sc-splash-skip" type="button" disabled>
+                    Aguarde...
+                </button>
+                <button class="sc-splash-btn sc-splash-audio" id="sc-splash-audio" type="button">
+                    Ativar som
+                </button>
+            </div>
+            <div class="sc-splash-fallback" id="sc-splash-fallback" hidden>
+                Carregando abertura...
+            </div>
+        </div>
+    </section>
+
     <!-- Emojis flutuantes -->
     <div class="emoji-background" id="emojiContainer"></div>
 
