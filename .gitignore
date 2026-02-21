@@ -1,0 +1,11 @@
+# env/secrets
+**/.env
+
+# deps/build artifacts
+**/node_modules/
+**/dist/
+**/.vite/
+
+# runtime storage/logs
+backend/storage/
+*.log
