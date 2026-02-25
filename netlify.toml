@@ -1,18 +1,12 @@
 [build]
   functions = "netlify/functions"
-  publish = ""
 
 [[redirects]]
   from = "/chat"
-  to = "/frontend/dist/index.html"
+  to = "/chat.html"
   status = 200
 
 [[redirects]]
   from = "/chat/*"
-  to = "/frontend/dist/index.html"
-  status = 200
-
-[[redirects]]
-  from = "/assets/*"
-  to = "/frontend/dist/assets/:splat"
+  to = "/chat.html"
   status = 200
