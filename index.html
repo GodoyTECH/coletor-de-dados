@@ -1,13 +1,424 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
+<head>
+   
+    
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Madruguinha Faz! - Chat</title>
-    <script type="module" crossorigin src="/assets/index-BjXYvVox.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CMp7TsJM.css">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Social Coletor - Coletor de Dados via Imagem</title>
+
+
+
+<meta property="og:url" content="https://scoletor.netlify.app/">
+<meta property="og:image" content="https://scoletor.netlify.app/logo.png">
+<meta property="og:image:secure_url" content="https://scoletor.netlify.app/logo.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Social Coletor">
+<meta name="twitter:description" content="Registro e envio de dados para Google Sheets com suporte offline.">
+<meta name="twitter:image" content="https://scoletor.netlify.app/logo.png">
+<meta name="twitter:url" content="https://scoletor.netlify.app/">
+
+
+    <!-- Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Ícone -->
+    <link rel="icon" href="logo.png" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="logo.png">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Tesseract.js -->
+    <script src="https://unpkg.com/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
+
+    <!-- Splash -->
+    <script src="splash.js" defer></script>
+
+    <!-- Script principal -->
+    <script src="ocr.js" defer></script>
+    <script src="script.js" defer></script>
+    <script src="send.js" defer></script>
+</head>
+<body>
+    <!-- SPLASH DE ABERTURA -->
+    <section id="sc-splash" aria-label="Abertura do aplicativo">
+        <video
+            id="sc-splash-video"
+            class="sc-splash-video"
+            playsinline
+            preload="auto"
+            poster="logo.png"
+        >
+            <source src="abertura.mp4" type="video/mp4">
+        </video>
+        <div class="sc-splash-overlay" aria-hidden="true"></div>
+        <div class="sc-splash-content">
+            <div class="sc-splash-countdown" id="sc-splash-countdown">Pular em 5...</div>
+            <div class="sc-splash-actions">
+                <button class="sc-splash-btn sc-splash-skip" id="sc-splash-skip" type="button" disabled>
+                    Aguarde...
+                </button>
+                <button class="sc-splash-btn sc-splash-audio" id="sc-splash-audio" type="button">
+                    Ativar som
+                </button>
+            </div>
+            <div class="sc-splash-fallback" id="sc-splash-fallback" hidden>
+                Carregando abertura...
+            </div>
+        </div>
+    </section>
+
+    <!-- Emojis flutuantes -->
+    <div class="emoji-background" id="emojiContainer"></div>
+
+    <!-- TELA DE LOGIN -->
+    <section class="auth-screen" id="loginContainer" hidden>
+        <div class="auth-card">
+            <div class="auth-logo">
+                <img src="logo.png" alt="Logo Social Coletor">
+            </div>
+            <h1>Sistema De Coleta e Organização de Dados</h1>
+            <p class="auth-subtitle">Acesse para iniciar a coleta e organização dos registros.</p>
+
+            <form class="auth-form" id="loginForm">
+                <label for="loginUser">Usuário</label>
+                <input type="text" id="loginUser" placeholder="Digite o usuário" autocomplete="username">
+
+                <label for="loginPass">Senha</label>
+                <div class="password-field">
+                    <input type="password" id="loginPass" placeholder="Digite a senha" autocomplete="current-password">
+                    <button type="button" class="toggle-password" id="togglePassword" aria-label="Mostrar senha">
+                        👁️
+                    </button>
+                </div>
+
+                <div class="auth-remember">
+                    <input type="checkbox" id="loginRemember">
+                    <label for="loginRemember">Lembrar-me</label>
+                </div>
+
+                <button type="submit" class="btn btn-success">Entrar</button>
+                <p class="auth-error" id="loginError" hidden>Usuário ou senha inválidos.</p>
+            </form>
+        </div>
+    </section>
+
+    <!-- TELA INICIAL APÓS LOGIN -->
+    <section class="home-screen" id="homeContainer" hidden>
+        <div class="home-card">
+            <div class="home-header">
+                <img src="logo.png" alt="Logo Social Coletor">
+                <div>
+                    <h2>Bem-vindo ao Social Coletor</h2>
+                    <p>Escolha o fluxo que deseja acessar.</p>
+                </div>
+            </div>
+            <div class="home-actions">
+                <button type="button" class="btn btn-primary" id="btnGoCollect">Coletar</button>
+                <button type="button" class="btn btn-secondary" id="btnGoRecords">Dashboard</button>
+                
+                <!-- Botão Madruguinha - Chat -->
+                <!-- 
+                   Para trocar a imagem do avatar:
+                   1. Faça upload de uma imagem (ex: madruguinha.png) na pasta do projeto
+                   2. Altere o src abaixo para: src="madruguinha.png"
+                   3. Ou altere o emoji 🤖 para outro de sua preferência
+                -->
+                <div class="madruguinha-container">
+                    <button type="button" class="btn-madruguinha" id="btnGoMadruguinha" title="Falar com Madruguinha">
+                        <img src="madruguinha.png" alt="Madruguinha" class="madruguinha-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <span class="madruguinha-emoji" style="display:none;">🤖</span>
+                    </button>
+                    <span class="madruguinha-label">Madruguinha</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div id="appContainer" hidden>
+        <div class="logo-container">
+            <img src="logo.png" class="logo" alt="Logo Social Coletor">
+        </div>
+        <!-- Cabeçalho -->
+        <header class="header">
+            <p class="subtitle">Coletor de dados via imagem</p>
+        </header>
+
+        <!-- CONTAINER principal (todo o conteúdo do site fica aqui) -->
+        <div class="container">
+
+    <!-- Card Principal -->
+    <main class="main-card">
+
+        <!-- Seção de Captura de Imagem -->
+        <section class="capture-section">
+            <h2>📷 Capturar Documento</h2>
+            <p class="section-description">
+                Tire uma foto ou selecione uma imagem da galeria. O sistema extrairá automaticamente os dados usando IA.
+            </p>
+
+                
+                <div class="image-controls">
+                    <button id="captureBtn" class="btn btn-primary">
+                        📸 Tirar Foto
+                    </button>
+                    <button id="uploadBtn" class="btn btn-secondary">
+                        📁 Escolher da Galeria
+                    </button>
+                    <input type="file" id="fileInput" accept="image/*" hidden>
+                </div>
+
+                <!-- Preview da Imagem com Controles de Zoom -->
+                <div class="image-preview-container">
+                    <div class="image-controls-panel">
+                        <!-- Controles de Zoom -->
+                        <div class="zoom-controls">
+                            <button class="zoom-btn" id="zoomOut" title="Reduzir zoom">−</button>
+                            <span class="zoom-level" id="zoomLevel">100%</span>
+                            <button class="zoom-btn" id="zoomIn" title="Aumentar zoom">+</button>
+                            <button class="zoom-btn" id="resetZoom" title="Resetar zoom e posição">◎</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Container da Imagem com Zoom (IMPORTANTE: container fixo) -->
+                    <div class="image-zoom-wrapper" id="imageZoomWrapper">
+                        <div class="image-zoom-container" id="imageZoomContainer">
+                            <div class="image-placeholder" id="imagePlaceholder">
+                                <span>📄 Preview da imagem aparecerá aqui</span>
+                                <p class="placeholder-hint">Toque e arraste para mover • Pinça para zoom</p>
+                            </div>
+                            <div class="image-draggable-container" id="imageDraggableContainer">
+                                <img id="imagePreview" class="image-preview" alt="Preview da imagem capturada" hidden>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Barra de Progresso OCR -->
+                <div class="progress-container" id="progressContainer" hidden>
+                    <div class="progress-label" id="progressLabel">Processando OCR: 0%</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Botão Melhorar Foto REMOVIDO (agora automático) -->
+                <canvas id="enhanced-preview" style="display:none;"></canvas>
+            </section>
+
+            <!-- Seção do Formulário -->
+            <section class="form-section">
+                <h2>📋 Dados Extraídos</h2>
+                <p class="section-description">
+                    Confira e edite os dados extraídos automaticamente do documento.
+                </p>
+
+                <form id="dataForm" class="data-form">
+                    <div class="form-grid">
+                        <!-- Linha 1 -->
+                        <div class="form-group">
+                            <label for="beneficiario">Nome do Beneficiário *</label>
+                            <input type="text" id="beneficiario" name="beneficiario" required 
+                                   placeholder="Nome completo do beneficiário">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cpf">CPF *</label>
+                            <input type="text" id="cpf" name="cpf" required 
+                                   placeholder="000.000.000-00" maxlength="14">
+                        </div>
+
+                        <!-- Linha 2 -->
+                        <div class="form-group">
+                            <label for="atendente">Nome do Atendente *</label>
+                            <input type="text" id="atendente" name="atendente" required 
+                                   placeholder="Nome do atendente">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="produto">Produto *</label>
+                            <input type="text" id="produto" name="produto" required 
+                                   placeholder="Produto fornecido">
+                        </div>
+
+                        <!-- Linha 3 -->
+                        <div class="form-group">
+                            <label for="quantidade">Quantidade *</label>
+                            <input type="number" id="quantidade" name="quantidade" required 
+                                   placeholder="Quantidade" step="0.01" min="0">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="data">Data *</label>
+                            <input type="date" id="data" name="data" required>
+                        </div>
+
+                        <!-- Linha 4 - Endereço -->
+                        <div class="form-group full-width">
+                            <label for="endereco">Endereço *</label>
+                            <textarea id="endereco" name="endereco" required 
+                                      placeholder="Endereço completo" rows="2"></textarea>
+                        </div>
+
+                        <!-- Linha 5 -->
+                        <div class="form-group">
+                            <label for="assinatura">Assinatura</label>
+                            <input type="text" id="assinatura" name="assinatura" 
+                                   placeholder="OK (preenchido automaticamente)">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="numeroDocumento">Número do Documento *</label>
+                            <input type="text" id="numeroDocumento" name="numeroDocumento" required 
+                                   placeholder="000000/0000">
+                        </div>
+
+                        <!-- Linha 6 - Observações -->
+                        <div class="form-group full-width">
+                            <label for="observacoes">Observações</label>
+                            <textarea id="observacoes" name="observacoes" 
+                                      placeholder="Observações adicionais sobre o registro..." 
+                                      rows="2"></textarea>
+                            <small class="form-hint">Opcional: adicione informações relevantes</small>
+                        </div>
+                    </div>
+
+                    <!-- Botões de Ação -->
+                    <div class="form-actions">
+                        <!-- Botão Madruguinha (dentro da página de coleta) -->
+                        <!-- Para trocar a imagem: altere o src abaixo para o nome da sua imagem -->
+                        <div class="madruguinha-container" style="margin-top: 0;">
+                            <button type="button" class="btn-madruguinha" id="btnGoMadruguinhaCollect" title="Falar com Madruguinha">
+                                <img src="madruguinha.png" alt="Madruguinha" class="madruguinha-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <span class="madruguinha-emoji" style="display:none;">🤖</span>
+                            </button>
+                            <span class="madruguinha-label">Madruguinha</span>
+                        </div>
+                        
+                        <button type="button" id="clearBtn" class="btn btn-outline">
+                            🗑️ Limpar Tudo
+                        </button>
+                        <button type="submit" id="submitBtn" class="btn btn-success" disabled>
+                            📤 Enviar para Planilha
+                        </button>
+                       <!-- BOTÃO FIXO: VER PLANILHA -->
+                       <button
+                             type="button"
+                               id="viewSheetFixed"
+                               class="btn-view-sheet-fixed"
+                               title="Abrir dashboard"
+>
+                                     <svg class="icon-sheet" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                        </svg>
+                                              Dashboard
+</button>
+
+                    </div>
+                </form>
+            </section>
+        </div>
+
+            <!-- Botão de Instalação PWA (ANTES DO FOOTER) -->
+            <div id="installContainer" class="install-container" style="display: none;">
+                <div class="install-card">
+                    <div class="install-icon">📱</div>
+                    <div class="install-content">
+                        <h3>Instalar Social Coletor</h3>
+                        <p>Para melhor experiência, instale o app em seu dispositivo!</p>
+                        <button id="installBtn" class="btn-install">📥 Instalar Agora</button>
+                        <button class="btn-install-secondary" onclick="document.getElementById('installContainer').style.display='none'">
+                            Agora não
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Rodapé -->
+        <footer class="footer">
+            <p>Social Coletor v2.2 • PWA • OCR • Google Sheets Integration</p>
+            <p>Desenvolvido por • Godoy Solutions In TECH</p>
+        </footer>
+    </div>
+    </div>
+
+   
+
+    <!-- Script para emojis flutuantes e inicialização -->
+    <script>
+        // Cria emojis flutuantes
+        function criarEmojisFlutuantes() {
+            const container = document.getElementById('emojiContainer');
+            const emojis = [
+                '🍎', '🥫', '📦', '🧺', '🛒', '🎁', '🎮', '🧸', '🏀', '⚽',
+                '📚', '✏️', '🎨', '👕', '👖', '🧥', '🥾', '🛏️', '🧼', '🪣',
+                '💊', '🩹', '🥛', '🍞', '🥦', '🍗', '🥚', '🍚', '🫙', '🧴','🎄','🎄',
+               '🎄','🎄','🎄','🎄'
+            ];
+            
+            // Cria 25 emojis flutuantes
+            for (let i = 0; i < 25; i++) {
+                const emoji = document.createElement('div');
+                emoji.className = 'floating-emoji';
+                emoji.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                
+                // Posição aleatória
+                emoji.style.left = Math.random() * 100 + 'vw';
+                emoji.style.top = Math.random() * 100 + 'vh';
+                
+                // Duração e atraso aleatórios
+                const duration = 15 + Math.random() * 20;
+                const delay = Math.random() * 5;
+                emoji.style.animationDuration = duration + 's';
+                emoji.style.animationDelay = delay + 's';
+                
+                // Tamanho aleatório
+                const size = 20 + Math.random() * 30;
+                emoji.style.fontSize = size + 'px';
+                
+                container.appendChild(emoji);
+            }
+        }
+
+        // Inicialização
+        window.addEventListener('load', function() {
+            console.log('🌐 Tesseract carregado:', typeof Tesseract !== 'undefined');
+            
+            // Criar emojis flutuantes
+            criarEmojisFlutuantes();
+
+            // Registrar Service Worker (sempre buscar versão mais recente)
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/service-worker.js', { updateViaCache: 'none' })
+                    .then(function(registration) {
+                        console.log('✅ Service Worker registrado:', registration.scope);
+
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            if (!newWorker) return;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('🔄 Nova versão detectada. Atualizando...');
+                                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                }
+                            });
+                        });
+                    })
+                    .catch(function(error) {
+                        console.log('⚠️ Service Worker não registrado:', error);
+                    });
+            }
+        });
+    </script>
+
+    
+</body>
 </html>

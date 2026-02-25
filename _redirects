@@ -1,6 +1,3 @@
 # Redirects para o WebChat
 /chat                  /chat.html             200
 /chat/*               /chat.html             200
-
-# App Coletor (padrão)
-/*                   /index.html            200
