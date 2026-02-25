@@ -46,5 +46,4 @@ app.use((err, _req, res, _next) => {
 
 app.listen(port, () => {
   console.log(`[gateway] running on :${port}`);
-  console.log(`[gateway] CORS origin: ${corsOrigin}`);
 });
