@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { identifyUser, sendChat, uploadFile, sendAudio } from '../api.js';
-import { getAvatarUrl, getSentimentFromIntent, getSentimentFromStatus } from './avatarMap.js';
+import { getAvatarUrl, getSentimentFromIntent, getSentimentFromStatus } from '../avatarMap.js';
+import { speakText, createSpeechRecognizer, getSpeechSupport } from '../speechUtils.js';
+import PreviewCard from './PreviewCard.jsx';
 import './ChatWidget.css';
 
 // Constantes
 const MAX_MESSAGES_IN_MEMORY = 50;
-const GATEWAY_URL = 'https://godoy-ipx1800e2.tail582c99.ts.net';
-const GATEWAY_TOKEN = 'f851821668d9a9e2ee656b2e5b173f34836b5a58dc30c3dd01b84fceda91dbc0';
 
 // Utilitários
 function getSessionId() {
@@ -196,6 +196,13 @@ export default function ChatWidget() {
     autoVoice: localStorage.getItem('webchat-autoVoice') === 'true',
   });
   
+  // Preview Card state
+  const [previewCard, setPreviewCard] = useState(null); // { imageUrl, fields, doubtfulFields }
+  
+  // Speech state
+  const [speechSupported, setSpeechSupported] = useState({ stt: false, tts: false });
+  const [speaking, setSpeaking] = useState(false);
+  
   const logRef = useRef(null);
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -223,6 +230,11 @@ export default function ChatWidget() {
     localStorage.setItem('webchat-autoScroll', settings.autoScroll);
     localStorage.setItem('webchat-autoVoice', settings.autoVoice);
   }, [settings]);
+  
+  // Check speech support
+  useEffect(() => {
+    setSpeechSupported(getSpeechSupport());
+  }, []);
   
   // Funções auxiliares
   const append = useCallback((role, content, extra = {}) => {
@@ -312,15 +324,80 @@ export default function ChatWidget() {
       append('assistant', result.reply || '(sem resposta)', { status: 'success' });
       
       // TTS se solicitado ou auto-voice ligado
-      if (settings.autoVoice && result.reply) {
-        // TODO: Implementar TTS
-        console.log('TTS seria chamado aqui:', result.reply);
+      if (shouldSpeak(result.reply || '') && speechSupported.tts) {
+        await handleSpeak(result.reply);
       }
+      
+      // TODO: Detectar se o agente retornou campos para validação
+      // Se returned fields com baixa confiança, mostrar PreviewCard
+      // if (result.metadata?.needsValidation) {
+      //   showPreviewCard(result.metadata.imageUrl, result.metadata.fields, result.metadata.doubtfulFields);
+      // }
     } catch (err) {
       append('system', `Erro: ${err.message}`, { status: 'error' });
     } finally {
       setMessageLoading(false);
     }
+  }
+  
+  // Preview Card handlers
+  function showPreviewCard(imageUrl, fields, doubtfulFields = []) {
+    setPreviewCard({ imageUrl, fields, doubtfulFields });
+  }
+  
+  function hidePreviewCard() {
+    setPreviewCard(null);
+  }
+  
+  async function handlePreviewConfirm() {
+    if (!previewCard) return;
+    hidePreviewCard();
+    append('user', '✅ Dados confirmados');
+    // Continuar com o fluxo normal
+  }
+  
+  async function handlePreviewEdit() {
+    if (!previewCard) return;
+    hidePreviewCard();
+    append('user', '✏️ Vou editar os dados');
+    // TODO: Abrir modal de edição
+  }
+  
+  async function handlePreviewResend() {
+    if (!previewCard) return;
+    hidePreviewCard();
+    append('user', '🔄 Vou enviar uma nova foto');
+  }
+  
+  async function handlePreviewSkip() {
+    if (!previewCard) return;
+    hidePreviewCard();
+    append('user', '⏭️ Pular essa imagem');
+  }
+  
+  // TTS - Speak response
+  async function handleSpeak(text) {
+    if (!speechSupported.tts || speaking) return;
+    
+    try {
+      setSpeaking(true);
+      await speakText(text, { 
+        lang: 'pt-BR',
+        onEnd: () => setSpeaking(false)
+      });
+    } catch (err) {
+      console.error('TTS error:', err);
+      setSpeaking(false);
+    }
+  }
+  
+  // Check if user wants audio response
+  function shouldSpeak(text) {
+    const lower = text.toLowerCase();
+    return lower.includes('responde em áudio') || 
+           lower.includes('fala comigo') || 
+           lower.includes('me liga') ||
+           settings.autoVoice;
   }
   
   async function onSendText(e) {
@@ -477,6 +554,20 @@ export default function ChatWidget() {
             </div>
           )}
         </main>
+        
+        {/* PREVIEW CARD - Validation */}
+        {previewCard && (
+          <PreviewCard
+            imageUrl={previewCard.imageUrl}
+            extractedFields={previewCard.fields}
+            doubtfulFields={previewCard.doubtfulFields}
+            onConfirm={handlePreviewConfirm}
+            onEdit={handlePreviewEdit}
+            onResend={handlePreviewResend}
+            onSkip={handlePreviewSkip}
+            isProcessing={loading}
+          />
+        )}
         
         {/* INPUT */}
         <footer className="composer">
