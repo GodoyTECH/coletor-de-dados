@@ -2,13 +2,13 @@
 // Os avatares são servidos estáticos via Netlify (frontend/public/avatars/)
 
 export const avatarMap = {
-  neutral: '/avatars/madruguinha-neutral.svg',
-  happy: '/avatars/madruguinha-happy.svg',
-  serious: '/avatars/madruguinha-serious.svg',
-  thinking: '/avatars/madruguinha-thinking.svg',
-  warning: '/avatars/madruguinha-warning.svg',
-  success: '/avatars/madruguinha-success.svg',
-  error: '/avatars/madruguinha-error.svg',
+  neutral: '/avatars/madruga_neutro.png',
+  happy: '/avatars/madruga_sorriso.png',
+  serious: '/avatars/madruga_serio.png',
+  thinking: '/avatars/madruga_olhar_lado.png',
+  warning: '/avatars/madruga_joia.png',
+  success: '/avatars/madruga_sorriso_torto.png',
+  error: '/avatars/madruga_serio.png',
 };
 
 // Sentimentos baseados em intenção do usuário
