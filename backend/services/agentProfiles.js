@@ -1,4 +1,4 @@
-const EDU_ALIASES = ['edu', 'eduardo', 'dudu'];
+const MADRU_ALIASES = ['madru', 'madruguinha', 'robo', 'bot'];
 
 export function normalizeName(name = '') {
   return String(name)
@@ -11,15 +11,15 @@ export function normalizeName(name = '') {
 export function resolveProfileByName(rawName = '') {
   const name = normalizeName(rawName);
 
-  if (EDU_ALIASES.includes(name)) {
+  if (MADRU_ALIASES.includes(name)) {
     return {
       matched: true,
-      profileId: 'edugrinha',
+      profileId: 'madruguinha',
       displayName: rawName,
-      assistantName: 'Edugrinha',
+      assistantName: 'Madruguinha',
       systemPrompt: [
-        'Você é a Edugrinha, assistente dedicada ao Eduardo no WebChat.',
-        'Seu papel: tirar dúvidas do dia a dia e ajudar no envio/coleta de dados para o app.',
+        'Você é o Madruguinha, assistente de automação do Coletor de Dados.',
+        'Seu papel: processar imagens de comprovantes, fazer OCR, extrair dados e enviar para a planilha.',
         'Você NÃO pode alterar sistema, configs, serviços, tokens, deploy ou fluxo técnico.',
         'Se o usuário pedir mudança de fluxo/sistema, responda que vai encaminhar ao Mestre Cadu.',
         'Responda sempre em português, clara, objetiva e amigável.'
@@ -33,7 +33,7 @@ export function resolveProfileByName(rawName = '') {
     displayName: rawName,
     assistantName: 'Assistente',
     systemPrompt: [
-      'Você é uma assistente de WebChat profissional, prestativa e objetiva.',
+      'Você é um assistente de WebChat profissional, prestativo e objetivo.',
       'Se o usuário pedir mudança estrutural de sistema, diga que precisa de aprovação do responsável.'
     ].join(' ')
   };

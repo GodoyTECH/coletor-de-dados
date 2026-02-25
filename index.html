@@ -122,6 +122,21 @@
             <div class="home-actions">
                 <button type="button" class="btn btn-primary" id="btnGoCollect">Coletar</button>
                 <button type="button" class="btn btn-secondary" id="btnGoRecords">Dashboard</button>
+                
+                <!-- Botão Madruguinha - Chat -->
+                <!-- 
+                   Para trocar a imagem do avatar:
+                   1. Faça upload de uma imagem (ex: madruguinha.png) na pasta do projeto
+                   2. Altere o src abaixo para: src="madruguinha.png"
+                   3. Ou altere o emoji 🤖 para outro de sua preferência
+                -->
+                <div class="madruguinha-container">
+                    <button type="button" class="btn-madruguinha" id="btnGoMadruguinha" title="Falar com Madruguinha">
+                        <img src="madruguinha.png" alt="Madruguinha" class="madruguinha-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <span class="madruguinha-emoji" style="display:none;">🤖</span>
+                    </button>
+                    <span class="madruguinha-label">Madruguinha</span>
+                </div>
             </div>
         </div>
     </section>
