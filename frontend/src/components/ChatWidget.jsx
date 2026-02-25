@@ -150,10 +150,11 @@ export default function ChatWidget() {
       <div className="chat-shell">
         <header className="chat-header">
           <div className="chat-title">
-            <span className="badge" />
+            {/* Avatar do Madruguinha - colocar avatar.png na pasta public */}
+            <img src="/avatar.png" alt="Madruguinha" className="madruguinha-avatar" onError={(e) => e.target.style.display = 'none'} />
             <div>
-              <h1>WebChat Assistente</h1>
-              <div className="chat-sub">Rápido, responsivo e pronto para produção</div>
+              <h1>Madruguinha Faz! 🤖</h1>
+              <div className="chat-sub">Automação inteligente do Coletor de Dados</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

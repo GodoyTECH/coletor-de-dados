@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL;
+// URL da API - para produção use o Render
+const API_URL = import.meta.env.VITE_API_URL || 'https://coletor-de-dados-1.onrender.com';
 
 function ensureApiUrl() {
   if (!API_URL) throw new Error('VITE_API_URL não configurado');
