@@ -27,11 +27,13 @@ app.get('/health', (_req, res) => {
 app.use('/files', express.static(path.resolve(storagePath)));
 app.use('/agent', agentRoutes);
 
-// Servir frontend estático
-const frontendPath = path.resolve(__dirname, './frontend/dist');
-app.use(express.static(frontendPath));
+// API standalone - frontend no Netlify
 app.get('/', (_req, res) => {
-  res.sendFile(path.join(frontendPath, 'madruguinha.html'));
+  res.json({ 
+    ok: true, 
+    service: 'webchat-openclaw-gateway',
+    frontend: 'https://scoletor.netlify.app'
+  });
 });
 
 app.use((err, _req, res, _next) => {

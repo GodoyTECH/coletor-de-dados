@@ -192,7 +192,7 @@ window.location.href = PANEL_URL;
     if (elements.btnGoMadruguinha) {
         elements.btnGoMadruguinha.addEventListener('click', () => {
             // URL do WebChat do Madruguinha - ajustar conforme configuração
-            const madruguinhaChatUrl = 'https://coletor-de-dados-1.onrender.com/madruguinha.html';
+            const madruguinhaChatUrl = 'https://scoletor.netlify.app/madruguinha.html';
             window.open(madruguinhaChatUrl, '_blank');
         });
     }
