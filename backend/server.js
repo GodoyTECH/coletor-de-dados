@@ -23,10 +23,10 @@ app.use('/files', express.static(path.resolve(storagePath)));
 app.use('/agent', agentRoutes);
 
 // Servir frontend estático
-const frontendPath = path.resolve('../frontend/dist');
+const frontendPath = path.resolve(__dirname, './frontend/dist');
 app.use(express.static(frontendPath));
 app.get('/', (_req, res) => {
-  res.sendFile(path.join(frontendPath, 'index.html'));
+  res.sendFile(path.join(frontendPath, 'madruguinha.html'));
 });
 
 app.use((err, _req, res, _next) => {
