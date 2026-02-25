@@ -107,6 +107,7 @@ function setupElements() {
         btnGoCollect: document.getElementById('btnGoCollect'),
         btnGoRecords: document.getElementById('btnGoRecords'),
         btnGoMadruguinha: document.getElementById('btnGoMadruguinha'),
+        btnGoMadruguinhaCollect: document.getElementById('btnGoMadruguinhaCollect'),
         
         // PWA Install
         installBtn: document.getElementById('installBtn'),
@@ -191,7 +192,15 @@ window.location.href = PANEL_URL;
     if (elements.btnGoMadruguinha) {
         elements.btnGoMadruguinha.addEventListener('click', () => {
             // URL do WebChat do Madruguinha - ajustar conforme configuração
-            const madruguinhaChatUrl = 'https://coletor-de-dados-1.onrender.com/chat?agent=madruguinha';
+            const madruguinhaChatUrl = 'https://coletor-de-dados-1.onrender.com/madruguinha.html';
+            window.open(madruguinhaChatUrl, '_blank');
+        });
+    }
+
+    // Botão Madruguinha na página de coleta
+    if (elements.btnGoMadruguinhaCollect) {
+        elements.btnGoMadruguinhaCollect.addEventListener('click', () => {
+            const madruguinhaChatUrl = 'https://coletor-de-dados-1.onrender.com/madruguinha.html';
             window.open(madruguinhaChatUrl, '_blank');
         });
     }
