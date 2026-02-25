@@ -1,0 +1,6 @@
+# Redirects para o WebChat
+/chat                    /frontend/dist/index.html   200
+/chat/*                 /frontend/dist/index.html   200
+
+# SPA redirect (mantém o app original funcionando)
+/*                     /index.html                 200
