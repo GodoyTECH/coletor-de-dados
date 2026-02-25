@@ -16,18 +16,10 @@ const app = express();
 const port = Number(process.env.PORT || 8080);
 const storagePath = ensureStoragePath();
 
-const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
-// Aceita tanto com ou sem barra no final
-const allowedOrigins = corsOrigin.split(',').map(o => o.trim());
+// CORS - permitir todos por enquanto (depois restringir)
 app.use(cors({
-  origin: (origin, callback) => {
-    // Permite requisições sem origin (como Postman) ou origins permitidas
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  }
+  origin: true,
+  credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
 
