@@ -1,6 +1,11 @@
-# Redirects para o WebChat
-/chat                    /frontend/dist/index.html   200
-/chat/*                 /frontend/dist/index.html   200
+# WebChat - Redirects
+/chat                  /frontend/dist/index.html   200
+/chat/*               /frontend/dist/index.html   200
 
-# SPA redirect (mantém o app original funcionando)
-/*                     /index.html                 200
+# Assets - NÃO redirecionar
+/assets/*             /frontend/dist/assets/:splat  200
+/*.js                 /frontend/dist/:splat        200
+/*.css                /frontend/dist/:splat        200
+
+# SPA redirect - por último (mantém o app original funcionando)
+/*                   /index.html                   200

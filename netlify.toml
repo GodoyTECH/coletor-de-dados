@@ -11,3 +11,8 @@
   from = "/chat/*"
   to = "/frontend/dist/index.html"
   status = 200
+
+[[redirects]]
+  from = "/assets/*"
+  to = "/frontend/dist/assets/:splat"
+  status = 200
