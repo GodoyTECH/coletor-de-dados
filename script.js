@@ -188,11 +188,10 @@ window.location.href = PANEL_URL;
         });
     }
 
-    // Botão Madruguinha - abre o chat em nova aba
+    // Botão Madruguinha - abre o chat em nova aba (página inicial)
     if (elements.btnGoMadruguinha) {
         elements.btnGoMadruguinha.addEventListener('click', () => {
-            // URL do WebChat do Madruguinha - ajustar conforme configuração
-            const madruguinhaChatUrl = 'https://scoletor.netlify.app/madruguinha.html';
+            const madruguinhaChatUrl = 'https://scoletor.netlify.app/chat';
             window.open(madruguinhaChatUrl, '_blank');
         });
     }
@@ -200,7 +199,7 @@ window.location.href = PANEL_URL;
     // Botão Madruguinha na página de coleta
     if (elements.btnGoMadruguinhaCollect) {
         elements.btnGoMadruguinhaCollect.addEventListener('click', () => {
-            const madruguinhaChatUrl = 'https://coletor-de-dados-1.onrender.com/madruguinha.html';
+            const madruguinhaChatUrl = 'https://scoletor.netlify.app/chat';
             window.open(madruguinhaChatUrl, '_blank');
         });
     }
