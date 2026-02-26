@@ -33,12 +33,22 @@ if (fs.existsSync(srcAssets)) {
   console.log('✅ Assets copied');
 } else {
   console.log('⚠️ No assets dir in dist-chat, checking root...');
-  // Maybe assets are in root of dist-chat
-  const files = fs.readdirSync(distChatDir);
-  console.log('Files in dist-chat:', files);
 }
 
-// 2. Copiar index.html -> ./chat.html
+// 2. Copiar avatares PNG -> ./avatars/
+const srcAvatars = path.join(rootDir, 'frontend/public/avatars');
+const destAvatars = path.join(rootDir, 'avatars');
+
+if (fs.existsSync(srcAvatars)) {
+  console.log('📁 Copying avatars...');
+  if (fs.existsSync(destAvatars)) {
+    fs.rmSync(destAvatars, { recursive: true });
+  }
+  fs.cpSync(srcAvatars, destAvatars, { recursive: true });
+  console.log('✅ Avatars copied');
+}
+
+// 3. Copiar index.html -> ./chat.html
 const srcIndex = path.join(distChatDir, 'index.html');
 const destChat = path.join(rootDir, 'chat.html');
 

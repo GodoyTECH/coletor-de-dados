@@ -184,7 +184,17 @@ function AudioPlayer({ src }) {
 // MAIN COMPONENT
 export default function ChatWidget() {
   const sessionId = useMemo(() => getSessionId(), []);
-  const [messages, setMessages] = useState([]);
+  
+  // Carregar mensagens do localStorage ao iniciar
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`chat:messages:${sessionId}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  
   const [name, setName] = useState(() => localStorage.getItem('webchat-user-name') || '');
   const [identified, setIdentified] = useState(() => !!localStorage.getItem('webchat-user-name'));
   const [text, setText] = useState('');
@@ -233,6 +243,15 @@ export default function ChatWidget() {
     localStorage.setItem('webchat-autoScroll', settings.autoScroll);
     localStorage.setItem('webchat-autoVoice', settings.autoVoice);
   }, [settings]);
+  
+  // Salvar mensagens no localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(`chat:messages:${sessionId}`, JSON.stringify(messages));
+    } catch (e) {
+      console.warn('Failed to save messages:', e);
+    }
+  }, [messages, sessionId]);
   
   // Check speech support
   useEffect(() => {
@@ -490,6 +509,8 @@ export default function ChatWidget() {
       setMessages([]);
       setImageQueue([]);
       setSentiment('neutral');
+      // Limpar localStorage
+      localStorage.removeItem(`chat:messages:${sessionId}`);
     }
   }
   
