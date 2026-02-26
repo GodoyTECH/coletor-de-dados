@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build:chat": "cd frontend && npm run build",
+    "build:chat": "cd frontend && npm ci && npm run build",
     "postbuild:chat": "node scripts/sync-chat-build.mjs",
     "build": "npm run build:chat && npm run postbuild:chat"
   }
