@@ -8,6 +8,9 @@ import './ChatWidget.css';
 // Constantes
 const MAX_MESSAGES_IN_MEMORY = 50;
 
+// Build ID - substituído pelo Netlify no build
+const BUILD_ID = "__BUILD_ID__";
+
 // Utilitários
 function getSessionId() {
   const key = 'webchat-session-id';
@@ -506,6 +509,9 @@ export default function ChatWidget() {
               <h1>Madruguinha</h1>
               <div className="chat-sub">
                 <span className="status-dot online"></span> Online
+                {BUILD_ID !== "__BUILD_ID__" && (
+                  <span className="build-id" title="Build ID"> ⚙️</span>
+                )}
               </div>
             </div>
           </div>

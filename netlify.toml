@@ -2,14 +2,28 @@
   command = "npm run build"
   publish = "."
 
+# Cache only for hashed assets (they have contenthash in name)
 [[headers]]
-  for = "/*"
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# No-cache for chat.html to avoid stale versions
+[[headers]]
+  for = "/chat.html"
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
     Pragma = "no-cache"
     Expires = "0"
 
+# No-cache for index.html (app principal)
 [[headers]]
   for = "/index.html"
   [headers.values]
     Cache-Control = "no-cache"
+
+# Everything else (static assets without hash)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"

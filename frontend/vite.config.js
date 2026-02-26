@@ -5,6 +5,9 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   base: '/',
+  define: {
+    '__BUILD_ID__': JSON.stringify(process.env.COMMIT_REF || process.env.BUILD_ID || 'dev')
+  },
   build: {
     outDir: '../../dist-chat',
     emptyOutDir: true,
