@@ -1,3 +1,0 @@
-# Redirects para o WebChat
-/chat                  /chat.html             200
-/chat/*               /chat.html             200
