@@ -7,8 +7,10 @@
     "build:chat": "cd frontend && npm install && npm run build",
     "postbuild:chat": "node scripts/sync-chat-build.mjs",
     "build": "npm run check:netlify && npm run build:chat && npm run postbuild:chat"
+
   },
   "engines": {
     "node": ">=22"
+
   }
 }
