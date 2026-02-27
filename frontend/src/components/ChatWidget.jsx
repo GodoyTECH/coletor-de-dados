@@ -68,7 +68,7 @@ function ImageQueue({ files, onRemove, onSend }) {
 }
 
 // Componente de Mensagem
-function MessageBubble({ message, sentiment }) {
+function MessageBubble({ message, sentiment, onCopy }) {
   const time = new Date(message.timestamp || Date.now()).toLocaleTimeString('pt-BR', { 
     hour: '2-digit', 
     minute: '2-digit' 
@@ -77,6 +77,10 @@ function MessageBubble({ message, sentiment }) {
   const isUser = message.role === 'user';
   const isTranscribed = message.isTranscribed;
   
+  const handleCopy = () => {
+    if (onCopy) onCopy(message.content);
+  };
+  
   return (
     <div className={`row ${message.role}`}>
       {!isUser && <Avatar sentiment={sentiment} size="small" />}
@@ -84,7 +88,7 @@ function MessageBubble({ message, sentiment }) {
         {!isUser && <span className="avatar-name">Madruguinha</span>}
         <div className={`bubble ${message.role} ${message.status || ''}`}>
           {isTranscribed && <span className="transcribed-tag">🎤 Transcrito</span>}
-          {message.content}
+          <div className="message-content">{message.content}</div>
           {message.attachments && message.attachments.map((att, i) => (
             <div key={i} className="attachment-preview">
               <img src={att.fileUrl} alt={att.name} />
@@ -95,6 +99,7 @@ function MessageBubble({ message, sentiment }) {
           <span className="time">{time}</span>
           {message.status === 'sending' && <span className="status">enviando...</span>}
           {message.status === 'error' && <span className="status error">erro</span>}
+          {isUser && <button className="copy-btn" onClick={handleCopy} title="Copiar">📋</button>}
         </div>
       </div>
       {isUser && <div className="user-avatar">🧑</div>}
@@ -215,9 +220,23 @@ export default function ChatWidget() {
   // Speech state
   const [speechSupported, setSpeechSupported] = useState({ stt: false, tts: false });
   const [speaking, setSpeaking] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  
+  // Check connection status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
   
   const logRef = useRef(null);
   const fileInputRef = useRef(null);
+  const textInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   
@@ -283,6 +302,14 @@ export default function ChatWidget() {
   };
   
   // Handlers
+  const handleCopyMessage = useCallback((text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      append('system', '📋 Mensagem copiada!');
+    }).catch(() => {
+      // Silencioso
+    });
+  }, [append]);
+  
   async function onIdentify(e) {
     e.preventDefault();
     const n = name.trim();
@@ -438,6 +465,7 @@ export default function ChatWidget() {
     
     await sendMessageWithImages(msg, files);
     setImageQueue([]);
+    textInputRef.current?.focus();
   }
   
   // Handler para selecionar arquivos
@@ -529,8 +557,9 @@ export default function ChatWidget() {
             <div>
               <h1>Madruguinha</h1>
               <div className="chat-sub">
-                <span className="status-dot online"></span> Online
-                {BUILD_ID !== "__BUILD_ID__" && (
+                <span className={`status-dot ${isOnline ? 'online' : 'offline'}`}></span>
+                {isOnline ? 'Online' : 'Offline'}
+                {Build_ID !== "__BUILD_ID__" && (
                   <span className="build-id" title="Build ID"> ⚙️</span>
                 )}
               </div>
@@ -566,7 +595,8 @@ export default function ChatWidget() {
             <MessageBubble 
               key={i} 
               message={m} 
-              sentiment={m.role === 'assistant' ? sentiment : 'neutral'} 
+              sentiment={m.role === 'assistant' ? sentiment : 'neutral'}
+              onCopy={m.role === 'user' ? handleCopyMessage : null}
             />
           ))}
           {loading && (
@@ -640,6 +670,7 @@ export default function ChatWidget() {
                 />
                 
                 <textarea
+                  ref={textInputRef}
                   className="input"
                   value={text}
                   onChange={(e) => setText(e.target.value)}

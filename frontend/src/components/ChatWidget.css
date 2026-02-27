@@ -124,6 +124,16 @@ html, body, #root {
   box-shadow: 0 0 8px var(--success);
 }
 
+.status-dot.offline {
+  background: var(--error);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .header-actions {
   display: flex;
   gap: 8px;
@@ -294,10 +304,25 @@ html, body, #root {
   font-size: 10px;
   color: var(--text-muted);
   margin: 0 8px;
+  align-items: center;
 }
 
 .message-meta .status.error {
   color: var(--error);
+}
+
+.copy-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+  padding: 2px;
+}
+
+.copy-btn:hover {
+  opacity: 1;
 }
 
 /* Transcribed Tag */
