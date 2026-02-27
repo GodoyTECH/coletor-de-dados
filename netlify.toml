@@ -1,8 +1,7 @@
 [build]
-  command = "cd frontend && npm install && npm run build"
-  publish = "../dist-chat"
+  command = "npm run build"
+  publish = "."
+  functions = "netlify/functions"
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+[build.environment]
+  NODE_VERSION = "22"
