@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "check:netlify": "node scripts/check-netlify-config.mjs",
     "build:chat": "cd frontend && npm install && npm run build",
     "postbuild:chat": "node scripts/sync-chat-build.mjs",
-    "build": "npm run build:chat && npm run postbuild:chat"
+    "build": "npm run check:netlify && npm run build:chat && npm run postbuild:chat"
   }
 }
