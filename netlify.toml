@@ -1,8 +1,12 @@
 [build]
-  command = "cd frontend && npm install && npm run build"
-  publish = "../dist-chat"
+  publish = "."
 
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/chat"
+  to = "/chat.html"
+  status = 200
+
+[[redirects]]
+  from = "/chat/*"
+  to = "/chat.html"
   status = 200
