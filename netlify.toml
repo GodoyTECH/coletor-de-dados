@@ -4,14 +4,12 @@
   functions = "netlify/functions"
 
 [build.environment]
-  NODE_VERSION = "22"
 
-[[redirects]]
-  from = "/chat"
-  to = "/chat.html"
-  status = 200
 
 [[redirects]]
   from = "/chat/*"
   to = "/chat.html"
   status = 200
+
+  NODE_VERSION = "22"
+
