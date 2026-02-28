@@ -11,6 +11,45 @@ const MAX_MESSAGES_IN_MEMORY = 50;
 // Build ID - substituído pelo Netlify no build
 const BUILD_ID = "__BUILD_ID__";
 
+const CRITICAL_FIELDS = ['beneficiario', 'cpf', 'produto', 'quantidade', 'data'];
+const PRODUCT_HINTS = [
+  'cesta', 'emergencial', 'fralda', 'roupa', 'alimento', 'kit', 'higiene', 'leite', 'medicamento'
+];
+
+function normalizeText(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function buildValidationFlags(fields = {}) {
+  const doubtful = new Set();
+
+  for (const key of CRITICAL_FIELDS) {
+    const value = String(fields?.[key] ?? '').trim();
+    if (!value) doubtful.add(key);
+  }
+
+  const product = normalizeText(fields?.produto || '');
+  if (product && !PRODUCT_HINTS.some((hint) => product.includes(hint))) {
+    doubtful.add('produto');
+  }
+
+  const quantity = Number(String(fields?.quantidade ?? '').replace(',', '.'));
+  if (fields?.quantidade && (Number.isNaN(quantity) || quantity <= 0 || quantity > 9999)) {
+    doubtful.add('quantidade');
+  }
+
+  const cpf = String(fields?.cpf ?? '').replace(/\D/g, '');
+  if (fields?.cpf && cpf.length !== 11) {
+    doubtful.add('cpf');
+  }
+
+  return Array.from(doubtful);
+}
+
 // Utilitários
 function getSessionId() {
   const key = 'webchat-session-id';
@@ -68,7 +107,7 @@ function ImageQueue({ files, onRemove, onSend }) {
 }
 
 // Componente de Mensagem
-function MessageBubble({ message, sentiment, onCopy }) {
+function MessageBubble({ message, sentiment, onCopy, onAttachmentClick }) {
   const time = new Date(message.timestamp || Date.now()).toLocaleTimeString('pt-BR', { 
     hour: '2-digit', 
     minute: '2-digit' 
@@ -91,7 +130,12 @@ function MessageBubble({ message, sentiment, onCopy }) {
           <div className="message-content">{message.content}</div>
           {message.attachments && message.attachments.map((att, i) => (
             <div key={i} className="attachment-preview">
-              <img src={att.fileUrl} alt={att.name} />
+              <img
+                src={att.fileUrl}
+                alt={att.name}
+                onClick={() => onAttachmentClick?.(att.fileUrl, att.name)}
+                title="Clique para ampliar"
+              />
             </div>
           ))}
         </div>
@@ -206,6 +250,15 @@ export default function ChatWidget() {
   const [loading, setLoading] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('webchat-theme') || 'dark');
   const [sentiment, setSentiment] = useState('neutral');
+  const [chatState, setChatState] = useState(() => localStorage.getItem('chat-state') || 'open');
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [bubblePosition, setBubblePosition] = useState(() => {
+    const saved = localStorage.getItem('chat-bubble-position');
+    return saved ? JSON.parse(saved) : { x: null, y: null };
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const [showDiscardArea, setShowDiscardArea] = useState(false);
+  const [showPanel, setShowPanel] = useState(false); // Split view with panel
   const [imageQueue, setImageQueue] = useState([]);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [settings, setSettings] = useState({
@@ -216,6 +269,7 @@ export default function ChatWidget() {
   
   // Preview Card state
   const [previewCard, setPreviewCard] = useState(null); // { imageUrl, fields, doubtfulFields }
+  const [expandedImage, setExpandedImage] = useState(null); // { url, name }
   
   // Speech state
   const [speechSupported, setSpeechSupported] = useState({ stt: false, tts: false });
@@ -262,6 +316,26 @@ export default function ChatWidget() {
     localStorage.setItem('webchat-autoScroll', settings.autoScroll);
     localStorage.setItem('webchat-autoVoice', settings.autoVoice);
   }, [settings]);
+
+  // PWA Install Prompt
+  useEffect(() => {
+    const handleBeforeInstall = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
+
+  // Salvar estado do chat (open/minimized)
+  useEffect(() => {
+    localStorage.setItem('chat-state', chatState);
+  }, [chatState]);
+
+  // Salvar posição da bolinha
+  useEffect(() => {
+    localStorage.setItem('chat-bubble-position', JSON.stringify(bubblePosition));
+  }, [bubblePosition]);
   
   // Salvar mensagens no localStorage
   useEffect(() => {
@@ -336,9 +410,16 @@ export default function ChatWidget() {
     
     for (let i = 0; i < attachments.length; i++) {
       setUploadProgress({ current: i + 1, total: totalImages, status: 'uploading' });
-      
+
       try {
-        const uploaded = await uploadFile(attachments[i]);
+        const candidate = attachments[i];
+        const file = candidate?.file instanceof File ? candidate.file : candidate;
+
+        if (!(file instanceof File)) {
+          throw new Error('anexo inválido (esperado File)');
+        }
+
+        const uploaded = await uploadFile(file);
         uploadedAttachments.push({
           fileUrl: uploaded.fileUrl,
           name: uploaded.originalName,
@@ -359,29 +440,74 @@ export default function ChatWidget() {
     setUploadProgress({ current: totalImages, total: totalImages, status: 'processing' });
     
     try {
-      const result = await sendChat({ 
-        sessionId, 
-        message: msgText || 'Processar imagens anexadas',
-        attachments: uploadedAttachments,
-        name 
-      });
-      
-      // Detectar sentimento da resposta
-      const newSentiment = getSentimentFromIntent(result.reply || '');
-      setSentiment(newSentiment);
-      
-      append('assistant', result.reply || '(sem resposta)', { status: 'success' });
-      
-      // TTS se solicitado ou auto-voice ligado
-      if (shouldSpeak(result.reply || '') && speechSupported.tts) {
-        await handleSpeak(result.reply);
+      const normalizedMessage = msgText || 'Processar imagem anexada';
+
+      if (uploadedAttachments.length <= 1) {
+        const result = await sendChat({
+          sessionId,
+          message: normalizedMessage,
+          attachments: uploadedAttachments,
+          name
+        });
+
+        const newSentiment = getSentimentFromIntent(result.reply || '');
+        setSentiment(newSentiment);
+
+        append('assistant', result.reply || '(sem resposta)', { status: 'success' });
+
+        if (shouldSpeak(result.reply || '') && speechSupported.tts) {
+          await handleSpeak(result.reply);
+        }
+
+        if (result?.metadata?.fields) {
+          const autoFlags = buildValidationFlags(result.metadata.fields);
+          const doubtfulFields = Array.from(new Set([...(result.metadata.doubtfulFields || []), ...autoFlags]));
+          const mustValidate = Boolean(result?.metadata?.needsValidation) || doubtfulFields.length > 0;
+
+          if (mustValidate) {
+            showPreviewCard(
+              result.metadata.imageUrl || uploadedAttachments?.[0]?.fileUrl || null,
+              result.metadata.fields,
+              doubtfulFields
+            );
+          }
+        }
+      } else {
+        for (let i = 0; i < uploadedAttachments.length; i++) {
+          const att = uploadedAttachments[i];
+          setUploadProgress({ current: i + 1, total: uploadedAttachments.length, status: 'processing' });
+
+          const result = await sendChat({
+            sessionId,
+            message: `${normalizedMessage}\n[imagem ${i + 1}/${uploadedAttachments.length}]`,
+            attachments: [att],
+            name
+          });
+
+          const newSentiment = getSentimentFromIntent(result.reply || '');
+          setSentiment(newSentiment);
+
+          append('assistant', `📄 Imagem ${i + 1}/${uploadedAttachments.length}:\n${result.reply || '(sem resposta)'}`, { status: 'success' });
+
+          if (i === 0 && shouldSpeak(result.reply || '') && speechSupported.tts) {
+            await handleSpeak(result.reply);
+          }
+
+          if (result?.metadata?.fields) {
+            const autoFlags = buildValidationFlags(result.metadata.fields);
+            const doubtfulFields = Array.from(new Set([...(result.metadata.doubtfulFields || []), ...autoFlags]));
+            const mustValidate = Boolean(result?.metadata?.needsValidation) || doubtfulFields.length > 0;
+
+            if (mustValidate) {
+              showPreviewCard(
+                result.metadata.imageUrl || att.fileUrl || null,
+                result.metadata.fields,
+                doubtfulFields
+              );
+            }
+          }
+        }
       }
-      
-      // TODO: Detectar se o agente retornou campos para validação
-      // Se returned fields com baixa confiança, mostrar PreviewCard
-      // if (result.metadata?.needsValidation) {
-      //   showPreviewCard(result.metadata.imageUrl, result.metadata.fields, result.metadata.doubtfulFields);
-      // }
     } catch (err) {
       append('system', `Erro: ${err.message}`, { status: 'error' });
     } finally {
@@ -463,7 +589,7 @@ export default function ChatWidget() {
     setText('');
     append('user', msg, { attachments: files.map(f => ({ fileUrl: f.preview, name: f.name })) });
     
-    await sendMessageWithImages(msg, files);
+    await sendMessageWithImages(msg, files.map(f => f.file));
     setImageQueue([]);
     textInputRef.current?.focus();
   }
@@ -546,10 +672,105 @@ export default function ChatWidget() {
   function toggleSetting(key) {
     setSettings(prev => ({ ...prev, [key]: !prev[key] }));
   }
+
+  // Toggle chat minimized
+  function toggleChatState() {
+    setChatState(prev => prev === 'open' ? 'minimized' : 'open');
+  }
+
+  // Toggle split view with panel
+  function togglePanelView() {
+    if (showPanel) {
+      setShowPanel(false);
+    } else {
+      setShowPanel(true);
+      setChatState('open');
+    }
+  }
+
+  // Drag handlers for bubble
+  function handleBubbleDragStart(e) {
+    setIsDragging(true);
+    setShowDiscardArea(true);
+  }
+
+  function handleBubbleDrag(e) {
+    if (!isDragging) return;
+    const x = e.clientX || e.touches?.[0]?.clientX;
+    const y = e.clientY || e.touches?.[0]?.clientY;
+    setBubblePosition({ x, y });
+  }
+
+  function handleBubbleDragEnd(e) {
+    if (!isDragging) return;
+    setIsDragging(false);
+    
+    // Check if dropped in discard area (bottom center of screen)
+    const discardY = window.innerHeight - 100;
+    const discardX = window.innerWidth / 2;
+    const x = bubblePosition.x || e.clientX;
+    const y = bubblePosition.y || e.clientY;
+    
+    // If dropped in the "X" area (bottom center)
+    if (y > discardY - 50 && Math.abs(x - discardX) < 80) {
+      setChatState('closed');
+      setBubblePosition({ x: null, y: null });
+    }
+    
+    setShowDiscardArea(false);
+  }
+
+  // Install PWA
+  async function handleInstall() {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  }
   
   return (
-    <div className={`chat-page ${theme}`}>
-      <div className="chat-shell">
+    <div className={`chat-page ${theme} ${chatState} ${showPanel ? 'with-panel' : ''}`}>
+      {/* Discard Area - show when dragging */}
+      {showDiscardArea && (
+        <div className="discard-area">
+          <span className="discard-x">✕</span>
+          <span className="discard-text">Arraste aqui para fechar</span>
+        </div>
+      )}
+      
+      {chatState === 'closed' ? (
+        <button
+          className="chat-reopen"
+          onClick={() => setChatState('open')}
+          aria-label="Reabrir chat"
+          title="Reabrir chat"
+        >
+          💬
+        </button>
+      ) : chatState === 'minimized' ? (
+        // Bolinha flutuante
+        <button 
+          className="chat-bubble" 
+          onClick={toggleChatState}
+          onPointerDown={handleBubbleDragStart}
+          onPointerMove={handleBubbleDrag}
+          onPointerUp={handleBubbleDragEnd}
+          onPointerLeave={handleBubbleDragEnd}
+          style={bubblePosition.x !== null ? { 
+            position: 'fixed', 
+            right: 'auto', 
+            left: bubblePosition.x - 30, 
+            top: bubblePosition.y - 30 
+          } : {}}
+          aria-label="Abrir chat"
+        >
+          <Avatar sentiment={sentiment} />
+        </button>
+      ) : (
+        <div className="chat-container">
+          <div className="chat-shell">
         {/* HEADER */}
         <header className="chat-header">
           <div className="chat-title">
@@ -559,13 +780,57 @@ export default function ChatWidget() {
               <div className="chat-sub">
                 <span className={`status-dot ${isOnline ? 'online' : 'offline'}`}></span>
                 {isOnline ? 'Online' : 'Offline'}
-                {Build_ID !== "__BUILD_ID__" && (
+                {BUILD_ID !== "__BUILD_ID__" && (
                   <span className="build-id" title="Build ID"> ⚙️</span>
                 )}
               </div>
             </div>
           </div>
           <div className="header-actions">
+            <button 
+              className="btn-icon"
+              onClick={() => window.open('/', '_self')}
+              title="Abrir Coletor"
+            >
+              🏠
+            </button>
+            <button 
+              className="btn-icon"
+              onClick={togglePanelView}
+              title="Abrir Painel"
+            >
+              📊
+            </button>
+            <button 
+              className="btn-icon"
+              onClick={() => window.open('/painel.html', '_blank')}
+              title="Abrir Painel em nova janela"
+            >
+              ↗️
+            </button>
+            {installPrompt && (
+              <button 
+                className="btn-icon"
+                onClick={handleInstall}
+                title="Instalar App"
+              >
+                📲
+              </button>
+            )}
+            <button 
+              className="btn-icon"
+              onClick={toggleChatState}
+              title={chatState === 'open' ? 'Minimizar' : 'Maximizar'}
+            >
+              {chatState === 'open' ? '➖' : '⬆️'}
+            </button>
+            <button 
+              className={`btn-icon ${settings.autoVoice ? 'active' : ''}`}
+              onClick={() => toggleSetting('autoVoice')}
+              title="Resposta em áudio"
+            >
+              {settings.autoVoice ? '🗣️' : '🔈'}
+            </button>
             <button 
               className={`btn-icon ${settings.sound ? 'active' : ''}`}
               onClick={() => toggleSetting('sound')}
@@ -597,6 +862,7 @@ export default function ChatWidget() {
               message={m} 
               sentiment={m.role === 'assistant' ? sentiment : 'neutral'}
               onCopy={m.role === 'user' ? handleCopyMessage : null}
+              onAttachmentClick={(url, name) => setExpandedImage({ url, name })}
             />
           ))}
           {loading && (
@@ -698,6 +964,33 @@ export default function ChatWidget() {
           )}
         </footer>
       </div>
+      
+      {/* Split View: Painel Iframe */}
+      {showPanel && (
+        <div className="panel-iframe-container">
+          <div className="panel-header">
+            <span>Painel Admin</span>
+            <button onClick={() => setShowPanel(false)} className="close-panel-btn">✕</button>
+          </div>
+          <iframe 
+            src="/painel.html" 
+            title="Painel Admin"
+            className="panel-iframe"
+          />
+        </div>
+      )}
+    </div>
+      )}
+
+      {expandedImage && (
+        <div className="image-lightbox" onClick={() => setExpandedImage(null)}>
+          <div className="image-lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <button className="image-lightbox-close" onClick={() => setExpandedImage(null)}>✕</button>
+            <img src={expandedImage.url} alt={expandedImage.name || 'imagem ampliada'} />
+            <div className="image-lightbox-caption">{expandedImage.name || 'Imagem anexada'}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,0 +1,20 @@
+{
+  "name": "Madruguinha Faz",
+  "short_name": "Madruguinha",
+  "start_url": "/chat.html",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#0f0f0f",
+  "icons": [
+    {
+      "src": "/avatars/madruga_neutro.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/avatars/madruga_neutro.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
