@@ -1,6 +1,10 @@
 [build]
+  command = "npm run build"
   publish = "."
-  functions = ".netlify/functions"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "22"
 
 [[redirects]]
   from = "/chat"
