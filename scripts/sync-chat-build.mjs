@@ -61,6 +61,17 @@ if (fs.existsSync(srcIndex)) {
   process.exit(1);
 }
 
+// 4. Copiar artefatos PWA do chat (se existirem)
+const pwaFiles = ['manifest-chat.webmanifest', 'sw-chat.js'];
+for (const file of pwaFiles) {
+  const src = path.join(distChatDir, file);
+  const dest = path.join(rootDir, file);
+  if (fs.existsSync(src)) {
+    fs.copyFileSync(src, dest);
+    console.log(`✅ ${file} copied`);
+  }
+}
+
 // Verificar o conteúdo do chat.html
 const chatHtml = fs.readFileSync(destChat, 'utf-8');
 const scriptMatch = chatHtml.match(/<script[^>]+src="([^"]+)"/);

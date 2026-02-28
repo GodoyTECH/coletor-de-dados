@@ -5,5 +5,11 @@
 
 [build.environment]
 
+
+[[redirects]]
+  from = "/chat/*"
+  to = "/chat.html"
+  status = 200
+
   NODE_VERSION = "22"
 
