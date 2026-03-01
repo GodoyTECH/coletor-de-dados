@@ -69,14 +69,3 @@ export async function submitValidated({ sessionId, fields, force = false }) {
   if (!res.ok) return parseApiError(res, 'submit failed');
   return res.json();
 }
-
-export async function auditProducts({ rows }) {
-  ensureApiUrl();
-  const res = await fetch(`${API_URL}/agent/audit-products`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rows })
-  });
-  if (!res.ok) return parseApiError(res, 'audit failed');
-  return res.json();
-}

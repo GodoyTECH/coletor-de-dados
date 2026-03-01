@@ -5,7 +5,7 @@ html, body, #root {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100%;
+  height: 100dvh;
   overflow: hidden;
   background: #0f0f0f;
 }
@@ -58,7 +58,7 @@ html, body, #root {
 
 /* Page Layout */
 .chat-page {
-  min-height: 100vh;
+  min-height: 100dvh;
   width: 100vw;
   background: var(--bg);
   color: var(--text);
@@ -73,7 +73,8 @@ html, body, #root {
 .chat-shell {
   width: 100%;
   max-width: 480px;
-  height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
   background: var(--bg-secondary);
   border-radius: 0;
   display: flex;
@@ -91,7 +92,7 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
   background: var(--bg-tertiary);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
@@ -192,6 +193,8 @@ html, body, #root {
   flex-direction: column;
   gap: 12px;
   scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
 }
 
 .chat-log::-webkit-scrollbar {
@@ -376,7 +379,7 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
 }
 
 .image-lightbox-content {
@@ -428,8 +431,7 @@ html, body, #root {
 
 /* Composer */
 .composer {
-  padding: 8px 12px;
-  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  padding: 8px 12px calc(env(safe-area-inset-bottom) + 8px);
   background: var(--bg-tertiary);
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   flex-shrink: 0;
@@ -444,8 +446,7 @@ html, body, #root {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  padding: 8px 12px calc(env(safe-area-inset-bottom) + 8px);
   background: var(--bg-tertiary);
   border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
@@ -453,7 +454,7 @@ html, body, #root {
 /* Mobile fixes */
 @media (max-width: 480px) {
   .chat-shell {
-    height: 100vh;
+    height: 100dvh;
     max-height: none;
     border-radius: 0;
     display: flex;
@@ -462,7 +463,7 @@ html, body, #root {
   
   .chat-header {
     flex-shrink: 0;
-    padding: 12px;
+    padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
   }
   
   .chat-log {
@@ -687,7 +688,7 @@ html, body, #root {
 
 .image-queue-item img {
   width: 100%;
-  height: 100%;
+  height: 100dvh;
   object-fit: cover;
 }
 
@@ -737,8 +738,8 @@ html, body, #root {
   
   .chat-shell {
     max-width: 100%;
-    height: 100vh;
-    max-height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
     border-radius: 0;
   }
   
@@ -806,7 +807,7 @@ html, body, #root {
 
 .chat-bubble img {
   width: 100%;
-  height: 100%;
+  height: 100dvh;
   object-fit: cover;
 }
 
@@ -858,7 +859,7 @@ html, body, #root {
 .chat-container {
   display: flex;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
 }
 
 .chat-container .chat-shell {
@@ -939,4 +940,56 @@ html, body, #root {
   .with-panel .chat-container {
     display: none;
   }
+}
+
+
+.message-content h1,
+.message-content h2,
+.message-content h3 {
+  margin: 8px 0;
+  line-height: 1.3;
+}
+
+.message-content p {
+  margin: 6px 0;
+}
+
+.message-content ul {
+  margin: 8px 0 8px 18px;
+  padding: 0;
+}
+
+.message-content li {
+  margin: 4px 0;
+}
+
+.message-content code {
+  background: rgba(255, 255, 255, 0.12);
+  padding: 1px 4px;
+  border-radius: 6px;
+  font-size: 0.9em;
+}
+
+.markdown-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.markdown-table-wrap table {
+  width: 100%;
+  min-width: 260px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.markdown-table-wrap th,
+.markdown-table-wrap td {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 8px;
+  text-align: left;
+}
+
+.markdown-table-wrap th {
+  background: rgba(139, 92, 246, 0.25);
 }

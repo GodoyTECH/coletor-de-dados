@@ -3,6 +3,7 @@ import { identifyUser, sendChat, uploadFile, sendAudio, submitValidated } from '
 import { getAvatarUrl, getSentimentFromIntent, getSentimentFromStatus } from '../avatarMap.js';
 import { speakText, createSpeechRecognizer, getSpeechSupport } from '../speechUtils.js';
 import PreviewCard from './PreviewCard.jsx';
+import { renderMarkdownToHtml } from '../markdown.js';
 import './ChatWidget.css';
 
 // Constantes
@@ -119,6 +120,8 @@ function MessageBubble({ message, sentiment, onCopy, onAttachmentClick }) {
   const handleCopy = () => {
     if (onCopy) onCopy(message.content);
   };
+
+  const renderedHtml = renderMarkdownToHtml(message.content || '');
   
   return (
     <div className={`row ${message.role}`}>
@@ -127,7 +130,7 @@ function MessageBubble({ message, sentiment, onCopy, onAttachmentClick }) {
         {!isUser && <span className="avatar-name">Madruguinha</span>}
         <div className={`bubble ${message.role} ${message.status || ''}`}>
           {isTranscribed && <span className="transcribed-tag">🎤 Transcrito</span>}
-          <div className="message-content">{message.content}</div>
+          <div className="message-content" dangerouslySetInnerHTML={{ __html: renderedHtml }} />
           {message.summary && (
             <div className="summary-table" role="table" aria-label="Resumo dos registros">
               <div className="summary-row"><span>Total</span><strong>{message.summary.total ?? '-'}</strong></div>
@@ -300,6 +303,8 @@ export default function ChatWidget() {
   }, []);
   
   const logRef = useRef(null);
+  const bottomRef = useRef(null);
+  const isNearBottomRef = useRef(true);
   const fileInputRef = useRef(null);
   const textInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -316,9 +321,17 @@ export default function ChatWidget() {
     }
   }, [identified, name]);
   
+  const handleLogScroll = useCallback(() => {
+    const el = logRef.current;
+    if (!el) return;
+    const threshold = 120;
+    isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+  }, []);
+
   useEffect(() => {
-    if (settings.autoScroll && logRef.current) {
-      logRef.current.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' });
+    if (!settings.autoScroll || !bottomRef.current) return;
+    if (isNearBottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   }, [messages, loading, settings.autoScroll]);
   
@@ -334,8 +347,16 @@ export default function ChatWidget() {
       e.preventDefault();
       setInstallPrompt(e);
     };
+
+    const handleInstalled = () => setInstallPrompt(null);
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleInstalled);
+    };
   }, []);
 
   // Salvar estado do chat (open/minimized)
@@ -756,10 +777,7 @@ export default function ChatWidget() {
 
   // Install PWA
   async function handleInstall() {
-    if (!installPrompt) {
-      append('system', 'ℹ️ Para instalar: abra o menu do navegador (⋮) e toque em "Instalar aplicativo".');
-      return;
-    }
+    if (!installPrompt) return;
 
     installPrompt.prompt();
     const { outcome } = await installPrompt.userChoice;
@@ -848,13 +866,15 @@ export default function ChatWidget() {
             >
               ↗️
             </button>
-            <button 
-              className="btn-icon"
-              onClick={handleInstall}
-              title="Instalar App"
-            >
-              📲
-            </button>
+            {installPrompt && (
+              <button 
+                className="btn-icon"
+                onClick={handleInstall}
+                title="Instalar App"
+              >
+                📲
+              </button>
+            )}
             <button 
               className="btn-icon"
               onClick={toggleChatState}
@@ -887,7 +907,7 @@ export default function ChatWidget() {
         </header>
         
         {/* MENSAGENS */}
-        <main className="chat-log" ref={logRef}>
+        <main className="chat-log" ref={logRef} onScroll={handleLogScroll}>
           {!identified && (
             <div className="welcome-message">
               <Avatar sentiment="happy" size="large" />
@@ -903,6 +923,7 @@ export default function ChatWidget() {
               onAttachmentClick={(url, name) => setExpandedImage({ url, name })}
             />
           ))}
+          <div ref={bottomRef} aria-hidden="true" />
           {loading && (
             <div className="row assistant">
               <Avatar sentiment="thinking" size="small" />
