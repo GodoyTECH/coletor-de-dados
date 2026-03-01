@@ -1267,10 +1267,16 @@ function hideInstallPrompt() {
 }
 
 async function installPWA() {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (isStandalone) {
+        showStatusMessage('✅ O app já está instalado neste dispositivo.', 'success');
+        return;
+    }
+
     if (!deferredPrompt) {
         showStatusMessage(
-            'ℹ️ Use o menu do navegador (⋮) e selecione "Instalar aplicativo".',
-            'info'
+            '❌ O navegador não liberou o prompt de instalação agora. Tente novamente em alguns segundos.',
+            'warning'
         );
         return;
     }

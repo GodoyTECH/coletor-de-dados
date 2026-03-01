@@ -334,8 +334,26 @@ export default function ChatWidget() {
       e.preventDefault();
       setInstallPrompt(e);
     };
+
+    const handleAppInstalled = () => {
+      setInstallPrompt(null);
+      setMessages(prev => {
+        const newMsgs = [...prev, {
+          role: 'system',
+          content: '✅ App instalado com sucesso.',
+          timestamp: Date.now()
+        }];
+        return newMsgs.length > MAX_MESSAGES_IN_MEMORY ? newMsgs.slice(-MAX_MESSAGES_IN_MEMORY) : newMsgs;
+      });
+    };
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
   }, []);
 
   // Salvar estado do chat (open/minimized)
@@ -756,8 +774,15 @@ export default function ChatWidget() {
 
   // Install PWA
   async function handleInstall() {
+    // Já instalado (PWA/standalone)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (isStandalone) {
+      append('system', '✅ O app já está instalado neste dispositivo.');
+      return;
+    }
+
     if (!installPrompt) {
-      append('system', 'ℹ️ Para instalar: abra o menu do navegador (⋮) e toque em "Instalar aplicativo".');
+      append('system', '❌ Este navegador não liberou o prompt de instalação agora. Tente novamente em alguns segundos.');
       return;
     }
 
