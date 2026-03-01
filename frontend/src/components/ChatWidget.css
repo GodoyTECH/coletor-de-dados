@@ -58,7 +58,7 @@ html, body, #root {
 
 /* Page Layout */
 .chat-page {
-  min-height: 100vh;
+  min-height: 100dvh;
   width: 100vw;
   background: var(--bg);
   color: var(--text);
@@ -73,7 +73,7 @@ html, body, #root {
 .chat-shell {
   width: 100%;
   max-width: 480px;
-  height: 100vh;
+  min-height: 100dvh;
   background: var(--bg-secondary);
   border-radius: 0;
   display: flex;
@@ -453,7 +453,7 @@ html, body, #root {
 /* Mobile fixes */
 @media (max-width: 480px) {
   .chat-shell {
-    height: 100vh;
+    min-height: 100dvh;
     max-height: none;
     border-radius: 0;
     display: flex;

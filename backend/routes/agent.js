@@ -7,7 +7,7 @@ import { callAgent } from '../services/callAgent.js';
 import { transcribeAudioPlaceholder } from '../services/audio.js';
 import { resolveProfileByName } from '../services/agentProfiles.js';
 import { extractFieldsFromImageUrl } from '../services/manualExtract.js';
-import { detectIntent } from '../../shared/madruguinhaCore.js';
+import { runMadruguinhaRuntime } from '../services/madruguinhaBridge.js';
 
 const router = express.Router();
 const storagePath = ensureStoragePath();
@@ -134,6 +134,7 @@ function buildAnalysisText(summary, dashboard = {}) {
   ].join('\n');
 }
 
+
 async function runFullAudit() {
   const { rows } = await listAllRegistros(200, 5000);
   const updates = [];
@@ -224,184 +225,14 @@ router.post('/chat', async (req, res) => {
     }
 
     const systemPrompt = profile?.systemPrompt || '';
-    const intent = detectIntent(message);
+    const loopResult = await runMadruguinhaRuntime('agentLoop', {
+      sessionId,
+      message,
+      attachments,
+      systemPrompt
+    });
 
-    if (intent === 'ANALYZE_STATUS') {
-      const { rows } = await listAllRegistros(200, 5000);
-      const summary = analyzeRows(rows);
-      let dashboard = {};
-      try {
-        const d = await callAppScript('getDashboardData', {});
-        dashboard = {
-          total: d?.total ?? 0,
-          ativos: d?.ativos ?? 0,
-          duplicados: d?.duplicados ?? 0
-        };
-      } catch {
-        dashboard = {};
-      }
-
-      return res.json({
-        reply: buildAnalysisText(summary, dashboard),
-        metadata: { source: 'records-analysis', summary, dashboard }
-      });
-    }
-
-    if (intent === 'GENERATE_REPORT') {
-      const { rows } = await listAllRegistros(200, 5000);
-      const summary = analyzeRows(rows);
-      let relatorio = null;
-      try {
-        relatorio = await callAppScript('gerarRelatorio', {});
-      } catch {
-        relatorio = null;
-      }
-
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `relatorio-${stamp}.md`;
-      const reportPath = path.join(storagePath, filename);
-      const reportText = [
-        '# Relatório Executivo - Social Coletor',
-        '',
-        `Assinado por: Eduardo Pereira da Silva`,
-        `Data: ${new Date().toLocaleString('pt-BR')}`,
-        '',
-        buildAnalysisText(summary),
-        '',
-        '## Resumo elaborado',
-        `A base atual contém ${summary.total} registros. Foram identificados ${summary.suspectProduto} casos de produto inconsistente, ${summary.suspectCpf} casos de CPF inconsistente e ${summary.duplicatesByDoc} possíveis duplicidades por documento. Recomenda-se executar auditoria automática antes de novos fechamentos e somente depois confirmar limpeza da base.`
-      ].join('\n');
-
-      fs.writeFileSync(reportPath, reportText, 'utf8');
-      const reportUrl = buildPublicFileUrl(req, filename);
-      const pdfUrl = relatorio?.urlPdf || relatorio?.URL_PDF || relatorio?.data?.URL_PDF || null;
-
-      return res.json({
-        reply: [
-          '📄 Relatório profissional gerado.',
-          pdfUrl ? `• PDF oficial: ${pdfUrl}` : '• PDF oficial: indisponível no momento',
-          `• Relatório técnico (markdown): ${reportUrl}`,
-          '',
-          'Deseja que eu faça backup completo e prepare a limpeza segura da planilha?'
-        ].join('\n'),
-        metadata: { source: 'report-generator', summary, pdfUrl, reportUrl }
-      });
-    }
-
-    if (intent === 'FULL_AUDIT') {
-      const result = await runFullAudit();
-      return res.json({
-        reply: [
-          '🧠 Auditoria completa concluída.',
-          `• Linhas corrigidas: ${result.updates.length}`,
-          '',
-          buildAnalysisText(result.after)
-        ].join('\n'),
-        metadata: { source: 'full-audit', updates: result.updates.length, summary: result.after }
-      });
-    }
-
-    if (intent === 'BACKUP') {
-      const { rows } = await listAllRegistros(500, 10000);
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const jsonName = `backup-registros-${stamp}.json`;
-      const csvName = `backup-registros-${stamp}.csv`;
-      const jsonPath = path.join(storagePath, jsonName);
-      const csvPath = path.join(storagePath, csvName);
-
-      fs.writeFileSync(jsonPath, JSON.stringify(rows, null, 2), 'utf8');
-
-      const cols = ['rowNumber', ...new Set(rows.flatMap((r) => Object.keys(r).filter((k) => k !== 'rowNumber')))];
-      const csvLines = [cols.join(',')];
-      rows.forEach((row) => {
-        csvLines.push(cols.map((c) => `"${String(row[c] ?? '').replace(/"/g, '""')}"`).join(','));
-      });
-      fs.writeFileSync(csvPath, csvLines.join('\n'), 'utf8');
-
-      return res.json({
-        reply: [
-          '🗂️ Backup gerado com sucesso.',
-          `• JSON: ${buildPublicFileUrl(req, jsonName)}`,
-          `• CSV: ${buildPublicFileUrl(req, csvName)}`,
-          '',
-          'Se quiser, posso seguir com limpeza segura após confirmação: CONFIRMO ZERAR.'
-        ].join('\n'),
-        metadata: { source: 'backup', total: rows.length }
-      });
-    }
-
-    if (intent === 'WIPE_CONFIRM') {
-      const { rows } = await listAllRegistros(200, 10000);
-      let removed = 0;
-
-      for (const row of rows) {
-        if (!row?.rowNumber) continue;
-        try {
-          await callAppScript('deleteRegistro', { rowNumber: row.rowNumber });
-          removed += 1;
-        } catch {
-          // segue o loop
-        }
-      }
-
-      return res.json({
-        reply: `🧹 Limpeza concluída. Registros removidos: ${removed}.`,
-        metadata: { source: 'wipe', removed }
-      });
-    }
-
-    if (intent === 'WIPE_REQUEST') {
-      return res.json({
-        reply: '⚠️ Ação destrutiva. Antes vou gerar backup. Se você concordar, responda exatamente: CONFIRMO ZERAR',
-        metadata: { source: 'wipe-guard' }
-      });
-    }
-
-    const firstImage = attachments.find((att) => String(att?.mimeType || '').startsWith('image/') && att?.fileUrl);
-
-    if (firstImage) {
-      try {
-        const extraction = await extractFieldsFromImageUrl(firstImage.fileUrl);
-        const { fields, doubtfulFields } = extraction;
-
-        const reply = [
-          '📄 Extraí os dados no padrão da coleta manual.',
-          '',
-          `• Beneficiário: ${fields.beneficiario || '—'}`,
-          `• CPF: ${fields.cpf || '—'}`,
-          `• Atendente: ${fields.atendente || '—'}`,
-          `• Produto: ${fields.produto || '—'}`,
-          `• Quantidade: ${fields.quantidade || '—'}`,
-          `• Endereço: ${fields.endereco || '—'}`,
-          `• Data: ${fields.data || '—'}`,
-          `• Nº Documento: ${fields.numeroDocumento || '—'}`,
-          '',
-          doubtfulFields.length
-            ? `⚠️ Campos para revisar: ${doubtfulFields.join(', ')}`
-            : '✅ Campos principais extraídos com confiança.'
-        ].join('\n');
-
-        pendingValidations.set(sessionId, {
-          fields,
-          imageUrl: firstImage.fileUrl,
-          createdAt: Date.now()
-        });
-
-        return res.json({
-          reply,
-          metadata: {
-            source: 'manual-ocr-parser',
-            imageUrl: firstImage.fileUrl,
-            fields,
-            doubtfulFields,
-            needsValidation: true,
-            extractedTextPreview: extraction.text?.slice(0, 600) || ''
-          }
-        });
-      } catch (extractError) {
-        // fallback para agente normal se OCR manual falhar
-      }
-    }
+    if (loopResult?.reply) return res.json(loopResult);
 
     const result = await callAgent({ sessionId, message, attachments, systemPrompt });
     return res.json(result);
@@ -626,6 +457,35 @@ router.post('/audio', upload.single('audio'), async (req, res) => {
     });
   } catch (error) {
     return res.status(502).json({ error: 'Falha no pipeline de áudio', detail: error.message });
+  }
+});
+
+router.post('/tools/:tool', async (req, res) => {
+  try {
+    const { tool } = req.params;
+    const input = req.body || {};
+    const allowed = new Set([
+      'processar_imagem',
+      'processar_lote_imagens',
+      'auditar_dashboard',
+      'gerar_relatorio_pdf',
+      'consultar_registros',
+      'editar_registro',
+      'excluir_registro',
+      'listar_duplicados',
+      'resolver_duplicados_documento',
+      'interpretarIntencao',
+      'agentLoop'
+    ]);
+
+    if (!allowed.has(tool)) {
+      return res.status(404).json({ error: `Tool não encontrada: ${tool}` });
+    }
+
+    const result = await runMadruguinhaRuntime(tool, input);
+    return res.json({ ok: true, tool, result });
+  } catch (error) {
+    return res.status(500).json({ error: 'Falha na execução da tool', detail: error.message });
   }
 });
 
