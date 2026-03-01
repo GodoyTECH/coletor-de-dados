@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { identifyUser, sendChat, uploadFile, sendAudio } from '../api.js';
+import { identifyUser, sendChat, uploadFile, sendAudio, submitValidated } from '../api.js';
 import { getAvatarUrl, getSentimentFromIntent, getSentimentFromStatus } from '../avatarMap.js';
 import { speakText, createSpeechRecognizer, getSpeechSupport } from '../speechUtils.js';
 import PreviewCard from './PreviewCard.jsx';
@@ -526,9 +526,24 @@ export default function ChatWidget() {
   
   async function handlePreviewConfirm() {
     if (!previewCard) return;
-    hidePreviewCard();
-    append('user', '✅ Dados confirmados');
-    // Continuar com o fluxo normal
+
+    try {
+      setMessageLoading(true);
+      const result = await submitValidated({
+        sessionId,
+        fields: previewCard.fields,
+        force: false
+      });
+
+      hidePreviewCard();
+      append('user', '✅ Dados confirmados e enviados');
+      append('assistant', 'Registro enviado para a planilha com sucesso.');
+      return result;
+    } catch (err) {
+      append('system', `Validação pendente: ${err.message}`);
+    } finally {
+      setMessageLoading(false);
+    }
   }
   
   async function handlePreviewEdit() {
@@ -722,11 +737,16 @@ export default function ChatWidget() {
 
   // Install PWA
   async function handleInstall() {
-    if (!installPrompt) return;
+    if (!installPrompt) {
+      append('system', 'ℹ️ Para instalar: abra o menu do navegador (⋮) e toque em "Instalar aplicativo".');
+      return;
+    }
+
     installPrompt.prompt();
     const { outcome } = await installPrompt.userChoice;
     if (outcome === 'accepted') {
       setInstallPrompt(null);
+      append('system', '✅ App instalado com sucesso.');
     }
   }
   
@@ -749,28 +769,29 @@ export default function ChatWidget() {
         >
           💬
         </button>
-      ) : chatState === 'minimized' ? (
-        // Bolinha flutuante
-        <button 
-          className="chat-bubble" 
-          onClick={toggleChatState}
-          onPointerDown={handleBubbleDragStart}
-          onPointerMove={handleBubbleDrag}
-          onPointerUp={handleBubbleDragEnd}
-          onPointerLeave={handleBubbleDragEnd}
-          style={bubblePosition.x !== null ? { 
-            position: 'fixed', 
-            right: 'auto', 
-            left: bubblePosition.x - 30, 
-            top: bubblePosition.y - 30 
-          } : {}}
-          aria-label="Abrir chat"
-        >
-          <Avatar sentiment={sentiment} />
-        </button>
       ) : (
         <div className="chat-container">
-          <div className="chat-shell">
+          {chatState === 'minimized' && (
+            <button 
+              className="chat-bubble" 
+              onClick={toggleChatState}
+              onPointerDown={handleBubbleDragStart}
+              onPointerMove={handleBubbleDrag}
+              onPointerUp={handleBubbleDragEnd}
+              onPointerLeave={handleBubbleDragEnd}
+              style={bubblePosition.x !== null ? { 
+                position: 'fixed', 
+                right: 'auto', 
+                left: bubblePosition.x - 30, 
+                top: bubblePosition.y - 30 
+              } : {}}
+              aria-label="Abrir chat"
+            >
+              <Avatar sentiment={sentiment} />
+            </button>
+          )}
+
+          <div className={`chat-shell ${chatState === 'minimized' ? 'is-hidden' : ''}`}>
         {/* HEADER */}
         <header className="chat-header">
           <div className="chat-title">
@@ -808,15 +829,13 @@ export default function ChatWidget() {
             >
               ↗️
             </button>
-            {installPrompt && (
-              <button 
-                className="btn-icon"
-                onClick={handleInstall}
-                title="Instalar App"
-              >
-                📲
-              </button>
-            )}
+            <button 
+              className="btn-icon"
+              onClick={handleInstall}
+              title="Instalar App"
+            >
+              📲
+            </button>
             <button 
               className="btn-icon"
               onClick={toggleChatState}

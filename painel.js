@@ -1,4 +1,5 @@
 const API_ENDPOINT = '/.netlify/functions/sc-api';
+const AUDIT_PRODUCTS_URL = 'https://coletor-de-dados-1.onrender.com/agent/run-full-audit';
 
 const AUTH_REMEMBER_KEY = 'social_coletor_remember';
 const AUTH_SESSION_KEY = 'social_coletor_session';
@@ -579,6 +580,27 @@ function setupTabs() {
   });
 }
 
+async function runProdutoAutoAudit() {
+  try {
+    const response = await fetch(AUDIT_PRODUCTS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!response.ok) return;
+    const data = await response.json();
+    const updated = Number(data?.updated || 0);
+
+    if (updated <= 0) return;
+
+    showStatus(`Auto-auditoria aplicou ${updated} correções`, 'success', 5000);
+    if (appState.currentTab === 'registros') resetRegistros();
+    if (appState.currentTab === 'dashboard') loadDashboard();
+  } catch {
+    // silencioso (rotina automática)
+  }
+}
+
 window.resetRegistros = resetRegistros;
 window.loadMoreRegistros = loadMoreRegistros;
 window.saveRegistros = saveRegistros;
@@ -587,6 +609,7 @@ window.loadDuplicados = loadDuplicados;
 window.resolverDuplicado = resolverDuplicado;
 window.loadRelatorios = loadRelatorios;
 window.gerarRelatorio = gerarRelatorio;
+window.runProdutoAutoAudit = runProdutoAutoAudit;
 
 window.addEventListener('DOMContentLoaded', () => {
   if (!isAuthenticated()) {
@@ -596,4 +619,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   setupTabs();
   showTab('dashboard');
+
+  // Auto-auditoria contínua de produtos suspeitos (a cada 5 min)
+  setTimeout(runProdutoAutoAudit, 4000);
+  setInterval(runProdutoAutoAudit, 5 * 60 * 1000);
 });

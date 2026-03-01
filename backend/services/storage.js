@@ -9,5 +9,7 @@ export function ensureStoragePath() {
 }
 
 export function buildPublicFileUrl(req, filename) {
-  return `${req.protocol}://${req.get('host')}/files/${encodeURIComponent(filename)}`;
+  const forwardedProto = String(req.get('x-forwarded-proto') || '').split(',')[0].trim();
+  const protocol = forwardedProto || req.protocol || 'https';
+  return `${protocol}://${req.get('host')}/files/${encodeURIComponent(filename)}`;
 }
