@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { identifyUser, sendChat, uploadFile, sendAudio } from '../api.js';
+import { identifyUser, sendChat, uploadFile, sendAudio, submitValidated } from '../api.js';
 import { getAvatarUrl, getSentimentFromIntent, getSentimentFromStatus } from '../avatarMap.js';
 import { speakText, createSpeechRecognizer, getSpeechSupport } from '../speechUtils.js';
 import PreviewCard from './PreviewCard.jsx';
@@ -128,6 +128,17 @@ function MessageBubble({ message, sentiment, onCopy, onAttachmentClick }) {
         <div className={`bubble ${message.role} ${message.status || ''}`}>
           {isTranscribed && <span className="transcribed-tag">🎤 Transcrito</span>}
           <div className="message-content">{message.content}</div>
+          {message.summary && (
+            <div className="summary-table" role="table" aria-label="Resumo dos registros">
+              <div className="summary-row"><span>Total</span><strong>{message.summary.total ?? '-'}</strong></div>
+              <div className="summary-row"><span>Produto suspeito</span><strong>{message.summary.suspectProduto ?? '-'}</strong></div>
+              <div className="summary-row"><span>CPF inconsistente</span><strong>{message.summary.suspectCpf ?? '-'}</strong></div>
+              <div className="summary-row"><span>Data inconsistente</span><strong>{message.summary.suspectData ?? '-'}</strong></div>
+              <div className="summary-row"><span>Qtd inconsistente</span><strong>{message.summary.suspectQuantidade ?? '-'}</strong></div>
+              <div className="summary-row"><span>Sem imagem</span><strong>{message.summary.missingImage ?? '-'}</strong></div>
+              <div className="summary-row"><span>Duplicidade doc</span><strong>{message.summary.duplicatesByDoc ?? '-'}</strong></div>
+            </div>
+          )}
           {message.attachments && message.attachments.map((att, i) => (
             <div key={i} className="attachment-preview">
               <img
@@ -453,7 +464,11 @@ export default function ChatWidget() {
         const newSentiment = getSentimentFromIntent(result.reply || '');
         setSentiment(newSentiment);
 
-        append('assistant', result.reply || '(sem resposta)', { status: 'success' });
+        append('assistant', result.reply || '(sem resposta)', {
+          status: 'success',
+          summary: result?.metadata?.summary || null,
+          dashboard: result?.metadata?.dashboard || null
+        });
 
         if (shouldSpeak(result.reply || '') && speechSupported.tts) {
           await handleSpeak(result.reply);
@@ -487,7 +502,11 @@ export default function ChatWidget() {
           const newSentiment = getSentimentFromIntent(result.reply || '');
           setSentiment(newSentiment);
 
-          append('assistant', `📄 Imagem ${i + 1}/${uploadedAttachments.length}:\n${result.reply || '(sem resposta)'}`, { status: 'success' });
+          append('assistant', `📄 Imagem ${i + 1}/${uploadedAttachments.length}:\n${result.reply || '(sem resposta)'}`, {
+            status: 'success',
+            summary: result?.metadata?.summary || null,
+            dashboard: result?.metadata?.dashboard || null
+          });
 
           if (i === 0 && shouldSpeak(result.reply || '') && speechSupported.tts) {
             await handleSpeak(result.reply);
@@ -526,9 +545,24 @@ export default function ChatWidget() {
   
   async function handlePreviewConfirm() {
     if (!previewCard) return;
-    hidePreviewCard();
-    append('user', '✅ Dados confirmados');
-    // Continuar com o fluxo normal
+
+    try {
+      setMessageLoading(true);
+      const result = await submitValidated({
+        sessionId,
+        fields: previewCard.fields,
+        force: false
+      });
+
+      hidePreviewCard();
+      append('user', '✅ Dados confirmados e enviados');
+      append('assistant', 'Registro enviado para a planilha com sucesso.');
+      return result;
+    } catch (err) {
+      append('system', `Validação pendente: ${err.message}`);
+    } finally {
+      setMessageLoading(false);
+    }
   }
   
   async function handlePreviewEdit() {
@@ -722,11 +756,16 @@ export default function ChatWidget() {
 
   // Install PWA
   async function handleInstall() {
-    if (!installPrompt) return;
+    if (!installPrompt) {
+      append('system', 'ℹ️ Para instalar: abra o menu do navegador (⋮) e toque em "Instalar aplicativo".');
+      return;
+    }
+
     installPrompt.prompt();
     const { outcome } = await installPrompt.userChoice;
     if (outcome === 'accepted') {
       setInstallPrompt(null);
+      append('system', '✅ App instalado com sucesso.');
     }
   }
   
@@ -749,28 +788,29 @@ export default function ChatWidget() {
         >
           💬
         </button>
-      ) : chatState === 'minimized' ? (
-        // Bolinha flutuante
-        <button 
-          className="chat-bubble" 
-          onClick={toggleChatState}
-          onPointerDown={handleBubbleDragStart}
-          onPointerMove={handleBubbleDrag}
-          onPointerUp={handleBubbleDragEnd}
-          onPointerLeave={handleBubbleDragEnd}
-          style={bubblePosition.x !== null ? { 
-            position: 'fixed', 
-            right: 'auto', 
-            left: bubblePosition.x - 30, 
-            top: bubblePosition.y - 30 
-          } : {}}
-          aria-label="Abrir chat"
-        >
-          <Avatar sentiment={sentiment} />
-        </button>
       ) : (
         <div className="chat-container">
-          <div className="chat-shell">
+          {chatState === 'minimized' && (
+            <button 
+              className="chat-bubble" 
+              onClick={toggleChatState}
+              onPointerDown={handleBubbleDragStart}
+              onPointerMove={handleBubbleDrag}
+              onPointerUp={handleBubbleDragEnd}
+              onPointerLeave={handleBubbleDragEnd}
+              style={bubblePosition.x !== null ? { 
+                position: 'fixed', 
+                right: 'auto', 
+                left: bubblePosition.x - 30, 
+                top: bubblePosition.y - 30 
+              } : {}}
+              aria-label="Abrir chat"
+            >
+              <Avatar sentiment={sentiment} />
+            </button>
+          )}
+
+          <div className={`chat-shell ${chatState === 'minimized' ? 'is-hidden' : ''}`}>
         {/* HEADER */}
         <header className="chat-header">
           <div className="chat-title">
@@ -808,15 +848,13 @@ export default function ChatWidget() {
             >
               ↗️
             </button>
-            {installPrompt && (
-              <button 
-                className="btn-icon"
-                onClick={handleInstall}
-                title="Instalar App"
-              >
-                📲
-              </button>
-            )}
+            <button 
+              className="btn-icon"
+              onClick={handleInstall}
+              title="Instalar App"
+            >
+              📲
+            </button>
             <button 
               className="btn-icon"
               onClick={toggleChatState}

@@ -1,4 +1,4 @@
-const CACHE = 'madruguinha-chat-v2';
+const CACHE = 'madruguinha-chat-v5-20260301';
 const ASSETS = ['/manifest-chat.webmanifest', '/avatars/madruga_neutro.png'];
 
 self.addEventListener('install', (event) => {

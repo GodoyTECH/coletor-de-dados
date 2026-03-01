@@ -11,6 +11,7 @@ export async function callAgent({ sessionId, message, attachments = [], metadata
   const apiKey = process.env.GATEWAY_TOKEN || process.env.OPENCLAW_API_KEY;
   const agentModel = process.env.GATEWAY_AGENT_MODEL || `agent:${process.env.OPENCLAW_AGENT_ID || 'madruguinha'}`;
   const chatPath = process.env.OPENCLAW_CHAT_PATH || '/v1/chat/completions';
+  const timeoutMs = Number(process.env.GATEWAY_TIMEOUT_MS || 120000);
 
   if (!baseUrl) throw new Error('GATEWAY_URL não configurado');
 
@@ -35,7 +36,7 @@ export async function callAgent({ sessionId, message, attachments = [], metadata
       ]
     };
 
-    const response = await axios.post(url, payload, { timeout: 45000, headers });
+    const response = await axios.post(url, payload, { timeout: timeoutMs, headers });
 
     const reply =
       response.data?.reply ??
