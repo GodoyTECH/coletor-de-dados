@@ -7,6 +7,7 @@ import { callAgent } from '../services/callAgent.js';
 import { transcribeAudioPlaceholder } from '../services/audio.js';
 import { resolveProfileByName } from '../services/agentProfiles.js';
 import { extractFieldsFromImageUrl } from '../services/manualExtract.js';
+import { detectIntent } from '../../shared/madruguinhaCore.js';
 
 const router = express.Router();
 const storagePath = ensureStoragePath();
@@ -123,16 +124,13 @@ function analyzeRows(rows = []) {
   return summary;
 }
 
-function buildAnalysisText(summary) {
+function buildAnalysisText(summary, dashboard = {}) {
   return [
     '📊 Situação atual dos registros',
-    `• Total: ${summary.total}`,
-    `• Produto suspeito: ${summary.suspectProduto}`,
-    `• CPF inconsistente: ${summary.suspectCpf}`,
-    `• Data inconsistente: ${summary.suspectData}`,
-    `• Quantidade inconsistente: ${summary.suspectQuantidade}`,
-    `• Sem imagem: ${summary.missingImage}`,
-    `• Duplicidades (documento): ${summary.duplicatesByDoc}`
+    '',
+    `Dashboard: total=${dashboard.total ?? '-'} | ativos=${dashboard.ativos ?? '-'} | duplicados=${dashboard.duplicados ?? '-'}`,
+    `Qualidade: produto_suspeito=${summary.suspectProduto} | cpf_inconsistente=${summary.suspectCpf} | data_inconsistente=${summary.suspectData}`,
+    `Operacional: qtd_inconsistente=${summary.suspectQuantidade} | sem_imagem=${summary.missingImage} | duplicidade_doc=${summary.duplicatesByDoc}`
   ].join('\n');
 }
 
@@ -226,18 +224,30 @@ router.post('/chat', async (req, res) => {
     }
 
     const systemPrompt = profile?.systemPrompt || '';
-    const normalizedMsg = normalize(message);
+    const intent = detectIntent(message);
 
-    if (/(analisa( os)? registros|analisa( o)? dashboard|status dos registros|situacao atual)/i.test(normalizedMsg)) {
+    if (intent === 'ANALYZE_STATUS') {
       const { rows } = await listAllRegistros(200, 5000);
       const summary = analyzeRows(rows);
+      let dashboard = {};
+      try {
+        const d = await callAppScript('getDashboardData', {});
+        dashboard = {
+          total: d?.total ?? 0,
+          ativos: d?.ativos ?? 0,
+          duplicados: d?.duplicados ?? 0
+        };
+      } catch {
+        dashboard = {};
+      }
+
       return res.json({
-        reply: buildAnalysisText(summary),
-        metadata: { source: 'records-analysis', summary }
+        reply: buildAnalysisText(summary, dashboard),
+        metadata: { source: 'records-analysis', summary, dashboard }
       });
     }
 
-    if (/(gerar relatorio|criar relatorio|relatorio profissional)/i.test(normalizedMsg)) {
+    if (intent === 'GENERATE_REPORT') {
       const { rows } = await listAllRegistros(200, 5000);
       const summary = analyzeRows(rows);
       let relatorio = null;
@@ -278,7 +288,7 @@ router.post('/chat', async (req, res) => {
       });
     }
 
-    if (/(analisa tudo|auditoria completa|corrigir planilha inteira)/i.test(normalizedMsg)) {
+    if (intent === 'FULL_AUDIT') {
       const result = await runFullAudit();
       return res.json({
         reply: [
@@ -291,7 +301,7 @@ router.post('/chat', async (req, res) => {
       });
     }
 
-    if (/(backup registros|gerar backup|backup completo)/i.test(normalizedMsg)) {
+    if (intent === 'BACKUP') {
       const { rows } = await listAllRegistros(500, 10000);
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
       const jsonName = `backup-registros-${stamp}.json`;
@@ -320,7 +330,7 @@ router.post('/chat', async (req, res) => {
       });
     }
 
-    if (/^confirmo zerar$/i.test(String(message || '').trim())) {
+    if (intent === 'WIPE_CONFIRM') {
       const { rows } = await listAllRegistros(200, 10000);
       let removed = 0;
 
@@ -340,7 +350,7 @@ router.post('/chat', async (req, res) => {
       });
     }
 
-    if (/(zerar planilha|limpar registros)/i.test(normalizedMsg)) {
+    if (intent === 'WIPE_REQUEST') {
       return res.json({
         reply: '⚠️ Ação destrutiva. Antes vou gerar backup. Se você concordar, responda exatamente: CONFIRMO ZERAR',
         metadata: { source: 'wipe-guard' }

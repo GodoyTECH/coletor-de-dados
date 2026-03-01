@@ -342,6 +342,26 @@ html, body, #root {
   margin-top: 8px;
 }
 
+.summary-table {
+  margin-top: 10px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.03);
+}
+
+.summary-row:nth-child(even) {
+  background: rgba(255,255,255,0.07);
+}
+
 .attachment-preview img {
   max-width: 200px;
   border-radius: var(--border-radius-sm);

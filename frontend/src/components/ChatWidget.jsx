@@ -128,6 +128,17 @@ function MessageBubble({ message, sentiment, onCopy, onAttachmentClick }) {
         <div className={`bubble ${message.role} ${message.status || ''}`}>
           {isTranscribed && <span className="transcribed-tag">🎤 Transcrito</span>}
           <div className="message-content">{message.content}</div>
+          {message.summary && (
+            <div className="summary-table" role="table" aria-label="Resumo dos registros">
+              <div className="summary-row"><span>Total</span><strong>{message.summary.total ?? '-'}</strong></div>
+              <div className="summary-row"><span>Produto suspeito</span><strong>{message.summary.suspectProduto ?? '-'}</strong></div>
+              <div className="summary-row"><span>CPF inconsistente</span><strong>{message.summary.suspectCpf ?? '-'}</strong></div>
+              <div className="summary-row"><span>Data inconsistente</span><strong>{message.summary.suspectData ?? '-'}</strong></div>
+              <div className="summary-row"><span>Qtd inconsistente</span><strong>{message.summary.suspectQuantidade ?? '-'}</strong></div>
+              <div className="summary-row"><span>Sem imagem</span><strong>{message.summary.missingImage ?? '-'}</strong></div>
+              <div className="summary-row"><span>Duplicidade doc</span><strong>{message.summary.duplicatesByDoc ?? '-'}</strong></div>
+            </div>
+          )}
           {message.attachments && message.attachments.map((att, i) => (
             <div key={i} className="attachment-preview">
               <img
@@ -453,7 +464,11 @@ export default function ChatWidget() {
         const newSentiment = getSentimentFromIntent(result.reply || '');
         setSentiment(newSentiment);
 
-        append('assistant', result.reply || '(sem resposta)', { status: 'success' });
+        append('assistant', result.reply || '(sem resposta)', {
+          status: 'success',
+          summary: result?.metadata?.summary || null,
+          dashboard: result?.metadata?.dashboard || null
+        });
 
         if (shouldSpeak(result.reply || '') && speechSupported.tts) {
           await handleSpeak(result.reply);
@@ -487,7 +502,11 @@ export default function ChatWidget() {
           const newSentiment = getSentimentFromIntent(result.reply || '');
           setSentiment(newSentiment);
 
-          append('assistant', `📄 Imagem ${i + 1}/${uploadedAttachments.length}:\n${result.reply || '(sem resposta)'}`, { status: 'success' });
+          append('assistant', `📄 Imagem ${i + 1}/${uploadedAttachments.length}:\n${result.reply || '(sem resposta)'}`, {
+            status: 'success',
+            summary: result?.metadata?.summary || null,
+            dashboard: result?.metadata?.dashboard || null
+          });
 
           if (i === 0 && shouldSpeak(result.reply || '') && speechSupported.tts) {
             await handleSpeak(result.reply);
