@@ -41,8 +41,8 @@ export async function callAgent({
   metadata = {},
   systemPrompt = ""
 }) {
-  const baseUrl = process.env.GATEWAY_URL || process.env.OPENCLAW_BASE_URL;
-  const apiKey = process.env.GATEWAY_TOKEN || process.env.OPENCLAW_API_KEY;
+  const baseUrl = process.env.GATEWAY_URL;
+  const apiKey = process.env.GATEWAY_TOKEN;
   const agentModel =
     process.env.GATEWAY_AGENT_MODEL || `agent:${process.env.OPENCLAW_AGENT_ID || "madruguinha"}`;
   const chatPath = process.env.OPENCLAW_CHAT_PATH || "/v1/chat/completions";
@@ -52,12 +52,18 @@ export async function callAgent({
   const maxRetries = Number(process.env.GATEWAY_RETRIES || 3);
 
   if (!baseUrl) throw new Error("GATEWAY_URL não configurado");
+  if (!apiKey) throw new Error("GATEWAY_TOKEN não configurado");
 
   const url = `${baseUrl.replace(/\/$/, "")}${chatPath}`;
 
   const headers = {
     "Content-Type": "application/json",
-    ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
+    ...(apiKey
+      ? {
+          Authorization: `Bearer ${apiKey}`,
+          "X-OpenClaw-Gateway-Token": apiKey
+        }
+      : {})
   };
 
   const payload = {
@@ -79,13 +85,27 @@ export async function callAgent({
   let lastErr;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const start = Date.now();
     try {
+      console.debug("[gateway:request]", {
+        url,
+        attempt,
+        timeoutMs
+      });
+
       const response = await axios.post(url, payload, {
         timeout: timeoutMs,
         headers,
         httpsAgent,
         // força IPv4 (opcional, mas costuma estabilizar)
         family: Number(process.env.GATEWAY_IP_FAMILY || 4)
+      });
+
+      console.debug("[gateway:response]", {
+        url,
+        attempt,
+        status: response.status,
+        timingMs: Date.now() - start
       });
 
       const reply =
@@ -100,6 +120,15 @@ export async function callAgent({
       };
     } catch (err) {
       lastErr = err;
+
+      console.debug("[gateway:error]", {
+        url,
+        attempt,
+        status: err.response?.status,
+        code: err.code,
+        timingMs: Date.now() - start,
+        message: err.message
+      });
 
       const status = err.response?.status;
       // Se respondeu HTTP 4xx (ex: 401/403), não adianta retry
