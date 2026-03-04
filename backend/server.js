@@ -27,8 +27,8 @@ app.use(express.json({ limit: '10mb' }));
 
 // Health check com teste real do Gateway
 app.get('/health', async (_req, res) => {
-  const gatewayUrl = process.env.GATEWAY_URL || process.env.OPENCLAW_BASE_URL;
-  const gatewayToken = process.env.GATEWAY_TOKEN || process.env.OPENCLAW_API_KEY;
+  const gatewayUrl = process.env.GATEWAY_URL;
+  const gatewayToken = process.env.GATEWAY_TOKEN;
   const agentModel = process.env.GATEWAY_AGENT_MODEL || process.env.OPENCLAW_AGENT_ID || 'main';
 
   const health = {
@@ -40,8 +40,14 @@ app.get('/health', async (_req, res) => {
   if (gatewayUrl && gatewayToken) {
     const start = Date.now();
     try {
+      const gatewayHealthUrl = `${gatewayUrl}/v1/chat/completions`;
+      console.debug('[gateway:health:request]', {
+        url: gatewayHealthUrl,
+        timeoutMs: 10000
+      });
+
       const response = await axios.post(
-        `${gatewayUrl}/v1/chat/completions`,
+        gatewayHealthUrl,
         {
           model: agentModel,
           messages: [{ role: 'user', content: 'ping' }]
@@ -49,11 +55,17 @@ app.get('/health', async (_req, res) => {
         {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${gatewayToken}`
+            'Authorization': `Bearer ${gatewayToken}`,
+            'X-OpenClaw-Gateway-Token': gatewayToken
           },
           timeout: 10000
         }
       );
+      console.debug('[gateway:health:response]', {
+        url: gatewayHealthUrl,
+        status: response.status,
+        timingMs: Date.now() - start
+      });
       health.gateway = {
         reachable: true,
         latencyMs: Date.now() - start,
@@ -61,6 +73,13 @@ app.get('/health', async (_req, res) => {
         responsePreview: response.data?.choices?.[0]?.message?.content?.substring(0, 50) || ''
       };
     } catch (err) {
+      console.debug('[gateway:health:error]', {
+        url: `${gatewayUrl}/v1/chat/completions`,
+        status: err.response?.status,
+        code: err.code,
+        timingMs: Date.now() - start,
+        message: err.message
+      });
       health.gateway = {
         reachable: false,
         latencyMs: Date.now() - start,
